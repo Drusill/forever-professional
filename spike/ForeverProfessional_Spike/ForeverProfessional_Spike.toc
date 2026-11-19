@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: ForeverProfessional |cff8080ffSpike|r
+## Notes: Throwaway API probe for the forever-professional addon. Type /fpspike.
+## Author: forever-professional
+## Version: 0.1.0
+## SavedVariables: ForeverProfessionalSpikeDB
+## OptionalDeps: QuestieDB
+## IconTexture: Interface\Icons\INV_Misc_Book_11
+
+Core.lua
+Samples.lua
+Tests.lua
