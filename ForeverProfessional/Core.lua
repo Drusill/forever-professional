@@ -45,6 +45,8 @@ local DEFAULTS = {
     collapsed = {},   -- [categoryID or "other"] = true
     chars = {},       -- ["Realm-Name"] = character record (Characters.lua)
     filter = "all",
+    minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
+    minimapHidden = false,
 }
 
 function ns.InitDB()

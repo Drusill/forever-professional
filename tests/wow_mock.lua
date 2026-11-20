@@ -177,8 +177,11 @@ function Widget:SetFocus() self.focus = true end
 function Widget:HasFocus() return self.focus end
 function Widget:GetFrameLevel() return self.level or 1 end
 function Widget:SetFrameLevel(l) self.level = l end
-function Widget:GetEffectiveScale() return 1 end
-function Widget:GetCenter() return 500, 400 end
+function Widget:GetEffectiveScale() return self.effectiveScale or 1 end
+function Widget:GetCenter()
+    if self.center then return self.center[1], self.center[2] end
+    return 500, 400
+end
 function Widget:GetLeft() return 100 end
 function Widget:GetTop() return 700 end
 function Widget:SetBackdrop(b) self.backdrop = b end
@@ -226,6 +229,23 @@ function GameTooltip:SetSpellByID(id) self.spell = id end
 function GameTooltip:SetHyperlink(l) self.link = l end
 function GameTooltip:AddLine(t) self.lines[#self.lines + 1] = t end
 function GameTooltip:SetText(t) self.lines = { t } end
+-- Minimap: 198x198 like Forever's round minimap. GetMinimapShape is absent unless a test defines it.
+Minimap = newWidget("Frame", "Minimap", UIParent)
+Minimap.width, Minimap.height = 198, 198
+Minimap.center = { 1700, 900 }
+mock.cursor = { 0, 0 }       -- raw cursor position (screen pixels, before UIParent's scale)
+function GetCursorPosition() return mock.cursor[1], mock.cursor[2] end
+
+-- Drag frame with the left button and release it with the cursor at x, y.
+function drag(frame, x, y)
+    if frame.scripts.OnDragStart then frame.scripts.OnDragStart(frame, "LeftButton") end
+    mock.cursor = { x, y }
+    if frame.scripts.OnUpdate then frame.scripts.OnUpdate(frame, 0.016) end
+    if frame.scripts.OnDragStop then frame.scripts.OnDragStop(frame) end
+end
+function enter(frame) if frame.scripts.OnEnter then frame.scripts.OnEnter(frame, false) end end
+function leave(frame) if frame.scripts.OnLeave then frame.scripts.OnLeave(frame, false) end end
+
 for _, n in ipairs({ "GameFontNormal", "GameFontNormalLarge", "GameFontNormalSmall", "GameFontHighlight",
     "GameFontHighlightSmall", "GameFontHighlightLarge", "GameFontDisable", "GameFontNormalHuge", "QuestTitleFont",
     "Fancy22Font", "ChatFontNormal", "GameFontRed", "GameFontGreen" }) do
