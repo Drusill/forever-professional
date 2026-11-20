@@ -79,6 +79,11 @@ class Addon:
         self.g.SlashCmdList.FOREVERPROFESSIONAL(msg)
         self.run("flush()")
 
+    @staticmethod
+    def call(obj, method, *args):
+        """obj:method(...) from Python."""
+        return obj[method](obj, *args)
+
     def printed(self):
         p = self.mock.printed
         return [p[i] for i in range(1, len(p) + 1)]

@@ -88,6 +88,38 @@ function M.Money(copper)
     return ("%dg %ds %dc"):format(g, s, c)
 end
 
+-- Icons, read live (works for uncached items too).
+function M.ItemIcon(itemID)
+    if not itemID then return nil end
+    if C_Item and C_Item.GetItemIconByID then
+        local icon = C_Item.GetItemIconByID(itemID)
+        if icon then return icon end
+    end
+    if C_Item and C_Item.GetItemInfoInstant then
+        local icon = select(5, C_Item.GetItemInfoInstant(itemID))
+        if icon then return icon end
+    end
+    return nil
+end
+
+function M.SpellIcon(spellID)
+    if C_Spell and C_Spell.GetSpellTexture then
+        local icon = C_Spell.GetSpellTexture(spellID)
+        if icon then return icon end
+    end
+    if C_Spell and C_Spell.GetSpellInfo then
+        local info = C_Spell.GetSpellInfo(spellID)
+        if info then return info.iconID end
+    end
+    return nil
+end
+
+M.QUESTION_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+function M.RecipeIcon(spellID, rec)
+    return (rec and M.ItemIcon(rec.creates)) or M.SpellIcon(spellID) or M.QUESTION_ICON
+end
+
 -- Category tree -------------------------------------------------------------------------
 -- node = { id, name, order, children = {node...}, recipes = {spellID...} }
 
@@ -203,7 +235,7 @@ end
 
 M.COLORS = {
     red = "ff2020", orange = "ff8040", yellow = "ffff00", green = "40c040", grey = "808080",
-    neutral = "ffd200",
+    neutral = "ffffff",
 }
 
 -- Colour of a recipe for the given skill; "neutral" when the skill is unknown.
