@@ -40,12 +40,14 @@ local function CursorAngle()
     return math.deg(math.atan2(cy / scale - my, cx / scale - mx)) % 360
 end
 
-function MB.ShowTooltip(owner, withDrag)
+-- isButton: the minimap button (hide hint, and the drag hint while it sits on the minimap)
+-- rather than the compartment entry.
+function MB.ShowTooltip(owner, isButton)
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
     GameTooltip:SetText(L.TITLE, 1, 0.82, 0)
     GameTooltip:AddLine(L.MINIMAP_CLICK, 1, 1, 1)
-    if withDrag then
-        GameTooltip:AddLine(L.MINIMAP_DRAG, 1, 1, 1)
+    if isButton then
+        if owner:GetParent() == Minimap then GameTooltip:AddLine(L.MINIMAP_DRAG, 1, 1, 1) end
         GameTooltip:AddLine(L.MINIMAP_HIDE_HINT, 0.7, 0.7, 0.7)
     end
     GameTooltip:Show()

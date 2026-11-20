@@ -110,6 +110,15 @@ class ButtonTest(unittest.TestCase):
         self.assertIn(L.MINIMAP_CLICK, lines)
         self.assertIn(L.MINIMAP_DRAG, lines)
 
+    def test_tooltip_in_a_button_bin_drops_the_drag_hint(self):
+        self.a.run('ForeverProfessionalMinimapButton:SetParent(CreateFrame("Frame", "ButtonBin", UIParent))')
+        self.a.g.enter(self.btn)
+        lines = lua_list(self.a.g.GameTooltip.lines)
+        L = self.a.ns.L
+        self.assertIn(L.MINIMAP_CLICK, lines)
+        self.assertNotIn(L.MINIMAP_DRAG, lines)
+        self.assertIn(L.MINIMAP_HIDE_HINT, lines)
+
     def test_tooltip_hides_on_leave(self):
         self.a.g.enter(self.btn)
         self.a.g.leave(self.btn)
