@@ -65,5 +65,47 @@ class LoadTest(unittest.TestCase):
         self.assertIsNone(a.ns.FindProfession("zzz"))
 
 
+LEARNED_SETUP = "mock.learned = { [2329] = true, [3170] = true, [2538] = true }"  # 2 Alchemy + 1 Cooking
+
+
+class CharacterCacheTest(unittest.TestCase):
+    def setUp(self):
+        self.a = Addon(setup=LEARNED_SETUP)
+        self.a.login()
+
+    def char(self):
+        return self.a.g.ForeverProfessionalDB.chars["Realm-Tester"]
+
+    def test_record_on_login(self):
+        c = self.char()
+        self.assertEqual(c.name, "Tester")
+        self.assertEqual(c["class"], "MAGE")
+        self.assertEqual(c.faction, "Horde")
+        self.assertEqual(c.professions[171].skill, 120)
+        self.assertIsNone(c.professions[185])
+
+    def test_learned_read_from_spellbook(self):
+        c = self.char()
+        self.assertEqual(sorted(c.learned.keys()), [2329, 2538, 3170])
+        self.assertTrue(self.a.ns.IsLearned(2329))
+        self.assertFalse(self.a.ns.IsLearned(7183))
+
+    def test_new_recipe_learned(self):
+        self.a.run('fire("NEW_RECIPE_LEARNED", 7183)')
+        self.assertTrue(self.char().learned[7183])
+
+    def test_skill_lines_changed_rescans(self):
+        self.a.run('mock.learned[7183] = true; mock.professions[1].skill = 125; fire("SKILL_LINES_CHANGED"); fire("SKILL_LINES_CHANGED"); flush()')
+        self.assertTrue(self.char().learned[7183])
+        self.assertEqual(self.char().professions[171].skill, 125)
+
+    def test_other_characters_kept(self):
+        a = Addon(setup=LEARNED_SETUP + '; ForeverProfessionalDB = { chars = { ["Realm-Alt"] = { name = "Alt", learned = { [7183] = true }, professions = {} } } }')
+        a.login()
+        self.assertTrue(a.ns.IsLearned(7183, "Realm-Alt"))
+        self.assertFalse(a.ns.IsLearned(7183))
+        self.assertTrue(a.ns.IsLearned(2329))
+
+
 if __name__ == "__main__":
     unittest.main()

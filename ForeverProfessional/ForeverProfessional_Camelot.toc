@@ -10,3 +10,4 @@ Data\Data.xml [AllowLoadGameType camelot][ExcludeLoadGameType classic]
 
 Locale.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
 Core.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Characters.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
