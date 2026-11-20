@@ -1,10 +1,108 @@
 """Minimap button, /fp minimap and the addon compartment entry."""
+import math
 import sys
 import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon  # noqa: E402
+from harness import Addon, lua_list, toc_metadata  # noqa: E402
+
+RING = 198 / 2 + 5          # the mock minimap is 198 wide; the button sits 5 outside its edge
+CENTER = (1700, 900)        # the mock minimap's centre
+
+
+def logged_in(setup=None):
+    a = Addon(setup=setup)
+    a.login()
+    return a
+
+
+def ring_point(angle):
+    return math.cos(math.radians(angle)) * RING, math.sin(math.radians(angle)) * RING
+
+
+class ButtonTest(unittest.TestCase):
+    def setUp(self):
+        self.a = logged_in()
+        self.btn = self.a.g.ForeverProfessionalMinimapButton
+
+    def offset(self, btn=None):
+        point, rel, rel_point, x, y = Addon.call(btn or self.btn, "GetPoint")
+        self.assertEqual((point, rel_point), ("CENTER", "CENTER"))
+        self.assertEqual(rel.name, "Minimap")
+        return x, y
+
+    def assertOffset(self, actual, expected):
+        self.assertAlmostEqual(actual[0], expected[0], places=3)
+        self.assertAlmostEqual(actual[1], expected[1], places=3)
+
+    def window_shown(self):
+        f = self.a.g.ForeverProfessionalFrame
+        return bool(f and f.shown)
+
+    def test_created_on_login_as_minimap_child(self):
+        self.assertIsNotNone(self.btn)
+        self.assertTrue(self.a.run("return ForeverProfessionalMinimapButton:GetParent() == Minimap"))
+        self.assertTrue(self.btn.shown)
+
+    def test_icon_is_the_toc_icon(self):
+        icon = toc_metadata()["IconTexture"][0]
+        textures = [r.texture for r in lua_list(self.btn.regions)]
+        self.assertIn(icon, textures)
+
+    def test_left_click_toggles_window(self):
+        self.a.call(self.btn, "Click", "LeftButton")
+        self.assertTrue(self.window_shown())
+        self.a.call(self.btn, "Click", "LeftButton")
+        self.assertFalse(self.window_shown())
+
+    def test_right_click_does_nothing(self):
+        self.a.call(self.btn, "Click", "RightButton")
+        self.assertFalse(self.window_shown())
+
+    def test_default_position_is_bottom_left_on_the_ring(self):
+        self.assertOffset(self.offset(), ring_point(225))
+
+    def test_drag_saves_angle_and_moves_button(self):
+        self.a.g.drag(self.btn, CENTER[0] + 50, CENTER[1])
+        self.assertAlmostEqual(self.a.g.ForeverProfessionalDB.minimapAngle % 360, 0, places=3)
+        self.assertOffset(self.offset(), ring_point(0))
+
+    def test_drag_converts_cursor_with_the_minimap_scale(self):
+        # Edit Mode can scale the minimap cluster; the cursor comes in unscaled pixels.
+        self.a.g.Minimap.effectiveScale = 2
+        self.a.g.drag(self.btn, CENTER[0] * 2, (CENTER[1] + 50) * 2)
+        self.assertAlmostEqual(self.a.g.ForeverProfessionalDB.minimapAngle, 90, places=3)
+
+    def test_drag_hides_tooltip(self):
+        self.a.g.enter(self.btn)
+        self.a.g.drag(self.btn, CENTER[0], CENTER[1] - 50)
+        self.assertFalse(self.a.g.GameTooltip.shown)
+
+    def test_saved_angle_is_restored(self):
+        a = logged_in("ForeverProfessionalDB = { minimapAngle = 90 }")
+        self.assertOffset(self.offset(a.g.ForeverProfessionalMinimapButton), ring_point(90))
+
+    def test_square_minimap_puts_45_degrees_on_the_corner(self):
+        a = logged_in('ForeverProfessionalDB = { minimapAngle = 45 }\n'
+                      'function GetMinimapShape() return "SQUARE" end')
+        self.assertOffset(self.offset(a.g.ForeverProfessionalMinimapButton), (RING, RING))
+
+    def test_tooltip_shows_name_and_actions(self):
+        self.a.g.enter(self.btn)
+        tip = self.a.g.GameTooltip
+        L = self.a.ns.L
+        self.assertTrue(tip.shown)
+        self.assertTrue(self.a.run("return GameTooltip.owner == ForeverProfessionalMinimapButton"))
+        lines = lua_list(tip.lines)
+        self.assertEqual(lines[0], "ForeverProfessional")
+        self.assertIn(L.MINIMAP_CLICK, lines)
+        self.assertIn(L.MINIMAP_DRAG, lines)
+
+    def test_tooltip_hides_on_leave(self):
+        self.a.g.enter(self.btn)
+        self.a.g.leave(self.btn)
+        self.assertFalse(self.a.g.GameTooltip.shown)
 
 
 class SavedDefaultsTest(unittest.TestCase):

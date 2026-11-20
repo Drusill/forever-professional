@@ -60,6 +60,9 @@ L.ALLIANCE = "Alliance"
 L.HORDE = "Horde"
 L.INSTANCE = "dungeon"
 
+L.MINIMAP_CLICK = "Click to open or close"
+L.MINIMAP_DRAG = "Drag to move"
+
 L.WAYPOINT = "Waypoint"
 L.WAYPOINT_SET = "Waypoint set: %s (%s %.1f, %.1f)."
 L.WAYPOINT_FAILED = "Can't set a waypoint on that map."
