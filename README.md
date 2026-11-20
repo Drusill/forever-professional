@@ -25,7 +25,7 @@ Restart the client fully (a new TOC isn't picked up by `/reload`) and enable **F
 ## Use
 
 - `/fp` toggles the window; `/fp <profession>` (e.g. `/fp tailor`) opens a profession.
-- Or click the book on the minimap (drag it around the edge to move it; `/fp minimap` hides or shows it), or the **ForeverProfessional** entry in the addon list button by the minimap.
+- Or click the professions icon (crossed hammer and pick) on the minimap (drag it around the edge to move it; `/fp minimap` hides or shows it), or the **ForeverProfessional** entry in the addon list button by the minimap.
 - Left: one tab per profession. Middle: recipes by category (click a header to collapse it), with learned ✓/✗ and the skill range coloured against your skill. Right: what the recipe makes, its reagents, and where to get it, with **Waypoint** buttons for NPCs and objects with known coordinates.
 - Filter by All / Learned / Missing, or search by name.
 

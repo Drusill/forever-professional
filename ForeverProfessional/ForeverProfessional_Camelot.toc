@@ -3,7 +3,7 @@
 ## Notes: Browse every profession recipe, see which ones you know and where to get the rest. Type /fp.
 ## Author: forever-professional
 ## Version: 0.1.0
-## IconTexture: Interface\Icons\INV_Misc_Book_11
+## IconTexture: Interface\Icons\INV_SideTab_Professions_c60
 ## AddonCompartmentFunc: ForeverProfessional_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: ForeverProfessional_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: ForeverProfessional_OnAddonCompartmentLeave

@@ -7,7 +7,8 @@ local L = ns.L
 local MB = {}
 ns.MinimapButton = MB
 
-local ICON = "Interface\\Icons\\INV_Misc_Book_11"   -- keep in sync with the TOC's IconTexture
+-- The professions window's own icon (its portrait and first side tab). Keep in sync with the TOC's IconTexture.
+local ICON = "Interface\\Icons\\INV_SideTab_Professions_c60"
 local RING = 5   -- distance outside the minimap edge, the same ring LibDBIcon buttons use
 
 -- Offset from the minimap centre for an angle in degrees (0 = right, 90 = top).
