@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: ForeverProfessional
+## Notes: Browse every profession recipe, see which ones you know and where to get the rest. Type /fp.
+## Author: forever-professional
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Book_11
+## SavedVariables: ForeverProfessionalDB [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+
+Data\Data.xml [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+
+Locale.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Core.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
