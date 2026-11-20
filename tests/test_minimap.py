@@ -105,6 +105,42 @@ class ButtonTest(unittest.TestCase):
         self.assertFalse(self.a.g.GameTooltip.shown)
 
 
+class SlashMinimapTest(unittest.TestCase):
+    def setUp(self):
+        self.a = logged_in()
+        self.btn = self.a.g.ForeverProfessionalMinimapButton
+        self.L = self.a.ns.L
+
+    def test_hides_button_and_saves_flag(self):
+        self.a.slash("minimap")
+        self.assertFalse(self.btn.shown)
+        self.assertIs(self.a.g.ForeverProfessionalDB.minimapHidden, True)
+        self.assertIn(self.L.MINIMAP_HIDDEN, self.a.printed()[-1])
+
+    def test_second_call_shows_button_again(self):
+        self.a.slash("minimap")
+        self.a.slash("minimap")
+        self.assertTrue(self.btn.shown)
+        self.assertIs(self.a.g.ForeverProfessionalDB.minimapHidden, False)
+        self.assertIn(self.L.MINIMAP_SHOWN, self.a.printed()[-1])
+
+    def test_ignores_case(self):
+        self.a.slash("Minimap")
+        self.assertFalse(self.btn.shown)
+
+    def test_hidden_flag_is_restored_on_login(self):
+        a = logged_in("ForeverProfessionalDB = { minimapHidden = true }")
+        self.assertFalse(a.g.ForeverProfessionalMinimapButton.shown)
+
+    def test_help_mentions_it(self):
+        self.a.slash("help")
+        self.assertIn("/fp minimap", self.a.printed()[-1])
+
+    def test_tooltip_says_how_to_hide_the_button(self):
+        self.a.g.enter(self.btn)
+        self.assertIn(self.L.MINIMAP_HIDE_HINT, lua_list(self.a.g.GameTooltip.lines))
+
+
 class SavedDefaultsTest(unittest.TestCase):
     def test_existing_save_gets_minimap_defaults(self):
         a = Addon(setup='ForeverProfessionalDB = { version = 1, filter = "learned" }')

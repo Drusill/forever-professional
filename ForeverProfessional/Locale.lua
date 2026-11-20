@@ -7,7 +7,8 @@ ns.L = L
 
 L.TITLE = "ForeverProfessional"
 L.LOADED = "loaded. Type |cffffd200/fp|r to open."
-L.HELP = "|cffffd200/fp|r toggles the window, |cffffd200/fp <profession>|r opens a profession."
+L.HELP = "|cffffd200/fp|r toggles the window, |cffffd200/fp <profession>|r opens a profession, "
+    .. "|cffffd200/fp minimap|r shows or hides the minimap button."
 L.UNKNOWN_PROFESSION = "No profession called \"%s\"."
 
 L.FILTER_ALL = "All"
@@ -62,6 +63,9 @@ L.INSTANCE = "dungeon"
 
 L.MINIMAP_CLICK = "Click to open or close"
 L.MINIMAP_DRAG = "Drag to move"
+L.MINIMAP_HIDE_HINT = "/fp minimap hides this button"
+L.MINIMAP_HIDDEN = "Minimap button hidden. Type |cffffd200/fp minimap|r to show it again."
+L.MINIMAP_SHOWN = "Minimap button shown."
 
 L.WAYPOINT = "Waypoint"
 L.WAYPOINT_SET = "Waypoint set: %s (%s %.1f, %.1f)."

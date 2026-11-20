@@ -132,6 +132,10 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
         ns.Print(L.HELP)
         return
     end
+    if msg:lower() == "minimap" then
+        if ns.MinimapButton then ns.MinimapButton.ToggleHidden() end
+        return
+    end
     if not ns.UI then return end
     if msg == "" then
         ns.UI.Toggle()

@@ -44,8 +44,23 @@ function MB.ShowTooltip(owner, withDrag)
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
     GameTooltip:SetText(L.TITLE, 1, 0.82, 0)
     GameTooltip:AddLine(L.MINIMAP_CLICK, 1, 1, 1)
-    if withDrag then GameTooltip:AddLine(L.MINIMAP_DRAG, 1, 1, 1) end
+    if withDrag then
+        GameTooltip:AddLine(L.MINIMAP_DRAG, 1, 1, 1)
+        GameTooltip:AddLine(L.MINIMAP_HIDE_HINT, 0.7, 0.7, 0.7)
+    end
     GameTooltip:Show()
+end
+
+function MB.SetHidden(hidden)
+    ns.db.minimapHidden = hidden and true or false
+    if MB.button then MB.button:SetShown(not hidden) end
+end
+
+-- /fp minimap
+function MB.ToggleHidden()
+    local hidden = not ns.db.minimapHidden
+    MB.SetHidden(hidden)
+    ns.Print(hidden and L.MINIMAP_HIDDEN or L.MINIMAP_SHOWN)
 end
 
 function MB.Create()
@@ -91,6 +106,7 @@ function MB.Create()
     b:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
 
     MB.UpdatePosition()
+    b:SetShown(not ns.db.minimapHidden)
     return b
 end
 
