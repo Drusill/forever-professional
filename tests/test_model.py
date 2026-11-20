@@ -7,6 +7,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from harness import Addon, lua_list  # noqa: E402
 
 LEARNED = "mock.learned = { [2329] = true, [3170] = true, [7183] = true }"
+GOLD = r"|TInterface\MoneyFrame\UI-GoldIcon:0:0:2:0|t"
+SILVER = r"|TInterface\MoneyFrame\UI-SilverIcon:0:0:2:0|t"
+COPPER = r"|TInterface\MoneyFrame\UI-CopperIcon:0:0:2:0|t"
 
 
 class ModelTest(unittest.TestCase):
@@ -126,7 +129,15 @@ class ModelTest(unittest.TestCase):
         return [l.text for l in self.lines(line, spell) if l.text]
 
     def test_sources_trainer(self):
-        self.assertIn("Trainer: 50c", self.texts(171, 2329))
+        self.assertIn("Trainer: 50" + COPPER, self.texts(171, 2329))
+
+    def test_money_uses_coin_icons_and_skips_zero_units(self):
+        # The client's GetCoinTextureString isn't used: in game it fell back to "0g 1s 0c".
+        self.assertEqual(self.M.Money(50), "50" + COPPER)
+        self.assertEqual(self.M.Money(100), "1" + SILVER)
+        self.assertEqual(self.M.Money(10203), "1" + GOLD + " 2" + SILVER + " 3" + COPPER)
+        self.assertEqual(self.M.Money(20000), "2" + GOLD)
+        self.assertEqual(self.M.Money(0), "0" + COPPER)
 
     def test_sources_gated_vendor(self):
         lines = self.lines(171, 1251750)

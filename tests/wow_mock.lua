@@ -44,15 +44,6 @@ SlashCmdList = {}
 FACTION_STANDING_LABEL4, FACTION_STANDING_LABEL5 = "Neutral", "Friendly"
 FACTION_STANDING_LABEL6, FACTION_STANDING_LABEL7, FACTION_STANDING_LABEL8 = "Honored", "Revered", "Exalted"
 
-function GetCoinTextureString(copper)
-    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-    local t = {}
-    if g > 0 then t[#t + 1] = g .. "g" end
-    if s > 0 then t[#t + 1] = s .. "s" end
-    if c > 0 or #t == 0 then t[#t + 1] = c .. "c" end
-    return table.concat(t, " ")
-end
-
 -- Timers run when the test calls flush().
 C_Timer = {
     After = function(_, fn) mock.timers[#mock.timers + 1] = fn end,
@@ -169,6 +160,15 @@ function Widget:GetScrollChild() return self.scrollChild end
 function Widget:SetVerticalScroll(v) self.vscroll = v end
 function Widget:GetVerticalScroll() return self.vscroll or 0 end
 function Widget:GetVerticalScrollRange() return 0 end
+function Widget:SetThumbTexture(t)
+    if type(t) == "string" then
+        self.thumb = self.thumb or self:CreateTexture()
+        self.thumb:SetTexture(t)
+    else
+        self.thumb = t
+    end
+end
+function Widget:GetThumbTexture() return self.thumb end
 function Widget:SetMinMaxValues(a, b) self.min, self.max = a, b end
 function Widget:SetValue(v) self.value = v end
 function Widget:GetValue() return self.value or 0 end

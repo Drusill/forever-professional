@@ -84,6 +84,7 @@ function UI.CreateList(parent)
     local child = CreateFrame("Frame", "ForeverProfessionalListContent", scroll)
     child:SetSize(UI.LIST_W - 34, 1)
     scroll:SetScrollChild(child)
+    UI.StyleScroll(scroll)
 
     local list = { scroll = scroll, child = child, rows = {} }
     UI.list = list
@@ -112,6 +113,7 @@ function UI.RefreshList(resetScroll)
     local list = UI.list
     local height = #UI.entries * ROW_H
     list.child:SetHeight(math.max(1, height))
+    UI.UpdateScrollBar(list.scroll, height, VisibleHeight())
     local maxScroll = math.max(0, height - VisibleHeight())
     if resetScroll or list.scroll:GetVerticalScroll() > maxScroll then
         list.scroll:SetVerticalScroll(resetScroll and 0 or maxScroll)

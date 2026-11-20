@@ -8,6 +8,7 @@ local UI = ns.UI
 local ICON = 18
 local BUTTON_W = 74
 local INDENT = 14
+local HEADER_H = 56   -- icon, title and status; the lines start below
 
 local detail = {}
 UI.detail = detail
@@ -16,6 +17,11 @@ local requested = {}   -- [itemID] = true once a load was asked for
 
 local function ContentWidth()
     return UI.WIDTH - (UI.PAD + UI.TAB_W + 8 + UI.LIST_W + 8) - UI.PAD - 34
+end
+
+-- Height of the scroll frame: the panel (title bar to bottom padding) less its 8px insets.
+function UI.DetailVisibleHeight()
+    return UI.HEIGHT - UI.TITLE_H - UI.PAD - 16
 end
 
 -- Waypoints --------------------------------------------------------------------------------
@@ -105,14 +111,8 @@ function UI.CreateDetail(parent)
     local child = CreateFrame("Frame", "ForeverProfessionalDetailContent", scroll)
     child:SetSize(ContentWidth(), 1)
     scroll:SetScrollChild(child)
+    UI.StyleScroll(scroll)
     detail.scroll, detail.child, detail.lines = scroll, child, {}
-
-    local lore = parent:CreateTexture(nil, "BACKGROUND", nil, 1)
-    lore:SetPoint("TOPLEFT", 4, -4)
-    lore:SetPoint("BOTTOMRIGHT", -4, 4)
-    lore:SetTexture("Interface\\EncounterJournal\\UI-EJ-LOREBG-Default")
-    lore:SetTexCoord(0, 0.7, 0, 1)
-    lore:SetVertexColor(0.45, 0.45, 0.45, 0.8)
 
     detail.icon = child:CreateTexture(nil, "ARTWORK")
     detail.icon:SetSize(40, 40)
@@ -131,6 +131,12 @@ function UI.CreateDetail(parent)
     detail.status:SetPoint("TOPLEFT", detail.title, "BOTTOMLEFT", 0, -4)
     detail.status:SetWidth(ContentWidth() - 52)
     detail.status:SetJustifyH("LEFT")
+
+    -- Rule under the header, in the panels' border colour.
+    detail.divider = child:CreateTexture(nil, "ARTWORK")
+    detail.divider:SetPoint("TOPLEFT", 0, -HEADER_H + 6)
+    detail.divider:SetSize(ContentWidth(), 1)
+    detail.divider:SetColorTexture(0.6, 0.5, 0.35, 0.6)
 
     detail.empty = parent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     detail.empty:SetPoint("CENTER")
@@ -264,7 +270,7 @@ function UI.RefreshDetail()
     detail.status:SetText(status)
 
     local width = ContentWidth()
-    local y = 56
+    local y = HEADER_H
     local pending = {}
     local lines = UI.DetailLines(spellID, rec)
     for i, l in ipairs(lines) do
@@ -274,6 +280,7 @@ function UI.RefreshDetail()
     end
     for i = #lines + 1, #detail.lines do detail.lines[i]:Hide() end
     detail.child:SetHeight(y + 8)
+    UI.UpdateScrollBar(detail.scroll, y + 8, UI.DetailVisibleHeight())
     detail.rendered = lines
     if detail.lastSpell ~= spellID then
         detail.scroll:SetVerticalScroll(0)

@@ -119,10 +119,19 @@ class WindowTest(unittest.TestCase):
         self.a.call(header_row, "Click")
         self.assertTrue(self.a.g.ForeverProfessionalDB.collapsed[cat])
         self.assertLess(len(self.entries()), before)
-        self.assertEqual(self.visible_rows()[0].expand.texture, "Interface\\Buttons\\UI-PlusButton-Up")
+        self.assertEqual(self.visible_rows()[0].expand.texture, r"Interface\Buttons\UI-PlusButton-Up")
         self.a.call(self.visible_rows()[0], "Click")
         self.assertIsNone(self.a.g.ForeverProfessionalDB.collapsed[cat])
         self.assertEqual(len(self.entries()), before)
+
+    def test_list_scrollbar_only_when_needed(self):
+        bar = self.UI.list.scroll.ScrollBar
+        self.assertTrue(self.UI.list.scroll.scrollBarHideable)
+        self.UI.SelectProfession(186)   # Mining: 17 recipes, fits
+        self.assertFalse(bar.shown)
+        self.UI.SelectProfession(164)   # Blacksmithing: 419 recipes
+        self.assertTrue(bar.shown)
+        self.assertEqual(bar.thumb.texture, r"Interface\Buttons\WHITE8X8")
 
     def test_scrolling_moves_rows(self):
         self.a.call(self.UI.list.scroll, "SetVerticalScroll", 10 * self.UI.ROW_H)

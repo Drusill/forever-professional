@@ -82,10 +82,18 @@ function M.StandingName(standing)
     return _G["FACTION_STANDING_LABEL" .. tostring(standing)] or tostring(standing)
 end
 
+-- Coin text with the money icons, zero units left out ("1s", not "0g 1s 0c"). Built by hand:
+-- the client's GetCoinTextureString isn't there on Forever.
+local COIN = "%d|TInterface\\MoneyFrame\\UI-%sIcon:0:0:2:0|t"
+
 function M.Money(copper)
-    if GetCoinTextureString then return GetCoinTextureString(copper) end
+    copper = math.max(0, math.floor(tonumber(copper) or 0))
     local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
-    return ("%dg %ds %dc"):format(g, s, c)
+    local parts = {}
+    if g > 0 then parts[#parts + 1] = COIN:format(g, "Gold") end
+    if s > 0 then parts[#parts + 1] = COIN:format(s, "Silver") end
+    if c > 0 or #parts == 0 then parts[#parts + 1] = COIN:format(c, "Copper") end
+    return table.concat(parts, " ")
 end
 
 -- Icons, read live (works for uncached items too).

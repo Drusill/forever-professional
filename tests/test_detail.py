@@ -33,6 +33,36 @@ class DetailTest(unittest.TestCase):
         self.assertTrue(self.d.empty.shown)
         self.assertFalse(self.d.scroll.shown)
 
+    def test_no_question_mark_placeholder(self):
+        # The Journal's "no art" lore background read as a missing texture.
+        for r in lua_list(self.UI.frame.detailPanel.regions):
+            self.assertNotIn("LOREBG", str(r.texture))
+
+    def test_header_divider(self):
+        self.assertIsNotNone(self.d.divider)
+
+    def test_scrollbar_hidden_when_content_fits(self):
+        self.assertTrue(self.d.scroll.scrollBarHideable)
+        self.select(2329)
+        self.assertFalse(self.d.scroll.ScrollBar.shown)
+
+    def test_scrollbar_shown_when_content_overflows(self):
+        self.a.g._ns = self.a.ns
+        line, spell = self.a.run(
+            "for line, list in pairs(_ns.Data.Recipes) do for id, r in pairs(list) do "
+            "if r.drops and #r.drops >= 12 and r.vendors and #r.vendors >= 3 then return line, id end "
+            "end end")
+        self.select(spell, line)
+        self.assertGreater(self.d.child.height, self.UI.DetailVisibleHeight())
+        self.assertTrue(self.d.scroll.ScrollBar.shown)
+        self.select(2329, 171)
+        self.assertFalse(self.d.scroll.ScrollBar.shown)
+
+    def test_scrollbar_thumb_styled(self):
+        thumb = self.d.scroll.ScrollBar.thumb
+        self.assertIsNotNone(thumb)
+        self.assertEqual(thumb.texture, r"Interface\Buttons\WHITE8X8")
+
     def test_row_click_selects(self):
         row = next(r for r in lua_list(self.UI.list.rows) if r.shown and r.entry.kind == "recipe")
         self.a.call(row, "Click")
@@ -50,7 +80,7 @@ class DetailTest(unittest.TestCase):
         self.assertIn("Reagents", texts)
         self.assertTrue(any("2x" in t and "Item 2447" in t for t in texts))
         self.assertIn("Sources", texts)
-        self.assertIn("Trainer: 50c", texts)
+        self.assertIn(r"Trainer: 50|TInterface\MoneyFrame\UI-CopperIcon:0:0:2:0|t", texts)
         self.assertTrue(self.a.mock.schematicCalls >= 1)
 
     def test_schematic_missing_falls_back_to_creates(self):

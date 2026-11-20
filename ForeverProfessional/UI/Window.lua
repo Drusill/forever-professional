@@ -53,6 +53,41 @@ function UI.Panel(parent, alpha)
     return p
 end
 
+-- Scroll frames (UIPanelScrollFrameTemplate) --------------------------------------------------
+
+local function ScrollBarOf(scroll)
+    local name = scroll.GetName and scroll:GetName()
+    return scroll.ScrollBar or (name and _G[name .. "ScrollBar"])
+end
+
+-- A bronze thumb on a dark track (the template's knob shows as a grey square on Forever), and a
+-- bar that hides while everything fits: the template does that itself on scroll range changes
+-- when scrollBarHideable is set; UI.UpdateScrollBar sets it right away.
+function UI.StyleScroll(scroll)
+    scroll.scrollBarHideable = true
+    local bar = ScrollBarOf(scroll)
+    if not bar then return end
+    local track = bar:CreateTexture(nil, "BACKGROUND")
+    track:SetPoint("TOP", 0, 0)
+    track:SetPoint("BOTTOM", 0, 0)
+    track:SetWidth(6)
+    track:SetColorTexture(0, 0, 0, 0.45)
+    if bar.SetThumbTexture then
+        bar:SetThumbTexture("Interface\\Buttons\\WHITE8X8")
+        local thumb = bar.GetThumbTexture and bar:GetThumbTexture()
+        if thumb then
+            thumb:SetTexCoord(0, 1, 0, 1)
+            thumb:SetSize(6, 28)
+            thumb:SetVertexColor(0.72, 0.45, 0.16, 1)
+        end
+    end
+end
+
+function UI.UpdateScrollBar(scroll, contentHeight, visibleHeight)
+    local bar = ScrollBarOf(scroll)
+    if bar then bar:SetShown(contentHeight > visibleHeight + 1) end
+end
+
 function UI.ProfessionName(line)
     local profs = ns.GetPlayerProfessions()
     if profs[line] and profs[line].name then return profs[line].name end
@@ -243,7 +278,7 @@ function UI.Create()
     f.counter:SetJustifyH("LEFT")
 
     -- Right: detail pane
-    local detail = UI.Panel(f, 0.25)
+    local detail = UI.Panel(f, 0.4)
     detail:SetPoint("TOPLEFT", listX + UI.LIST_W + 8, -UI.TITLE_H)
     detail:SetPoint("BOTTOMRIGHT", -UI.PAD, UI.PAD)
     f.detailPanel = detail
