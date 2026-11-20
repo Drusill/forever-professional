@@ -141,6 +141,42 @@ class SlashMinimapTest(unittest.TestCase):
         self.assertIn(self.L.MINIMAP_HIDE_HINT, lua_list(self.a.g.GameTooltip.lines))
 
 
+class CompartmentTest(unittest.TestCase):
+    """The client calls the TOC's AddonCompartmentFunc* globals with (addonName, ...)."""
+
+    def setUp(self):
+        self.a = logged_in()
+        self.meta = toc_metadata()
+        self.L = self.a.ns.L
+
+    def func(self, key):
+        return self.a.g[self.meta[key][0]]
+
+    def test_click_toggles_window(self):
+        click = self.func("AddonCompartmentFunc")
+        click("ForeverProfessional", "LeftButton")
+        self.assertTrue(self.a.g.ForeverProfessionalFrame.shown)
+        click("ForeverProfessional", "LeftButton")
+        self.assertFalse(self.a.g.ForeverProfessionalFrame.shown)
+
+    def test_enter_shows_tooltip_on_the_entry(self):
+        entry = self.a.run('return CreateFrame("Button", "CompartmentEntry")')
+        self.func("AddonCompartmentFuncOnEnter")("ForeverProfessional", entry)
+        tip = self.a.g.GameTooltip
+        self.assertTrue(tip.shown)
+        self.assertTrue(self.a.run("return GameTooltip.owner == CompartmentEntry"))
+        lines = lua_list(tip.lines)
+        self.assertEqual(lines[0], "ForeverProfessional")
+        self.assertIn(self.L.MINIMAP_CLICK, lines)
+        self.assertNotIn(self.L.MINIMAP_DRAG, lines)
+
+    def test_leave_hides_tooltip(self):
+        entry = self.a.run('return CreateFrame("Button")')
+        self.func("AddonCompartmentFuncOnEnter")("ForeverProfessional", entry)
+        self.func("AddonCompartmentFuncOnLeave")("ForeverProfessional", entry)
+        self.assertFalse(self.a.g.GameTooltip.shown)
+
+
 class SavedDefaultsTest(unittest.TestCase):
     def test_existing_save_gets_minimap_defaults(self):
         a = Addon(setup='ForeverProfessionalDB = { version = 1, filter = "learned" }')

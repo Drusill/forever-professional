@@ -4,6 +4,9 @@
 ## Author: forever-professional
 ## Version: 0.1.0
 ## IconTexture: Interface\Icons\INV_Misc_Book_11
+## AddonCompartmentFunc: ForeverProfessional_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: ForeverProfessional_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: ForeverProfessional_OnAddonCompartmentLeave
 ## SavedVariables: ForeverProfessionalDB [AllowLoadGameType camelot][ExcludeLoadGameType classic]
 
 Data\Data.xml [AllowLoadGameType camelot][ExcludeLoadGameType classic]

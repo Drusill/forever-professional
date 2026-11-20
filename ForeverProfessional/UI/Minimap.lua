@@ -111,3 +111,17 @@ function MB.Create()
 end
 
 ns.On("PLAYER_LOGIN", function() MB.Create() end)
+
+-- Addon compartment (the addon list button by the minimap), declared in the TOC.
+-- The client calls these with (addonName, ...); any click toggles the window.
+function ForeverProfessional_OnAddonCompartmentClick()
+    if ns.UI then ns.UI.Toggle() end
+end
+
+function ForeverProfessional_OnAddonCompartmentEnter(_, owner)
+    MB.ShowTooltip(owner or AddonCompartmentFrame or UIParent, false)
+end
+
+function ForeverProfessional_OnAddonCompartmentLeave()
+    GameTooltip:Hide()
+end

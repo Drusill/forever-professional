@@ -14,6 +14,14 @@ class TocTest(unittest.TestCase):
         self.assertTrue(meta["SavedVariables"][0].startswith("ForeverProfessionalDB "))
         self.assertIn("[AllowLoadGameType camelot]", meta["SavedVariables"][0])
 
+    def test_compartment_functions_exist(self):
+        meta = toc_metadata()
+        a = Addon()
+        for key in ("AddonCompartmentFunc", "AddonCompartmentFuncOnEnter", "AddonCompartmentFuncOnLeave"):
+            self.assertIn(key, meta)
+            name = meta[key][0]
+            self.assertEqual(a.lua.eval("type")(a.g[name]), "function", f"{key}: {name}")
+
     def test_files_exist(self):
         files = addon_files()
         self.assertTrue(any(f.name == "Professions.lua" for f in files))
