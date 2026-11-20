@@ -12,7 +12,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 |---|---|
 | `ForeverProfessional/` | The addon (the folder that goes into `Interface\AddOns`) |
 | `ForeverProfessional/Data/` | **Generated** baked data. Never edit by hand |
-| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `UI/Window`, `UI/RecipeList`, `UI/Detail` |
+| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `UI/Window`, `UI/RecipeList`, `UI/Detail`, `UI/Minimap` (minimap button, compartment entry) |
 | `tests/` | Addon tests: `wow_mock.lua` (mock client API), `harness.py` (loads the real TOC and data through `lupa`), `test_*.py` |
 | `tools/` | Offline data pipeline (Python, stdlib only): `python tools/build_data.py` |
 | `tools/overrides.json` | Hand-verified data fixes, applied last by the pipeline |
@@ -58,6 +58,8 @@ TOC changes need a full client restart; `/reload` doesn't pick them up. Errors c
 - `GetProfessions()` + `GetProfessionInfo()` give the player's professions and skill without a window. `GetAllProfessionTradeSkillLines` also returns Forever child lines (2937 Alchemy, 2938 Blacksmithing…) and two "Test Profession [DNT]" entries to ignore.
 - Unlearned recipes can't be shown in Blizzard's profession window, and `GetRecipeSourceText` returns nothing. That's why the catalog is baked.
 - **Never call Blizzard's profession filter setters** (`SetShowUnlearned` etc.): they change the user's profession window.
+- The minimap is the retail-style one: round, 198×198, `GetMinimapShape` is nil unless a minimap addon squares it. The **addon compartment** (`AddonCompartmentFrame`) exists and is shown, and TOC-declared `## AddonCompartmentFunc` / `FuncOnEnter` / `FuncOnLeave` entries appear in it.
+- **Don't bundle LibDataBroker-1.1 or LibDBIcon-1.0** (or CallbackHandler-1.0, which they need). LibDataBroker is "All Rights Reserved" (no license upstream), and the Ace3-style BSD licence of the other two forbids stand-alone redistribution, which GPL-3.0 doesn't allow. That's why the minimap button is hand-rolled.
 - Category names are only readable in game while that profession's window is open; the baked `Categories.lua` covers them.
 - Items load async: `Item:CreateFromItemID(id):ContinueOnItemLoad(cb)`. Cached items fire the callback **synchronously**; handle both. New Forever item IDs (250000+) work. Invalid IDs show up as a nil name, not an error.
 - The Encounter Journal is disabled (`EncounterJournalDisabled`), but its art is available: atlases `adventureguide-*`, `loottab-*`, `UI-EJ-*`, textures under `Interface\EncounterJournal\`, plus the Professions atlases. Build our own frames with them.
