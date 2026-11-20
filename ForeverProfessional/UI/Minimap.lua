@@ -98,6 +98,9 @@ function MB.Create()
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnDragStart", function(self)
         GameTooltip:Hide()
+        -- A minimap button bin (EnhanceQoL's, for one) re-parents the button into its grid:
+        -- leave it there instead of dragging it back onto the minimap ring.
+        if self:GetParent() ~= Minimap then return end
         self:SetScript("OnUpdate", function()
             ns.db.minimapAngle = CursorAngle()
             MB.UpdatePosition()

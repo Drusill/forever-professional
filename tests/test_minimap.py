@@ -74,6 +74,17 @@ class ButtonTest(unittest.TestCase):
         self.a.g.drag(self.btn, CENTER[0] * 2, (CENTER[1] + 50) * 2)
         self.assertAlmostEqual(self.a.g.ForeverProfessionalDB.minimapAngle, 90, places=3)
 
+    def test_drag_does_nothing_once_a_button_bin_owns_the_button(self):
+        # EnhanceQoL's minimap button bin re-parents collected buttons into its own grid.
+        self.a.run('local bin = CreateFrame("Frame", "ButtonBin", UIParent)\n'
+                   'ForeverProfessionalMinimapButton:SetParent(bin)\n'
+                   'ForeverProfessionalMinimapButton:ClearAllPoints()\n'
+                   'ForeverProfessionalMinimapButton:SetPoint("TOPLEFT", bin, "TOPLEFT", 4, -4)')
+        self.a.g.drag(self.btn, CENTER[0] + 50, CENTER[1])
+        point, rel, _, x, y = Addon.call(self.btn, "GetPoint")
+        self.assertEqual((point, rel.name, x, y), ("TOPLEFT", "ButtonBin", 4, -4))
+        self.assertEqual(self.a.g.ForeverProfessionalDB.minimapAngle, 225)
+
     def test_drag_hides_tooltip(self):
         self.a.g.enter(self.btn)
         self.a.g.drag(self.btn, CENTER[0], CENTER[1] - 50)
