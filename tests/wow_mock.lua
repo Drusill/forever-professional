@@ -16,6 +16,7 @@ mock = {
     pendingItems = {},
     uncachedSpells = {},     -- [spellID] = true -> C_Spell.GetSpellName returns nil
     frames = {},
+    missingAtlases = {},     -- [atlas] = true -> C_Texture.GetAtlasInfo returns nil
 }
 
 function print(...)
@@ -204,6 +205,22 @@ function Widget:GetFontString()
 end
 function Widget:SetFontString(fs) self.fontString = fs end
 function Widget:SetNormalFontObject() end
+function Widget:SetRotation(r) self.rotation = r end
+function Widget:SetGradient(o, a, b) self.gradient = { o, a, b } end
+-- Animation groups: enough for a FlipBook animation to be configured and played.
+function Widget:CreateAnimationGroup()
+    local group = { playing = false, animations = {} }
+    function group:CreateAnimation(kind)
+        local anim = setmetatable({ kind = kind }, { __index = function() return function() end end })
+        self.animations[#self.animations + 1] = anim
+        return anim
+    end
+    function group:Play() self.playing = true end
+    function group:Stop() self.playing = false end
+    function group:IsPlaying() return self.playing end
+    function group:SetLooping(v) self.looping = v end
+    return group
+end
 
 local function applyTemplate(f, template)
     if not template then return end
@@ -366,4 +383,10 @@ UiMapPoint = {
 C_Reputation = { GetFactionDataByID = function(id) return { factionID = id, name = "Faction " .. id } end }
 function GetRealZoneText(id) return "Instance " .. tostring(id) end
 
-C_Texture = { GetAtlasInfo = function(n) return { width = 16, height = 16, file = 1 } end }
+C_Texture = {
+    GetAtlasInfo = function(n)
+        if mock.missingAtlases[n] then return nil end
+        return { width = 16, height = 68, file = 1, leftTexCoord = 0, rightTexCoord = 1, topTexCoord = 0, bottomTexCoord = 1 }
+    end,
+}
+function CreateColor(r, g, b, a) return { r = r, g = g, b = b, a = a } end

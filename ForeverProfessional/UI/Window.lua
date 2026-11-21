@@ -3,8 +3,7 @@
 local _, ns = ...
 local L = ns.L
 
-local UI = {}
-ns.UI = UI
+local UI = ns.UI
 
 UI.WIDTH, UI.HEIGHT = 1040, 640
 UI.PAD = 12
@@ -33,27 +32,6 @@ local PROFESSION_ICONS = {
 }
 local GATHERING = { [182] = true, [186] = true, [356] = true, [393] = true }
 UI.PROFESSION_ICONS = PROFESSION_ICONS
-
--- Art helpers -------------------------------------------------------------------------------
-
--- Set an atlas only if the client has it; returns false so the caller can fall back.
-function UI.SetAtlas(tex, atlas)
-    if C_Texture and C_Texture.GetAtlasInfo and not C_Texture.GetAtlasInfo(atlas) then return false end
-    return (pcall(tex.SetAtlas, tex, atlas)) and true or false
-end
-
-function UI.Panel(parent, alpha)
-    local p = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    p:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = false, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    p:SetBackdropColor(0, 0, 0, alpha or 0.45)
-    p:SetBackdropBorderColor(0.6, 0.5, 0.35, 0.9)
-    return p
-end
 
 -- Scroll frames (UIPanelScrollFrameTemplate) --------------------------------------------------
 
