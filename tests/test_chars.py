@@ -65,6 +65,13 @@ class OwnersTest(unittest.TestCase):
     def name(self, key):
         return self.ns.CharName(key)
 
+    def test_learnable_count(self):
+        recs = self.ns.Data.Recipes[171]
+        expected = sum(1 for i, r in recs.items()
+                       if i != 7255 and (r.learn or 0) <= 290 and r.side in (None, "Horde"))
+        self.assertEqual(self.ns.LearnableCount(171, "Player-1-0000000B"), expected)
+        self.assertEqual(self.ns.LearnableCount(171, "Player-1-0000000E"), 0)
+
     def test_char_faction(self):
         self.assertEqual(self.ns.CharFaction("Player-1-0000000D"), "Alliance")
         self.assertEqual(self.ns.CharFaction(None), "Horde")

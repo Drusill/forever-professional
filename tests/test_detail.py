@@ -38,8 +38,48 @@ class DetailTest(unittest.TestCase):
         for r in lua_list(self.UI.frame.detailPanel.regions):
             self.assertNotIn("LOREBG", str(r.texture))
 
-    def test_header_divider(self):
-        self.assertIsNotNone(self.d.divider)
+    def test_empty_state_stats(self):
+        e = self.d.empty
+        self.assertTrue(e.shown)
+        recs = self.a.ns.Data.Recipes[171]
+        learnable = sum(1 for i, r in recs.items()
+                        if i != 2329 and (r.learn or 0) <= 120 and r.side in (None, "Horde"))
+        self.assertEqual([e.stats[k].value.text for k in ("learned", "learnable", "missing")],
+                         ["1", str(learnable), "178"])
+
+    def test_header_learned(self):
+        self.select(2329)
+        h, rec = self.d.header, self.a.ns.Data.Recipes[171][2329]
+        self.assertTrue(self.a.lua.eval("rawequal")(h.parent, self.UI.frame.detailPanel))
+        self.assertEqual(plain(h.title.text), "Spell 2329")
+        self.assertEqual(plain(h.creates.text), "Creates Item 2454 · Herb")
+        self.assertEqual((h.stateChip.text.text, h.stateChip.style), ("Learned", "good"))
+        self.assertEqual(h.catChip.text.text, "Elixirs")
+        self.assertFalse(h.newChip.shown)
+        self.assertEqual([n.text for n in lua_list(h.scale.nums)],
+                         [str(rec.learn), str(rec.yellow), str(rec.green), str(rec.grey)])
+        self.assertTrue(h.scale.tick.shown)
+
+    def test_header_not_learned_new_and_tick_hidden(self):
+        self.select(1250793)
+        self.assertEqual(self.d.header.stateChip.style, "bad")
+        self.assertEqual(self.d.header.newChip.text.text, "New in Forever")
+        self.select(1251750)                       # learn 180 > skill 120
+        self.assertFalse(self.d.header.scale.tick.shown)
+
+    def test_scale_degenerate_thresholds(self):
+        for line in self.a.ns.Data.Recipes.keys():
+            for spell, r in self.a.ns.Data.Recipes[line].items():
+                if (r.learn or 0) == (r.grey or 0) or r.grey is None:
+                    self.select(spell, line)
+                    self.assertTrue(all(s.width >= 0 for s in lua_list(self.d.header.scale.segments)))
+
+    def test_async_output_item(self):
+        self.a.run("mock.asyncItems[2454] = true")
+        self.UI.SelectRecipe(2329)
+        self.assertIn("Item #2454", self.d.header.creates.text)
+        self.a.run("flush()")
+        self.assertIn("Item 2454", plain(self.d.header.creates.text))
 
     def test_scrollbar_hidden_when_content_fits(self):
         self.assertTrue(self.d.scroll.scrollBarHideable)
@@ -72,11 +112,8 @@ class DetailTest(unittest.TestCase):
 
     def test_header_and_schematic(self):
         self.select(2329)
-        self.assertIn("Spell 2329", self.d.title.text)
-        self.assertIn("Learned", self.d.status.text)
-        self.assertIn("|cffff804015|r", self.d.status.text)  # learn 15 in orange
         texts = self.texts()
-        self.assertIn("Creates", texts)
+        self.assertNotIn("Creates", texts)   # in the header now
         self.assertIn("Reagents", texts)
         self.assertTrue(any("2x" in t and "Item 2447" in t for t in texts))
         self.assertIn("Sources", texts)
@@ -87,15 +124,15 @@ class DetailTest(unittest.TestCase):
         self.a.run("mock.noSchematic = true")
         self.select(3230)
         texts = self.texts()
-        self.assertTrue(any("Item 2457" in t for t in texts))  # rec.creates
+        self.assertIn("Item 2457", plain(self.d.header.creates.text))  # rec.creates
         self.assertNotIn("Reagents", texts)
         self.assertIn("Recipe item", texts)
         self.assertTrue(any("Item 2553" in t for t in texts))  # rec.teach
 
     def test_not_learned_and_drop_sources(self):
         self.select(1250793)
-        self.assertIn("Not learned", self.d.status.text)
-        self.assertIn("New in Forever", self.d.status.text)
+        self.assertEqual(self.d.header.stateChip.text.text, "Not learned")
+        self.assertTrue(self.d.header.newChip.shown)
         texts = self.texts()
         self.assertIn("Drops", texts)
         self.assertTrue(any("rate unknown" in t for t in texts))
@@ -172,7 +209,7 @@ class DetailTest(unittest.TestCase):
                 if rec["count"] is not None and not isinstance(rec["count"], int):
                     self.select(spell, line)
                     lo, hi = rec["count"][1], rec["count"][2]
-                    self.assertTrue(any(t.startswith(f"{lo}-{hi}x ") for t in self.texts()))
+                    self.assertTrue(plain(self.d.header.creates.text).startswith(f"Creates {lo}-{hi}x "))
                     return
         self.fail("no ranged count in data")
 

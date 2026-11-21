@@ -5,10 +5,13 @@ local L = ns.L
 local M = ns.Model
 local UI = ns.UI
 
+local Hex = UI.HexColor
+
 local ICON = 18
 local BUTTON_W = 74
 local INDENT = 14
-local HEADER_H = 56   -- icon, title and status; the lines start below
+local DETAIL_HEADER_H = 76   -- pinned recipe header above the scroll area
+local SCALE_W, SCALE_CAP = 150, 6
 
 local detail = {}
 UI.detail = detail
@@ -19,9 +22,10 @@ local function ContentWidth()
     return UI.DetailContentWidth()
 end
 
--- Height of the scroll frame: the panel (below the header, inside the gaps) less its 8px insets.
+-- Height of the scroll frame: the panel (below the window header, inside the gaps) less the pinned
+-- recipe header and the insets.
 function UI.DetailVisibleHeight()
-    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - 16
+    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - 16 - DETAIL_HEADER_H - 4
 end
 
 -- Waypoints --------------------------------------------------------------------------------
@@ -104,53 +108,142 @@ local function CreateLine(index)
     return line
 end
 
+-- Pinned header: output icon, name, "Creates …", chips and the difficulty scale.
+local function CreateScale(parent)
+    local s = CreateFrame("Frame", nil, parent)
+    s:SetSize(SCALE_W, 30)
+    s.label = s:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    s.label:SetPoint("TOPLEFT", 0, 0)
+    s.label:SetText(L.SKILL_LABEL)
+    s.label:SetTextColor(Hex(UI.COLORS.muted))
+    s.track = s:CreateTexture(nil, "BACKGROUND")
+    s.track:SetPoint("TOPLEFT", 0, -13)
+    s.track:SetSize(SCALE_W, 6)
+    s.track:SetColorTexture(0, 0, 0, 0.9)
+    s.segments = {}
+    for i, color in ipairs({ "orange", "yellow", "green", "grey" }) do
+        local t = s:CreateTexture(nil, "ARTWORK")
+        t:SetHeight(6)
+        t:SetColorTexture(Hex(M.COLORS[color]))
+        s.segments[i] = t
+    end
+    s.tick = s:CreateTexture(nil, "OVERLAY")
+    s.tick:SetSize(2, 12)
+    s.tick:SetColorTexture(1, 1, 1, 1)
+    s.nums = {}
+    for i = 1, 4 do
+        local n = s:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        n:SetPoint("TOP", s.track, "BOTTOMLEFT", (i - 1) * SCALE_W / 3, -2)
+        s.nums[i] = n
+    end
+    s.nums[1]:ClearAllPoints()
+    s.nums[1]:SetPoint("TOPLEFT", s.track, "BOTTOMLEFT", 0, -2)
+    s.nums[4]:ClearAllPoints()
+    s.nums[4]:SetPoint("TOPRIGHT", s.track, "BOTTOMRIGHT", 0, -2)
+    return s
+end
+
+local function CreateHeader(parent)
+    local h = CreateFrame("Frame", nil, parent)
+    h:SetPoint("TOPLEFT", 8, -8)
+    h:SetPoint("TOPRIGHT", -8, -8)
+    h:SetHeight(DETAIL_HEADER_H)
+    h.bg = h:CreateTexture(nil, "BACKGROUND")
+    h.bg:SetAllPoints()
+    h.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    if not (CreateColor and pcall(h.bg.SetGradient, h.bg, "VERTICAL",
+            CreateColor(1, 0.82, 0, 0), CreateColor(1, 0.82, 0, 0.06))) then
+        h.bg:SetVertexColor(1, 0.82, 0, 0.03)
+    end
+    h.rule = h:CreateTexture(nil, "BORDER")
+    h.rule:SetPoint("BOTTOMLEFT")
+    h.rule:SetPoint("BOTTOMRIGHT")
+    h.rule:SetHeight(1)
+    h.rule:SetColorTexture(Hex(UI.COLORS.line))
+
+    h.iconBorder = h:CreateTexture(nil, "ARTWORK")
+    h.iconBorder:SetSize(50, 50)
+    h.iconBorder:SetPoint("TOPLEFT", 4, -6)
+    h.icon = h:CreateTexture(nil, "ARTWORK", nil, 1)
+    h.icon:SetSize(46, 46)
+    h.icon:SetPoint("CENTER", h.iconBorder, "CENTER")
+
+    h.scale = CreateScale(h)
+    h.scale:SetPoint("TOPRIGHT", -4, -8)
+
+    h.title = h:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    h.title:SetPoint("TOPLEFT", h.iconBorder, "TOPRIGHT", 10, 0)
+    h.title:SetPoint("RIGHT", h.scale, "LEFT", -10, 0)
+    h.title:SetJustifyH("LEFT")
+    h.title:SetWordWrap(false)
+    h.creates = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    h.creates:SetPoint("TOPLEFT", h.title, "BOTTOMLEFT", 0, -3)
+    h.creates:SetPoint("RIGHT", h.scale, "LEFT", -10, 0)
+    h.creates:SetJustifyH("LEFT")
+    h.creates:SetWordWrap(false)
+    h.creates:SetTextColor(Hex(UI.COLORS.muted))
+
+    h.stateChip = UI.CreateChip(h)
+    h.stateChip:SetPoint("TOPLEFT", h.creates, "BOTTOMLEFT", 0, -5)
+    h.catChip = UI.CreateChip(h)
+    h.catChip:SetPoint("LEFT", h.stateChip, "RIGHT", 5, 0)
+    h.newChip = UI.CreateChip(h)
+    h.newChip:SetPoint("LEFT", h.catChip, "RIGHT", 5, 0)
+    return h
+end
+
+-- Nothing selected: the profession's illustration and three numbers.
+local function CreateEmpty(parent)
+    local e = CreateFrame("Frame", nil, parent)
+    e:SetAllPoints()
+    e.watermark = e:CreateTexture(nil, "BACKGROUND")
+    e.watermark:SetSize(260, 260)
+    e.watermark:SetPoint("CENTER", 0, 20)
+    e.watermark:SetAlpha(0.06)
+    e.watermark:Hide()
+    e.hint = e:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    e.hint:SetPoint("CENTER", 0, 30)
+    e.hint:SetText(L.SELECT_RECIPE)
+    e.stats = {}
+    local boxes = {
+        { key = "learned", label = L.LEARNED, color = "40c040" },
+        { key = "learnable", label = L.LEARNABLE_NOW, color = UI.COLORS.gold },
+        { key = "missing", label = L.FILTER_MISSING, color = UI.COLORS.muted },
+    }
+    for i, b in ipairs(boxes) do
+        local box = UI.Panel(e, 1)
+        box:SetSize(110, 46)
+        box:SetPoint("TOP", e.hint, "BOTTOM", (i - 2) * 120, -16)
+        box.value = box:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        box.value:SetPoint("TOP", 0, -7)
+        box.value:SetTextColor(Hex(b.color))
+        box.label = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        box.label:SetPoint("BOTTOM", 0, 7)
+        box.label:SetText(b.label)
+        box.label:SetTextColor(Hex(UI.COLORS.muted))
+        e.stats[b.key] = box
+    end
+    e:Hide()
+    return e
+end
+
 function UI.CreateDetail(parent)
+    detail.header = CreateHeader(parent)
     local scroll = CreateFrame("ScrollFrame", "ForeverProfessionalDetailScroll", parent, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 8, -8)
+    scroll:SetPoint("TOPLEFT", 8, -(8 + DETAIL_HEADER_H + 4))
     scroll:SetPoint("BOTTOMRIGHT", -28, 8)
     local child = CreateFrame("Frame", "ForeverProfessionalDetailContent", scroll)
     child:SetSize(ContentWidth(), 1)
     scroll:SetScrollChild(child)
     UI.StyleScroll(scroll)
     detail.scroll, detail.child, detail.lines = scroll, child, {}
-
-    detail.icon = child:CreateTexture(nil, "ARTWORK")
-    detail.icon:SetSize(40, 40)
-    detail.icon:SetPoint("TOPLEFT", 0, 0)
-    detail.ring = child:CreateTexture(nil, "OVERLAY")
-    detail.ring:SetSize(52, 52)
-    detail.ring:SetPoint("CENTER", detail.icon, "CENTER")
-    if not UI.SetAtlas(detail.ring, "adventureguide-ring") then detail.ring:Hide() end
-
-    detail.title = child:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    detail.title:SetPoint("TOPLEFT", detail.icon, "TOPRIGHT", 10, -2)
-    detail.title:SetWidth(ContentWidth() - 52)
-    detail.title:SetJustifyH("LEFT")
-
-    detail.status = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    detail.status:SetPoint("TOPLEFT", detail.title, "BOTTOMLEFT", 0, -4)
-    detail.status:SetWidth(ContentWidth() - 52)
-    detail.status:SetJustifyH("LEFT")
-
-    -- Rule under the header, in the panels' border colour.
-    detail.divider = child:CreateTexture(nil, "ARTWORK")
-    detail.divider:SetPoint("TOPLEFT", 0, -HEADER_H + 6)
-    detail.divider:SetSize(ContentWidth(), 1)
-    detail.divider:SetColorTexture(0.6, 0.5, 0.35, 0.6)
-
-    detail.empty = parent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    detail.empty:SetPoint("CENTER")
-    detail.empty:SetText(L.SELECT_RECIPE)
+    detail.empty = CreateEmpty(parent)
 end
 
 -- Re-fit the fixed-width parts to the pane after a resize (RefreshDetail re-renders the lines).
 function UI.LayoutDetail()
     if not detail.child then return end
-    local w = ContentWidth()
-    detail.child:SetWidth(w)
-    detail.title:SetWidth(w - 52)
-    detail.status:SetWidth(w - 52)
-    detail.divider:SetWidth(w)
+    detail.child:SetWidth(ContentWidth())
 end
 
 -- Rendering --------------------------------------------------------------------------------------
@@ -161,20 +254,6 @@ function UI.DetailLines(spellID, rec)
     local function Add(l) out[#out + 1] = l end
 
     local s = UI.GetSchematic(spellID)
-    local output = (s and s.outputItemID) or rec.creates
-    if output then
-        Add({ kind = "section", text = L.CREATES })
-        local count
-        if s and s.quantityMax and s.quantityMax > 1 then
-            count = s.quantityMin == s.quantityMax and tostring(s.quantityMax) or (s.quantityMin .. "-" .. s.quantityMax)
-        elseif type(rec.count) == "table" then   -- { min, max }
-            count = rec.count[1] .. "-" .. rec.count[2]
-        elseif rec.count and rec.count > 1 then
-            count = tostring(rec.count)
-        end
-        Add({ kind = "item", item = output, prefix = count and (count .. "x") or nil, indent = 1 })
-    end
-
     if s and s.reagentSlotSchematics and #s.reagentSlotSchematics > 0 then
         Add({ kind = "section", text = L.REAGENTS })
         for _, slot in ipairs(s.reagentSlotSchematics) do
@@ -261,6 +340,101 @@ local function RenderLine(line, l, y, width, pending)
     return y + height + 3
 end
 
+-- Difficulty scale: orange/yellow/green segments over learn → grey plus a grey cap, the four
+-- numbers, and a tick at the character's skill once it reaches the learn level.
+local function RenderScale(s, rec, skill)
+    local learn, grey = rec.learn or 0, rec.grey
+    local widths = { 0, 0, 0, 0 }
+    local span = grey and (grey - learn) or 0
+    if grey and span > 0 then
+        local w = SCALE_W - SCALE_CAP
+        local y = math.max(learn, math.min(grey, rec.yellow or learn))
+        local g = math.max(y, math.min(grey, rec.green or y))
+        widths = { (y - learn) / span * w, (g - y) / span * w, (grey - g) / span * w, SCALE_CAP }
+    elseif grey then
+        widths[4] = SCALE_W          -- trivial from the start
+    else
+        widths[1] = SCALE_W          -- never turns grey
+    end
+    local x = 0
+    for i, t in ipairs(s.segments) do
+        local w = math.max(0, widths[i])
+        t:ClearAllPoints()
+        t:SetPoint("TOPLEFT", s.track, "TOPLEFT", x, 0)
+        t:SetWidth(w)
+        t:SetShown(w > 0)
+        x = x + w
+    end
+
+    local values = { rec.learn, rec.grey and rec.yellow, rec.grey and rec.green, rec.grey }
+    local colors = { (skill and rec.learn and skill < rec.learn) and "red" or "orange", "yellow", "green", "grey" }
+    for i, n in ipairs(s.nums) do
+        n:SetText(values[i] and tostring(values[i]) or "")
+        n:SetTextColor(Hex(M.COLORS[colors[i]]))
+    end
+
+    local showTick = skill ~= nil and skill >= learn
+    s.tick:SetShown(showTick)
+    if showTick then
+        local pos = SCALE_W - 2
+        if grey and span > 0 and skill < grey then pos = (skill - learn) / span * (SCALE_W - SCALE_CAP) end
+        s.tick:ClearAllPoints()
+        s.tick:SetPoint("CENTER", s.track, "LEFT", math.max(1, math.min(SCALE_W - 1, pos)), 0)
+    end
+end
+
+-- "Creates [count×] <item> · <subtype>", with the item name queued for loading when uncached.
+local function CreatesText(spellID, rec, pending)
+    local s = UI.GetSchematic(spellID)
+    local output = (s and s.outputItemID) or rec.creates
+    if not output then return nil end
+    local count
+    if s and s.quantityMax and s.quantityMax > 1 then
+        count = s.quantityMin == s.quantityMax and tostring(s.quantityMax) or (s.quantityMin .. "-" .. s.quantityMax)
+    elseif type(rec.count) == "table" then   -- { min, max }
+        count = rec.count[1] .. "-" .. rec.count[2]
+    elseif rec.count and rec.count > 1 then
+        count = tostring(rec.count)
+    end
+    local name, cached = ItemName(output)
+    if not cached and not requested[output] then pending[#pending + 1] = output end
+    local text = ItemColor(output) .. name .. "|r"
+    if count then text = count .. "x " .. text end
+    local subtype = C_Item and C_Item.GetItemInfoInstant and select(3, C_Item.GetItemInfoInstant(output))
+    if subtype and subtype ~= "" then text = text .. M.SEP .. subtype end
+    return L.CREATES_LINE:format(text), output
+end
+
+local function RenderHeader(spellID, rec, skill, learned, pending)
+    local h = detail.header
+    h.icon:SetTexture(M.RecipeIcon(spellID, rec))
+    h.title:SetText(M.Colored(M.Difficulty(rec, skill), M.RecipeDisplayName(spellID)))
+    local creates, output = CreatesText(spellID, rec, pending)
+    h.creates:SetText(creates or "")
+    local q = output and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(output)
+    local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+    if c and c.r then h.iconBorder:SetColorTexture(c.r, c.g, c.b, 1) else h.iconBorder:SetColorTexture(Hex("5a4a32")) end
+
+    if learned then h.stateChip:SetChip(L.LEARNED, "good") else h.stateChip:SetChip(L.NOT_LEARNED, "bad") end
+    local cat = rec.cat and ns.Data.Categories and ns.Data.Categories[rec.cat]
+    h.catChip:SetChip(cat and cat.name or L.OTHER, "neutral")
+    h.newChip:SetShown(rec.new and true or false)
+    if rec.new then h.newChip:SetChip(L.NEW, "neutral") end
+    RenderScale(h.scale, rec, skill)
+end
+
+local function RenderEmpty()
+    local e, line = detail.empty, UI.state.line
+    e:Show()
+    if not line then return end
+    local watermark = UI.Theme(line).watermark
+    e.watermark:SetShown(watermark ~= nil and UI.SetAtlas(e.watermark, watermark))
+    local total, learned = M.FilterCounts(line, function(id) return ns.IsLearned(id, UI.state.char) end)
+    e.stats.learned.value:SetText(tostring(learned))
+    e.stats.learnable.value:SetText(tostring(ns.LearnableCount(line, UI.state.char)))
+    e.stats.missing.value:SetText(tostring(total - learned))
+end
+
 function UI.RefreshDetail()
     if not detail.child then return end
     local spellID = UI.state.selected
@@ -268,25 +442,22 @@ function UI.RefreshDetail()
     detail.current = spellID
     if not rec then
         detail.scroll:Hide()
-        detail.empty:Show()
+        detail.header:Hide()
+        RenderEmpty()
         detail.rendered = nil
         return
     end
     detail.empty:Hide()
+    detail.header:Show()
     detail.scroll:Show()
 
     local skill = ns.CharSkill(UI.state.line, UI.state.char)
     local learned = ns.IsLearned(spellID, UI.state.char)
-    detail.icon:SetTexture(M.RecipeIcon(spellID, rec))
-    detail.title:SetText(M.Colored(M.Difficulty(rec, skill), M.RecipeDisplayName(spellID)))
-    local status = learned and ("|cff40c040" .. L.LEARNED .. "|r") or ("|cffff4040" .. L.NOT_LEARNED .. "|r")
-    status = status .. "   " .. L.SKILL_RANGE .. ": " .. M.RangeText(rec, skill)
-    if rec.new then status = status .. "   |cff8080ff" .. L.NEW .. "|r" end
-    detail.status:SetText(status)
+    local pending = {}
+    RenderHeader(spellID, rec, skill, learned, pending)
 
     local width = ContentWidth()
-    local y = HEADER_H
-    local pending = {}
+    local y = 4
     local lines = UI.DetailLines(spellID, rec)
     for i, l in ipairs(lines) do
         local line = detail.lines[i] or CreateLine(i)

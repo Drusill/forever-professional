@@ -35,6 +35,8 @@ L.SOURCES = "Sources"
 L.REQUIREMENTS = "Requirements"
 L.SKILL_RANGE = "Skill"
 L.NEW = "New in Forever"
+L.CREATES_LINE = "Creates %s"
+L.LEARNABLE_NOW = "Learnable now"
 
 L.SRC_AUTO = "Learned automatically with the profession"
 L.SRC_TRAINER = "Trainer"

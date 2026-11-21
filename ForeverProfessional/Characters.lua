@@ -33,6 +33,22 @@ function ns.CharSkill(line, key)
     return p and p.skill, p and p.max
 end
 
+-- Recipes of a profession the character could learn now: not learned, has the profession with
+-- enough skill, and not locked to the other faction.
+function ns.LearnableCount(line, key)
+    local c = ns.GetChar(key)
+    local prof = c and c.professions and c.professions[line]
+    if not prof then return 0 end
+    local skill, n = prof.skill or 0, 0
+    for spellID, rec in pairs(ns.Data.Recipes[line] or {}) do
+        if not (c.learned and c.learned[spellID]) and skill >= (rec.learn or 0)
+                and not (rec.side and rec.side ~= c.faction) then
+            n = n + 1
+        end
+    end
+    return n
+end
+
 -- "Horde", "Alliance", or nil when the character isn't cached.
 function ns.CharFaction(key)
     local c = ns.GetChar(key)

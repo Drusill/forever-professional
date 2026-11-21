@@ -328,10 +328,9 @@ class AltViewTest(unittest.TestCase):
     def test_alt_detail_status(self):
         self.UI.SetChar(DRU_ROGUE)
         self.UI.SelectRecipe(7255)
-        self.assertIn("Learned", plain(self.UI.detail.status.text))
-        self.assertNotIn("Not learned", plain(self.UI.detail.status.text))
+        self.assertEqual(self.UI.detail.header.stateChip.text.text, "Learned")
         self.UI.SetChar(None)
-        self.assertIn("Not learned", plain(self.UI.detail.status.text))
+        self.assertEqual(self.UI.detail.header.stateChip.text.text, "Not learned")
 
     def test_set_char_self_or_unknown_is_nil(self):
         self.UI.SetChar("Player-1-0000000A")
