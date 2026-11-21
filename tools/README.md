@@ -34,6 +34,8 @@ Use `--whatstraining "<AddOns>\WhatsTraining\Crafting\Recipes\Camelot"` to build
 
 ForeverDB is GPL-3.0, so the addon is GPL-3.0 (see `LICENSE`).
 
+Open question on ForeverDB's provenance: it doesn't scrape Wowhead itself, but its README says QuestieDB's generated delta-base "was built by the Questie team from Wowhead's Forever pages", and its build can leave that part out (`QUESTIE_GENERATED=off`). The pinned release lists QuestieDB (Forever) in `meta.sourceList` but doesn't record how that switch was set, so some NPC positions and quests may come from Wowhead indirectly. Ask the ForeverDB maintainers before treating its quest and NPC data as Wowhead-free.
+
 ## Merge rules
 
 - **Recipe list:** WhatsTraining. Profession rank spells (Journeyman, Expert…) go to `Ranks.lua`, not the recipe list.

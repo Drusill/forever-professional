@@ -26,6 +26,8 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 - **Never hand-edit `ForeverProfessional/Data/`.** Data fixes go in `tools/overrides.json`, then rebuild. Ask before changing anything under `tools/`.
 - Work on `develop`. Commit small, working steps with clear messages. Don't push unless asked.
 - Run the tests after each change.
+- **Follow Blizzard's [UI Add-On Development Policy](https://us.forums.blizzard.com/en/wow/t/ui-add-on-development-policy/24534).** The addon stays free and its code readable: data files stay plain Lua tables, never compressed or encoded. No ads, and no donation requests in game: a donation link may go on the download page, never in the TOC or the UI.
+- Use only the in-game API. Never automate gameplay, and don't bundle Blizzard art or sound: reference client textures and atlases by name. `spike/` never ships.
 
 ## Commands
 
