@@ -33,13 +33,13 @@ UI.THEME = {
     [185] = { kit = "Cooking",        accent = "c9d3de", bar = { "7d8b9a", "ffffff" } },
     [356] = { kit = "Fishing",        accent = "6aa0ff", bar = { "2f5aa8", "cfe2ff" } },
     [129] = { kit = "FirstAid",       accent = "6fdc2a", bar = { "3fae12", "d8ffb0" } },
-    [171] = { kit = "Alchemy",        accent = "4fd1c5", bar = { "1f8a80", "a8fff5" } },
-    [333] = { kit = "Enchanting",     accent = "b36bff", bar = { "6a2fb0", "e6ccff" } },
-    [202] = { kit = "Engineering",    accent = "e0b040", bar = { "8a6a1a", "ffe9a0" } },
-    [165] = { kit = "Leatherworking", accent = "c08850", bar = { "7a4a20", "f0d0a8" } },
-    [197] = { kit = "Tailoring",      accent = "d070b0", bar = { "8a2f6a", "ffd0f0" } },
-    [182] = { kit = "Herbalism",      accent = "6fcf4a", bar = { "2f7a1a", "d0ffb0" } },
-    [393] = { kit = "Skinning",       accent = "c0a080", bar = { "6a5030", "f0e0c8" } },
+    [171] = { kit = "Alchemy",        accent = "3fc8c8", bar = { "1f8a8a", "a8f5f5" } },
+    [333] = { kit = "Enchanting",     accent = "e8508a", bar = { "b02a3a", "f0c040" } },
+    [202] = { kit = "Engineering",    accent = "c8a050", bar = { "5a4a30", "e0c070" } },
+    [165] = { kit = "Leatherworking", accent = "b07040", bar = { "6a3a1a", "d09060" } },
+    [197] = { kit = "Tailoring",      accent = "6a5ae8", bar = { "2a2a9a", "8a8af0" } },
+    [182] = { kit = "Herbalism",      accent = "6aa83a", bar = { "2f5a1a", "9ad060" } },
+    [393] = { kit = "Skinning",       accent = "5aa090", bar = { "2a5a50", "8ac8b8" } },
 }
 local DEFAULT_THEME = { kit = "DefaultBlue", accent = "ffd100", bar = { "a8601f", "ffd100" } }
 
@@ -47,15 +47,17 @@ function UI.Theme(line)
     return UI.THEME[line] or DEFAULT_THEME
 end
 
--- Icon per source type (Model.PrimarySource / SourceCards types) and the learned check.
+-- Icon per source type (Model.PrimarySource / SourceCards types) and the learned check, picked in
+-- game: the gossip glyphs for trainer/vendor/quest, the minimap's rare-kill skull for drops and its
+-- treasure chest for objects and containers. "atlas:<name>" values go through UI.SetIcon.
 UI.SOURCE_ICONS = {
     auto = "Interface\\GossipFrame\\TrainerGossipIcon",
     trainer = "Interface\\GossipFrame\\TrainerGossipIcon",
     vendor = "Interface\\GossipFrame\\VendorGossipIcon",
     quest = "Interface\\GossipFrame\\AvailableQuestIcon",
-    drop = "Interface\\Icons\\INV_Misc_Bag_10",
-    object = "Interface\\Icons\\INV_Box_01",
-    container = "Interface\\Icons\\INV_Box_02",
+    drop = "atlas:VignetteKill",
+    object = "atlas:VignetteLoot",
+    container = "atlas:VignetteLoot",
     crafted = "Interface\\Icons\\INV_Misc_Gear_01",
     worldObject = "Interface\\Icons\\INV_Misc_Gear_01",
     more = "Interface\\Icons\\INV_Misc_Gear_01",
@@ -72,6 +74,21 @@ end
 function UI.SetAtlas(tex, atlas)
     if C_Texture and C_Texture.GetAtlasInfo and not C_Texture.GetAtlasInfo(atlas) then return false end
     return (pcall(tex.SetAtlas, tex, atlas)) and true or false
+end
+
+-- Plain files for the atlas icons, in case the client lacks the atlas.
+local ICON_FALLBACK = {
+    ["atlas:VignetteKill"] = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull",
+    ["atlas:VignetteLoot"] = "Interface\\Icons\\INV_Box_01",
+}
+
+-- Show a SOURCE_ICONS value on a texture: "atlas:<name>" or a file path.
+function UI.SetIcon(tex, value)
+    if type(value) == "string" and value:sub(1, 6) == "atlas:" then
+        if UI.SetAtlas(tex, value:sub(7)) then return end
+        value = ICON_FALLBACK[value] or M.QUESTION_ICON
+    end
+    tex:SetTexture(value)
 end
 
 -- Horizontal gradient between two hex colours; a flat colour when gradients aren't available.

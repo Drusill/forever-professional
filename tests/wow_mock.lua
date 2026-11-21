@@ -130,9 +130,9 @@ function Widget:GetText() return self.text end
 function Widget:SetFormattedText(fmt, ...) self.text = fmt:format(...) end
 function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
 function Widget:SetVertexColor(r, g, b, a) self.vertex = { r, g, b, a } end
-function Widget:SetTexture(t) self.texture = t; return true end
+function Widget:SetTexture(t) self.texture = t; self.atlas = nil; return true end
 function Widget:GetTexture() return self.texture end
-function Widget:SetAtlas(a) self.atlas = a; return true end
+function Widget:SetAtlas(a) self.atlas = a; self.texture = nil; return true end
 function Widget:SetColorTexture(r, g, b, a) self.texture = { r, g, b, a } end
 -- Size changes fire OnSizeChanged, like the client.
 local function sized(self, w, h)
@@ -221,6 +221,8 @@ end
 function Widget:SetFontString(fs) self.fontString = fs end
 function Widget:SetNormalFontObject() end
 function Widget:SetRotation(r) self.rotation = r end
+function Widget:SetAlpha(a) self.alpha = a end
+function Widget:GetAlpha() return self.alpha or 1 end
 function Widget:SetGradient(o, a, b) self.gradient = { o, a, b } end
 -- Animation groups: enough for a FlipBook animation to be configured and played.
 function Widget:CreateAnimationGroup()

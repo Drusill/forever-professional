@@ -140,6 +140,25 @@ class WindowTest(unittest.TestCase):
         self.a.call(self.UI.expandAllButton, "Click")
         self.assertEqual(len(self.entries()), before)
 
+    def test_collapse_expand_buttons_use_header_chevrons(self):
+        c, e = self.UI.collapseAllButton.icon, self.UI.expandAllButton.icon
+        self.assertEqual((c.texture, c.rotation), (r"Interface\ChatFrame\ChatFrameExpandArrow", 0))
+        self.assertEqual((e.texture, e.rotation), (r"Interface\ChatFrame\ChatFrameExpandArrow", -math.pi / 2))
+
+    def test_drop_rows_show_the_skull(self):
+        row = self.search(1250793)
+        self.assertEqual(row.status.atlas, "VignetteKill")
+
+    def test_header_watermark(self):
+        self.a.ns.UI.THEME[171].watermark = "test-atlas"
+        self.UI.Refresh()
+        self.assertTrue(self.UI.header.watermark.shown)
+        self.assertEqual(self.UI.header.watermark.atlas, "test-atlas")
+        self.assertLessEqual(self.UI.header.watermark.alpha or 0, 0.1)
+        self.a.ns.UI.THEME[171].watermark = None
+        self.UI.Refresh()
+        self.assertFalse(self.UI.header.watermark.shown)
+
     def test_collapse_all_then_search(self):
         self.UI.CollapseAll()
         self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 3230")
@@ -148,7 +167,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(self.recipe_ids(), [])
 
     def test_search_placeholder(self):
-        self.assertEqual(self.a.g.ForeverProfessionalSearchBox.placeholder.text, "Search recipes…")
+        self.assertEqual(self.a.g.ForeverProfessionalSearchBox.placeholder.text, "Search…")
         self.assertIsNotNone(self.a.g.ForeverProfessionalSearchBox.icon)
 
     def test_search_box(self):

@@ -342,7 +342,7 @@ local function CreateHeader(f)
 
     local skill = CreateStat(h, L.SKILL_LABEL)
     h.skillLabel, h.skillText = skill.label, skill.value
-    h.skillBar = UI.CreateSkillBar(h, STAT_W, 10)
+    h.skillBar = UI.CreateSkillBar(h, STAT_W, 14)
     h.skillBar:SetPoint("RIGHT", h.recipesBar, "LEFT", -16, -2)
     h.skillLabel:SetPoint("BOTTOMLEFT", h.skillBar, "TOPLEFT", 0, 3)
     h.skillText:SetPoint("BOTTOMRIGHT", h.skillBar, "TOPRIGHT", 0, 3)
@@ -508,8 +508,7 @@ end
 -- Toolbar ----------------------------------------------------------------------------------------
 
 local SEARCH_ICON = "Interface\\Common\\UI-Searchbox-Icon"
-local COLLAPSE_ICON = "Interface\\Buttons\\UI-MinusButton-Up"
-local EXPAND_ICON = "Interface\\Buttons\\UI-PlusButton-Up"
+local CHEVRON = "Interface\\ChatFrame\\ChatFrameExpandArrow"   -- same as the group headers
 
 local function CreateToolbar(panel)
     local bar = CreateFrame("Frame", nil, panel)
@@ -518,10 +517,13 @@ local function CreateToolbar(panel)
     bar:SetHeight(UI.BAR_H - 12)
 
     -- Right to left: expand all, collapse all, the filter toggle; the search box takes the rest.
-    UI.expandAllButton = UI.CreateIconButton(bar, EXPAND_ICON, L.EXPAND_ALL, function() UI.ExpandAll() end)
+    -- Chevrons as on the headers: pointing right = collapsed, down = expanded.
+    UI.expandAllButton = UI.CreateIconButton(bar, CHEVRON, L.EXPAND_ALL, function() UI.ExpandAll() end)
     UI.expandAllButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
-    UI.collapseAllButton = UI.CreateIconButton(bar, COLLAPSE_ICON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
+    UI.expandAllButton.icon:SetRotation(-math.pi / 2)
+    UI.collapseAllButton = UI.CreateIconButton(bar, CHEVRON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
     UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
+    UI.collapseAllButton.icon:SetRotation(0)
 
     UI.filterControl = UI.CreateSegmented(bar, {
         { key = "all", label = L.FILTER_ALL },

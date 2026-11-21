@@ -565,7 +565,7 @@ local function RenderCard(b, y, width, pending)
     w:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
     w:SetWidth(width)
     w.card, w.item = card, card.item
-    w.icon:SetTexture(UI.SOURCE_ICONS[card.type] or UI.SOURCE_ICONS.unknown)
+    UI.SetIcon(w.icon, UI.SOURCE_ICONS[card.type] or UI.SOURCE_ICONS.unknown)
     w.title:SetText(card.title or (card.item and ItemText(card.item, pending)) or "")
     w.detail:SetText(card.detail or "")
     w.waypoint:SetShown(card.waypoint ~= nil)

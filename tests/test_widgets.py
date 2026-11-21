@@ -80,6 +80,24 @@ class WidgetsTest(unittest.TestCase):
         self.assertEqual(clicked, 1)
         self.assertEqual(lua_list(self.a.g.GameTooltip.lines), ["Collapse all"])
 
+    def test_source_icons_cover_every_type(self):
+        for t in ("auto", "trainer", "vendor", "quest", "drop", "object", "container", "crafted",
+                  "worldObject", "more", "unknown", "check"):
+            self.assertIsNotNone(self.UI.SOURCE_ICONS[t], t)
+        self.assertEqual(self.UI.SOURCE_ICONS.drop, "atlas:VignetteKill")
+        self.assertEqual(self.UI.SOURCE_ICONS.object, "atlas:VignetteLoot")
+        self.assertEqual(self.UI.SOURCE_ICONS.container, "atlas:VignetteLoot")
+
+    def test_set_icon_atlas_and_fallback(self):
+        tex = self.a.run('return CreateFrame("Frame", nil, UIParent):CreateTexture()')
+        self.UI.SetIcon(tex, "atlas:VignetteKill")
+        self.assertEqual((tex.atlas, tex.texture), ("VignetteKill", None))
+        self.a.run('mock.missingAtlases["VignetteKill"] = true')
+        self.UI.SetIcon(tex, "atlas:VignetteKill")
+        self.assertEqual((tex.atlas, tex.texture), (None, r"Interface\TargetingFrame\UI-TargetingFrame-Skull"))
+        self.UI.SetIcon(tex, r"Interface\GossipFrame\VendorGossipIcon")
+        self.assertEqual(tex.texture, r"Interface\GossipFrame\VendorGossipIcon")
+
     def test_progress_bar(self):
         bar = self.UI.CreateProgressBar(self.parent, 100, 4)
         Addon.call(bar, "SetProgress", 1, 4)

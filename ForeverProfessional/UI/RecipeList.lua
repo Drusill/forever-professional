@@ -216,10 +216,10 @@ local function RenderRecipe(row, e, x, skill, faction)
     row.icon:SetPoint("LEFT", x, 0)
     row.status:Show()
     if learned then
-        row.status:SetTexture(UI.SOURCE_ICONS.check)
+        UI.SetIcon(row.status, UI.SOURCE_ICONS.check)
     else
         local p = M.PrimarySource(rec, faction)
-        row.status:SetTexture(UI.SOURCE_ICONS[p.type] or UI.SOURCE_ICONS.unknown)
+        UI.SetIcon(row.status, UI.SOURCE_ICONS[p.type] or UI.SOURCE_ICONS.unknown)
     end
     row.label:SetFontObject(GameFontHighlight)
     row.label:ClearAllPoints()
