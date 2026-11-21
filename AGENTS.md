@@ -12,7 +12,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 |---|---|
 | `ForeverProfessional/` | The addon (the folder that goes into `Interface\AddOns`) |
 | `ForeverProfessional/Data/` | **Generated** baked data. Never edit by hand |
-| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `Tooltip` (recipe item tooltips), `UI/Window`, `UI/RecipeList`, `UI/Detail`, `UI/Minimap` (minimap button, compartment entry) |
+| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `Tooltip` (recipe item tooltips), `UI/Widgets` (flat panel, filter toggle, chips, slots, skill bar, profession theme and source icons), `UI/Window` (rail, header, toolbar, resizing), `UI/RecipeList` (two-line rows), `UI/Detail` (pinned header, sections, source cards), `UI/Minimap` (minimap button, compartment entry) |
 | `tests/` | Addon tests: `wow_mock.lua` (mock client API), `harness.py` (loads the real TOC and data through `lupa`), `test_*.py` |
 | `tools/` | Offline data pipeline (Python, stdlib only): `python tools/build_data.py` |
 | `tools/overrides.json` | Hand-verified data fixes, applied last by the pipeline |
@@ -64,6 +64,8 @@ TOC changes need a full client restart; `/reload` doesn't pick them up. Errors c
 - Category names are only readable in game while that profession's window is open; the baked `Categories.lua` covers them.
 - Items load async: `Item:CreateFromItemID(id):ContinueOnItemLoad(cb)`. Cached items fire the callback **synchronously**; handle both. New Forever item IDs (250000+) work. Invalid IDs show up as a nil name, not an error.
 - The Encounter Journal is disabled (`EncounterJournalDisabled`), but its art is available: atlases `adventureguide-*`, `loottab-*`, `UI-EJ-*`, textures under `Interface\EncounterJournal\`, plus the Professions atlases. Build our own frames with them.
+- **Profession art** (checked in game): every profession has its skill bar art, `Skillbar_Fill_Flipbook_<Kit>` (a flipbook: 2 columns of 34px rows) plus `Skillbar_Flare_<Kit>`, for Kit in Alchemy, Blacksmithing, Cooking, Enchanting, Engineering, FirstAid, Fishing, Herbalism, Leatherworking, Mining, Skinning, Tailoring (and `DefaultBlue`, fill only), with `Professions-skillbar-bg/frame/mask`. The Professions book is `ProfessionsFrame` (not `ProfessionsBookFrame`); its cards are `Profession-overview-Card-<Kit>` (664×141, the nine primary professions) and `Profession-overview-card-generic-<Kit>` (225×274, Cooking, Fishing, First Aid).
+- `SetResizeBounds`, `CreateColor` and `Texture:SetGradient` exist. Atlases `VignetteLoot` and `VignetteKill` exist (the latter is too faint at 14px).
 - Map pins: `C_Map.CanSetUserWaypointOnMap` is true; use `C_Map.SetUserWaypoint` + `C_SuperTrack.SetSuperTrackedUserWaypoint`.
 - Merchant data is readable on `MERCHANT_SHOW` (NPC ID from `UnitGUID("npc")`, `GetMerchantItemID`, `C_MerchantFrame.GetItemInfo`): use it to harvest missing vendor data.
 - Wrap event registration in `pcall` (registering an unknown event throws). Avoid opening Blizzard panels from addon code (taint risk).
