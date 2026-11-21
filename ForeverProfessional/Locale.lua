@@ -60,6 +60,7 @@ L.SIDE_ONLY = "%s only"
 L.ALLIANCE = "Alliance"
 L.HORDE = "Horde"
 L.INSTANCE = "dungeon"
+L.VENDORS_ONLY = "(%s vendors only)"
 
 L.MINIMAP_CLICK = "Click to open or close"
 L.MINIMAP_DRAG = "Drag to move"
