@@ -428,3 +428,127 @@ function M.SourceLines(rec)
 
     return lines
 end
+
+-- Rows ------------------------------------------------------------------------------------
+-- The recipe list's second line: learn level and the easiest way to get a missing recipe.
+
+M.SEP = " · "
+
+local SIDE_LETTER = { Alliance = "A", Horde = "H" }
+
+-- Can a character of `faction` ("Horde"/"Alliance"/nil) use this NPC? Unknown factions count as usable.
+function M.Usable(npcID, faction)
+    local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
+    local f = npc and npc.faction
+    if not f or f == "AH" or not faction then return true end
+    return f == SIDE_LETTER[faction]
+end
+
+-- Easiest first.
+local PRIMARY_ORDER = { "auto", "trainer", "vendor", "quest", "drop", "object", "container", "crafted", "worldObject" }
+
+local function Count(list, total)
+    if total then return total end
+    return list and #list or 0
+end
+
+-- Number of source entries of type t (a type claimed only through `unverified` counts 1).
+local function Entries(rec, t)
+    local n = 0
+    if t == "auto" or t == "crafted" or t == "worldObject" then n = 1
+    elseif t == "trainer" then n = 1
+    elseif t == "vendor" then n = Count(rec.vendors)
+    elseif t == "quest" then n = Count(rec.quests)
+    elseif t == "drop" then n = Count(rec.drops, rec.dropTotal)
+    elseif t == "object" then n = Count(rec.objects, rec.objectTotal)
+    elseif t == "container" then n = Count(rec.containers, rec.containerTotal)
+    end
+    return math.max(n, 1)
+end
+
+-- "Name (Zone)", or just the name when the zone is unknown.
+local function NPCWhere(npcID)
+    local name = M.NPCName(npcID)
+    local zone = M.ZoneName(ns.Data.NPCs and ns.Data.NPCs[npcID])
+    if zone then return ("%s (%s)"):format(name, zone) end
+    return name
+end
+
+-- The first NPC usable by `faction`, else the first one with the other side's name appended.
+local function PickNPC(ids, faction)
+    for _, id in ipairs(ids) do
+        if M.Usable(id, faction) then return NPCWhere(id) end
+    end
+    local id = ids[1]
+    local npc = ns.Data.NPCs and ns.Data.NPCs[id]
+    local side = npc and (npc.faction == "A" and L.ALLIANCE or npc.faction == "H" and L.HORDE)
+    return NPCWhere(id) .. (side and (M.SEP .. side) or "")
+end
+
+local function ContainerName(itemID)
+    local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
+    return name or L.A_CONTAINER
+end
+
+local function PrimaryText(rec, t, faction)
+    local function Unverified() return L.UNVERIFIED:format(TYPE_LABEL[t] or t) end
+    if t == "auto" then return L.SRC_AUTO_SHORT end
+    if t == "crafted" then return L.SRC_CRAFTED end
+    if t == "worldObject" then return L.SRC_WORLDOBJECT end
+    if t == "trainer" then
+        return rec.trainer and L.ROW_TRAINER:format(M.Money(rec.trainer)) or L.SRC_TRAINER
+    end
+    if t == "vendor" then
+        if not (rec.vendors and rec.vendors[1]) then return Unverified() end
+        return L.ROW_VENDOR:format(PickNPC(rec.vendors, faction))
+    end
+    if t == "drop" then
+        if not (rec.drops and rec.drops[1]) then return Unverified() end
+        local ids = {}
+        for i, d in ipairs(rec.drops) do ids[i] = d[1] end
+        return L.ROW_DROP:format(PickNPC(ids, faction))
+    end
+    if t == "quest" then
+        if not (rec.quests and rec.quests[1]) then return Unverified() end
+        return L.ROW_QUEST:format(M.QuestName(rec.quests[1]))
+    end
+    if t == "object" then
+        if not (rec.objects and rec.objects[1]) then return Unverified() end
+        return L.ROW_OBJECT:format(M.ObjectName(rec.objects[1][1]))
+    end
+    if t == "container" then
+        if not (rec.containers and rec.containers[1]) then return Unverified() end
+        return L.ROW_CONTAINER:format(ContainerName(rec.containers[1][1]))
+    end
+end
+
+-- The easiest source of a recipe for a character of `faction`:
+-- { type, text, more } where `more` counts the record's other source entries.
+function M.PrimarySource(rec, faction)
+    local src = rec.src or {}
+    local primary, total = nil, 0
+    for _, t in ipairs(PRIMARY_ORDER) do
+        if Has(src, t) or (t == "trainer" and rec.trainer) then
+            primary = primary or t
+            total = total + Entries(rec, t)
+        end
+    end
+    if not primary then return { type = "unknown", text = L.SRC_UNKNOWN, more = 0 } end
+    return { type = primary, text = PrimaryText(rec, primary, faction), more = math.max(0, total - 1) }
+end
+
+-- Second line of a recipe row. Learned: the four thresholds. Missing: "Learn N · <source> · +N more",
+-- with the learn level in red when the character's skill is known and too low.
+function M.RowSubtitle(rec, skill, learned, faction)
+    if learned then return M.RangeText(rec, skill) end
+    local parts = {}
+    if rec.learn and rec.learn > 0 then
+        local text = L.LEARN:format(rec.learn)
+        if skill and skill < rec.learn then text = Colored("red", text) end
+        parts[#parts + 1] = text
+    end
+    local p = M.PrimarySource(rec, faction)
+    parts[#parts + 1] = p.text
+    if p.more > 0 then parts[#parts + 1] = L.MORE:format(p.more) end
+    return table.concat(parts, M.SEP)
+end

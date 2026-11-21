@@ -4,7 +4,7 @@ import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon, lua_list  # noqa: E402
+from harness import Addon, lua_list, plain  # noqa: E402
 
 LEARNED = "mock.learned = { [2329] = true, [3170] = true, [7183] = true }"
 GOLD = r"|TInterface\MoneyFrame\UI-GoldIcon:0:0:2:0|t"
@@ -189,6 +189,72 @@ class ModelTest(unittest.TestCase):
     def test_localized_npc_names(self):
         a = Addon(locale="deDE")
         self.assertEqual(a.ns.Model.NPCName(48), "Skelettkrieger")
+
+
+class PrimarySourceTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a = Addon()
+        cls.a.login()
+        cls.M, cls.R = cls.a.ns.Model, cls.a.ns.Data.Recipes
+
+    def setUp(self):
+        self.a.mock.itemNames[6307] = None
+
+    def ps(self, line, spell, faction="Horde"):
+        p = self.M.PrimarySource(self.R[line][spell], faction)
+        return p.type, plain(p.text), p.more
+
+    def test_trainer_with_cost(self):
+        self.assertEqual(self.ps(171, 2329), ("trainer", "Trainer · 50" + COPPER, 0))
+
+    def test_trainer_before_quests(self):
+        self.assertEqual(self.ps(171, 1230564), ("trainer", "Trainer · 1" + SILVER, 7))
+
+    def test_vendor_usable_by_faction(self):
+        self.assertEqual(self.ps(171, 7255, "Horde"), ("vendor", "Vendor · Kzixx (Map 1431)", 2))
+        self.assertEqual(self.ps(171, 7255, "Alliance"), ("vendor", "Vendor · Xandar Goodbeard (Map 1432)", 2))
+        self.assertEqual(self.ps(171, 7255, None)[1], "Vendor · Xandar Goodbeard (Map 1432)")
+
+    def test_vendor_only_other_faction_tagged(self):
+        self.assertEqual(self.ps(171, 1251753, "Alliance"), ("vendor", "Vendor · Algernon (Map 1421) · Horde", 2))
+
+    def test_drop_counts_totals(self):
+        self.assertEqual(self.ps(171, 3230), ("drop", "Drop · Councilman Hartin (Map 1421)", 546 + 14))
+
+    def test_drop_in_dungeon(self):
+        self.assertEqual(self.ps(185, 1262978), ("drop", "Drop · Cookie (Instance 36)", 0))
+
+    def test_object_auto_crafted_world_unknown(self):
+        self.assertEqual(self.ps(185, 1319313), ("object", "Found in Recipe: Raw Plated Armorfish", 0))
+        self.assertEqual(self.ps(185, 2538), ("auto", "Learned with the profession", 0))
+        self.assertEqual(self.ps(171, 11456)[:2], ("crafted", "Crafted"))
+        self.assertEqual(self.ps(202, 22704)[:2], ("worldObject", "World object"))
+        self.assertEqual(self.ps(171, 2365), ("unknown", "Source unknown", 0))
+
+    def test_unverified_primary(self):
+        t, text, _ = self.ps(197, 24903)
+        self.assertEqual((t, text), ("drop", "Drop (location unknown)"))
+
+    def test_subtitle_learned_is_range(self):
+        rec = self.R[171][3230]
+        self.assertEqual(self.M.RowSubtitle(rec, 120, True, "Horde"), self.M.RangeText(rec, 120))
+
+    def test_subtitle_missing(self):
+        self.assertEqual(self.M.RowSubtitle(self.R[171][1251750], 120, False, "Horde"),
+                         "|cffff2020Learn 180|r · Vendor · Apothecary Durelle (Map 1413) · +1 more")
+        self.assertEqual(plain(self.M.RowSubtitle(self.R[171][7255], 120, False, "Horde")),
+                         "Learn 100 · Vendor · Kzixx (Map 1431) · +2 more")
+        self.assertNotIn("|cff", self.M.RowSubtitle(self.R[171][1251750], None, False, "Horde").split("·")[0])
+
+    def test_subtitle_auto_has_no_learn(self):
+        self.assertEqual(self.M.RowSubtitle(self.R[185][2538], 50, False, "Horde"), "Learned with the profession")
+
+    def test_subtitle_container_name_loads(self):
+        rec = self.a.lua.eval('{ src = {"container"}, containers = {{6307, 0.27}}, learn = 60 }')
+        self.assertEqual(plain(self.M.RowSubtitle(rec, 100, False, "Horde")), "Learn 60 · Contained in a container")
+        self.a.mock.itemNames[6307] = "Box"
+        self.assertEqual(plain(self.M.RowSubtitle(rec, 100, False, "Horde")), "Learn 60 · Contained in Box")
 
 
 if __name__ == "__main__":

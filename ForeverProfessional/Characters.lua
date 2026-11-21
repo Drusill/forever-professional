@@ -33,6 +33,12 @@ function ns.CharSkill(line, key)
     return p and p.skill, p and p.max
 end
 
+-- "Horde", "Alliance", or nil when the character isn't cached.
+function ns.CharFaction(key)
+    local c = ns.GetChar(key)
+    return c and c.faction or nil
+end
+
 -- Other characters ------------------------------------------------------------------------------
 
 -- Every cached character as { key, char }: the logged-in one first, then by name, then by key.

@@ -65,6 +65,11 @@ class OwnersTest(unittest.TestCase):
     def name(self, key):
         return self.ns.CharName(key)
 
+    def test_char_faction(self):
+        self.assertEqual(self.ns.CharFaction("Player-1-0000000D"), "Alliance")
+        self.assertEqual(self.ns.CharFaction(None), "Horde")
+        self.assertIsNone(self.ns.CharFaction("Player-9-X"))
+
     def owners(self, line, spell):
         o = self.ns.RecipeOwners(line, spell)
         known = lua_list(o.known)
