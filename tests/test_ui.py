@@ -245,6 +245,47 @@ class WindowTest(unittest.TestCase):
         self.assertTrue(any("basketweaving" in p for p in self.a.printed()))
 
 
+class ResizeTest(unittest.TestCase):
+    def setUp(self, setup=LEARNED):
+        self.a = open_addon(setup)
+        self.UI = self.a.ns.UI
+        self.f = self.a.g.ForeverProfessionalFrame
+
+    def test_resizable_with_grip(self):
+        self.assertTrue(self.f.resizable)
+        self.assertEqual(lua_list(self.f.resizeBounds)[:2], [900, 520])
+        g = self.UI.resizeGrip
+        g.scripts.OnMouseDown(g, "LeftButton")
+        self.assertEqual(self.f.sizing, "BOTTOMRIGHT")
+        Addon.call(self.f, "SetSize", 1200, 700)
+        g.scripts.OnMouseUp(g, "LeftButton")
+        db = self.a.g.ForeverProfessionalDB
+        self.assertEqual((db.window.w, db.window.h), (1200, 700))
+
+    def test_list_width_split(self):
+        self.assertEqual([self.UI.ListWidth(w) for w in (900, 1040, 1400)], [380, 418, 520])
+
+    def test_layout_on_resize(self):
+        Addon.call(self.f, "SetSize", 1400, 900)
+        self.assertEqual(self.f.listPanel.width, 520)
+        self.assertEqual(self.f.detailPanel.width, 1400 - 64 - 3 * 8 - 520)
+
+    def test_pool_grows_on_taller_window(self):
+        before = len(lua_list(self.UI.list.rows))
+        Addon.call(self.f, "SetSize", 1040, 1060)
+        self.assertGreater(len(lua_list(self.UI.list.rows)), before)
+
+    def test_size_restored_and_clamped(self):
+        def size(win):
+            a = open_addon(f"ForeverProfessionalDB = {{ window = {win} }}; " + LEARNED)
+            f = a.g.ForeverProfessionalFrame
+            return f.width, f.height
+        self.assertEqual(size("{ point='CENTER', x=0, y=0, w=1200, h=700 }"), (1200, 700))
+        self.assertEqual(size("{ point='CENTER', x=0, y=0, w=5000, h=5000 }"), (1920, 1080))
+        self.assertEqual(size("{ point='CENTER', x=0, y=0, w=100, h=100 }"), (900, 520))
+        self.assertEqual(size("{}"), (1040, 640))
+
+
 DRU_ROGUE = "Player-1-0000000B"
 
 

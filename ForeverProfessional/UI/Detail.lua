@@ -16,7 +16,7 @@ UI.schematics = {}
 local requested = {}   -- [itemID] = true once a load was asked for
 
 local function ContentWidth()
-    return UI.DetailPanelWidth() - 36
+    return UI.DetailContentWidth()
 end
 
 -- Height of the scroll frame: the panel (below the header, inside the gaps) less its 8px insets.
@@ -141,6 +141,16 @@ function UI.CreateDetail(parent)
     detail.empty = parent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     detail.empty:SetPoint("CENTER")
     detail.empty:SetText(L.SELECT_RECIPE)
+end
+
+-- Re-fit the fixed-width parts to the pane after a resize (RefreshDetail re-renders the lines).
+function UI.LayoutDetail()
+    if not detail.child then return end
+    local w = ContentWidth()
+    detail.child:SetWidth(w)
+    detail.title:SetWidth(w - 52)
+    detail.status:SetWidth(w - 52)
+    detail.divider:SetWidth(w)
 end
 
 -- Rendering --------------------------------------------------------------------------------------

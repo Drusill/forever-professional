@@ -116,7 +116,7 @@ function UI.CreateList(parent)
     scroll:SetPoint("TOPLEFT", 4, -4)
     scroll:SetPoint("BOTTOMRIGHT", -26, 4)
     local child = CreateFrame("Frame", "ForeverProfessionalListContent", scroll)
-    child:SetSize(UI.LIST_W - 34, 1)
+    child:SetSize(UI.ListWidth(UI.Width()) - 34, 1)
     scroll:SetScrollChild(child)
     UI.StyleScroll(scroll)
 

@@ -7,11 +7,12 @@ local UI = ns.UI
 local Hex = UI.HexColor
 
 UI.DEFAULT_W, UI.DEFAULT_H = 1040, 640
+UI.MIN_W, UI.MIN_H = 900, 520
 UI.RAIL_W = 64
 UI.HEADER_H = 54
 UI.GAP = 8
 UI.BAR_H = 34      -- toolbar row at the top of the list panel
-UI.LIST_W = 418    -- list panel width (fixed until the window can be resized)
+local LIST_SHARE, LIST_MIN, LIST_MAX = 0.44, 380, 520
 
 -- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
 UI.state = { line = nil, filter = "all", search = "", selected = nil, char = nil }
@@ -110,8 +111,20 @@ end
 
 function UI.SavePosition()
     local point, _, relPoint, x, y = UI.frame:GetPoint()
-    if point and ns.db then ns.db.window = { point = point, relPoint = relPoint, x = x, y = y } end
+    if point and ns.db then
+        ns.db.window = { point = point, relPoint = relPoint, x = x, y = y,
+            w = UI.frame:GetWidth(), h = UI.frame:GetHeight() }
+    end
 end
+
+local function ScreenSize()
+    local w, h = UIParent:GetWidth(), UIParent:GetHeight()
+    if not w or w <= 0 then w = 4096 end
+    if not h or h <= 0 then h = 4096 end
+    return w, h
+end
+
+local function Clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
 local function RestorePosition(f)
     f:ClearAllPoints()
@@ -120,6 +133,12 @@ local function RestorePosition(f)
         f:SetPoint(w.point, UIParent, w.relPoint or w.point, w.x or 0, w.y or 0)
     else
         f:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+    end
+    local sw, sh = ScreenSize()
+    if w and w.w and w.h then
+        f:SetSize(Clamp(w.w, UI.MIN_W, math.max(UI.MIN_W, sw)), Clamp(w.h, UI.MIN_H, math.max(UI.MIN_H, sh)))
+    else
+        f:SetSize(UI.DEFAULT_W, UI.DEFAULT_H)
     end
 end
 
@@ -587,7 +606,7 @@ function UI.Create()
     local listPanel = UI.Panel(f)
     listPanel:SetPoint("TOPLEFT", listX, top)
     listPanel:SetPoint("BOTTOMLEFT", listX, UI.GAP)
-    listPanel:SetWidth(UI.LIST_W)
+    listPanel:SetWidth(UI.ListWidth(UI.Width()))
     f.listPanel = listPanel
     f.bar = CreateToolbar(listPanel)
     local listBody = CreateFrame("Frame", nil, listPanel)
@@ -596,19 +615,45 @@ function UI.Create()
     f.listBody = listBody
     UI.CreateList(listBody)
 
-    -- Right: detail pane
+    -- Right: detail pane (placed and sized by UI.Layout)
     local detail = UI.Panel(f)
-    detail:SetPoint("TOPLEFT", listX + UI.LIST_W + UI.GAP, top)
-    detail:SetPoint("BOTTOMRIGHT", -UI.GAP, UI.GAP)
     f.detailPanel = detail
+    UI.PlaceDetailPanel()
     if UI.CreateDetail then UI.CreateDetail(detail) end
+
+    -- Resizing from the bottom-right corner.
+    f:SetResizable(true)
+    local sw, sh = ScreenSize()
+    if f.SetResizeBounds then
+        f:SetResizeBounds(UI.MIN_W, UI.MIN_H, math.max(UI.MIN_W, sw), math.max(UI.MIN_H, sh))
+    elseif f.SetMinResize then
+        f:SetMinResize(UI.MIN_W, UI.MIN_H)
+    end
+    local grip = CreateFrame("Button", nil, f)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -2, 2)
+    grip:SetFrameLevel(f:GetFrameLevel() + 10)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" then f:StartSizing("BOTTOMRIGHT") end
+    end)
+    grip:SetScript("OnMouseUp", function()
+        f:StopMovingOrSizing()
+        UI.SavePosition()
+    end)
+    UI.resizeGrip = grip
+    f:SetScript("OnSizeChanged", function() UI.Layout() end)
 
     f:SetScript("OnShow", function() UI.Refresh() end)
     f:SetScript("OnHide", function() UI.CloseCharMenu() end)
+    UI.Layout()
     return f
 end
 
--- Live sizes (the window will become resizable).
+-- Live sizes ----------------------------------------------------------------------------------------
+
 function UI.Height()
     return (UI.frame and UI.frame:GetHeight()) or UI.DEFAULT_H
 end
@@ -617,8 +662,45 @@ function UI.Width()
     return (UI.frame and UI.frame:GetWidth()) or UI.DEFAULT_W
 end
 
+-- The list's share of the width right of the rail, within its bounds; the detail pane gets the rest.
+function UI.ListWidth(frameWidth)
+    local avail = (frameWidth or UI.Width()) - UI.RAIL_W - 3 * UI.GAP
+    return Clamp(math.floor(avail * LIST_SHARE), LIST_MIN, LIST_MAX)
+end
+
 function UI.DetailPanelWidth()
-    return UI.Width() - UI.RAIL_W - 3 * UI.GAP - UI.LIST_W
+    local w = UI.Width()
+    return w - UI.RAIL_W - 3 * UI.GAP - UI.ListWidth(w)
+end
+
+function UI.DetailContentWidth()
+    return UI.DetailPanelWidth() - 36
+end
+
+function UI.PlaceDetailPanel()
+    local f = UI.frame
+    if not (f and f.detailPanel) then return end
+    local x = UI.RAIL_W + UI.GAP + UI.ListWidth(UI.Width()) + UI.GAP
+    f.detailPanel:ClearAllPoints()
+    f.detailPanel:SetPoint("TOPLEFT", f, "TOPLEFT", x, -(UI.HEADER_H + UI.GAP))
+    f.detailPanel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, UI.GAP)
+    f.detailPanel:SetWidth(UI.DetailPanelWidth())
+end
+
+-- Re-fit the panes to the window size.
+function UI.Layout()
+    local f = UI.frame
+    if not (f and f.listPanel) then return end
+    local listW = UI.ListWidth(UI.Width())
+    f.listPanel:SetWidth(listW)
+    if UI.list then UI.list.child:SetWidth(listW - 34) end
+    UI.PlaceDetailPanel()
+    if UI.EnsureRowPool then UI.EnsureRowPool() end
+    if UI.LayoutDetail then UI.LayoutDetail() end
+    if UI.IsShown() then
+        UI.RefreshList()
+        if UI.RefreshDetail then UI.RefreshDetail() end
+    end
 end
 
 -- State changes ------------------------------------------------------------------------------

@@ -134,9 +134,19 @@ function Widget:SetTexture(t) self.texture = t; return true end
 function Widget:GetTexture() return self.texture end
 function Widget:SetAtlas(a) self.atlas = a; return true end
 function Widget:SetColorTexture(r, g, b, a) self.texture = { r, g, b, a } end
-function Widget:SetSize(w, h) self.width, self.height = w, h end
-function Widget:SetWidth(w) self.width = w end
-function Widget:SetHeight(h) self.height = h end
+-- Size changes fire OnSizeChanged, like the client.
+local function sized(self, w, h)
+    local changed = (w ~= self.width) or (h ~= self.height)
+    self.width, self.height = w, h
+    if changed and self.scripts.OnSizeChanged then self.scripts.OnSizeChanged(self, w, h) end
+end
+function Widget:SetSize(w, h) sized(self, w, h) end
+function Widget:SetWidth(w) sized(self, w, self.height) end
+function Widget:SetHeight(h) sized(self, self.width, h) end
+function Widget:SetResizable(v) self.resizable = v end
+function Widget:SetResizeBounds(...) self.resizeBounds = { ... } end
+function Widget:StartSizing(p) self.sizing = p end
+function Widget:StopMovingOrSizing() self.sizing = nil end
 function Widget:GetWidth() return self.width end
 function Widget:GetHeight() return self.height end
 function Widget:GetStringHeight() return 14 end
@@ -250,6 +260,7 @@ function fire(event, ...)
 end
 
 UIParent = newWidget("Frame", "UIParent")
+UIParent.width, UIParent.height = 1920, 1080
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) mock.printed[#mock.printed + 1] = msg end }
 -- Tooltips. Setting an item clears the tooltip (OnTooltipCleared) and then runs the item post-calls
 -- registered through TooltipDataProcessor, like the retail-style client.
