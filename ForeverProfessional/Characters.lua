@@ -122,6 +122,72 @@ function ns.RecipeOwners(line, spellID)
     return out
 end
 
+-- /fp chars and /fp forget ------------------------------------------------------------------------
+
+local function ProfessionSummary(c)
+    local parts = {}
+    for line, p in pairs(c.professions or {}) do
+        local prof = ns.Data.Professions[line]
+        if prof then parts[#parts + 1] = prof.name .. " " .. (p.skill or 0) end
+    end
+    table.sort(parts)
+    return #parts > 0 and table.concat(parts, ", ") or ns.L.NO_PROFESSIONS
+end
+
+function ns.PrintChars()
+    local L = ns.L
+    for i, e in ipairs(ns.ListChars()) do
+        local c = e.char
+        local faction = c.faction == "Horde" and L.HORDE or c.faction == "Alliance" and L.ALLIANCE or c.faction or "?"
+        local updated = c.updated and date("%Y-%m-%d", c.updated) or "?"
+        ns.Print(L.CHARS_LINE:format(i, ns.CharLabel(e.key), faction, tostring(c.level or "?"),
+            ProfessionSummary(c), updated))
+    end
+end
+
+-- Remove a character by its number in ListChars (as /fp chars prints it) or by name (any case).
+-- Returns "removed", record, label | "self" | "none" | "ambiguous", { {index, key}... }.
+function ns.ForgetChar(arg)
+    arg = strtrim(arg or "")
+    local list, matches = ns.ListChars(), {}
+    local n = tonumber(arg)
+    if n then
+        if list[n] then matches[1] = { index = n, key = list[n].key } end
+    else
+        local lower = arg:lower()
+        for i, e in ipairs(list) do
+            if (e.char.name or ""):lower() == lower then matches[#matches + 1] = { index = i, key = e.key } end
+        end
+    end
+    if #matches == 0 then return "none" end
+    if #matches > 1 then return "ambiguous", matches end
+    local key = matches[1].key
+    if key == ns.CharKey() then return "self" end
+    local label, c = ns.CharLabel(key), ns.db.chars[key]
+    ns.db.chars[key] = nil
+    if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
+    return "removed", c, label
+end
+
+function ns.ForgetCommand(arg)
+    local L = ns.L
+    if strtrim(arg or "") == "" then
+        ns.Print(L.FORGET_USAGE)
+        return
+    end
+    local status, detail, label = ns.ForgetChar(arg)
+    if status == "removed" then
+        ns.Print(L.FORGOTTEN:format(label))
+    elseif status == "self" then
+        ns.Print(L.FORGET_SELF)
+    elseif status == "ambiguous" then
+        ns.Print(L.FORGET_AMBIGUOUS:format(arg))
+        for _, m in ipairs(detail) do ns.Print(("%d. %s"):format(m.index, ns.CharLabel(m.key))) end
+    else
+        ns.Print(L.FORGET_NONE:format(arg))
+    end
+end
+
 -- Logged-in character -------------------------------------------------------------------------
 
 function ns.UpdateCharInfo()

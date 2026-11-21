@@ -117,5 +117,62 @@ class OwnersTest(unittest.TestCase):
         self.assertEqual(self.owners(202, 23066), ([], [], []))
 
 
+class SlashTest(unittest.TestCase):
+    def setUp(self):
+        self.a = logged_in()
+        self.chars = self.a.g.ForeverProfessionalDB.chars
+
+    def out(self):
+        return [plain(p) for p in self.a.printed()]
+
+    def keys(self):
+        return sorted(self.chars.keys())
+
+    def test_chars_lists_everyone(self):
+        self.a.slash("chars")
+        out = self.out()
+        numbered = [l for l in out if any(f"{i}. " in l for i in range(1, 6))]
+        self.assertEqual(len(numbered), 5)
+        self.assertTrue(any("3. Dru (Rogue) - Horde, level 40 - Alchemy 290 - updated " in l for l in out), out)
+        self.assertTrue(any("2. Banco" in l and "no professions" in l for l in out), out)
+
+    def test_forget_by_number(self):
+        self.a.slash("forget 5")
+        self.assertIsNone(self.chars[D])
+        self.assertTrue(any("Forgot Paly." in l for l in self.out()))
+
+    def test_forget_by_name_case_insensitive(self):
+        self.a.slash("forget banco")
+        self.assertIsNone(self.chars[E])
+
+    def test_forget_ambiguous(self):
+        before = self.keys()
+        self.a.slash("forget dru")
+        self.assertEqual(self.keys(), before)
+        out = self.out()
+        self.assertTrue(any("3. Dru (Rogue)" in l for l in out), out)
+        self.assertTrue(any("4. Dru (Druid)" in l for l in out), out)
+
+    def test_forget_self_refused(self):
+        self.a.slash("forget 1")
+        self.a.slash("forget tester")
+        self.assertIsNotNone(self.chars[ME])
+        refusals = [l for l in self.out() if "can't forget the character you're logged in on" in l]
+        self.assertEqual(len(refusals), 2)
+
+    def test_forget_unknown(self):
+        self.a.slash("forget 99")
+        self.a.slash("forget zed")
+        self.assertEqual(len(self.keys()), 5)
+        out = self.out()
+        self.assertTrue(any('No character "99"' in l for l in out), out)
+        self.assertTrue(any('No character "zed"' in l for l in out), out)
+
+    def test_forget_without_argument(self):
+        self.a.slash("forget")
+        self.assertEqual(len(self.keys()), 5)
+        self.assertTrue(any("Usage: /fp forget" in l for l in self.out()), self.out())
+
+
 if __name__ == "__main__":
     unittest.main()
