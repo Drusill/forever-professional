@@ -40,10 +40,10 @@ end)
 -- Saved variables ------------------------------------------------------------
 
 local DEFAULTS = {
-    version = 1,
+    version = 2,
     window = {},      -- saved position
     collapsed = {},   -- [categoryID or "other"] = true
-    chars = {},       -- ["Realm-Name"] = character record (Characters.lua)
+    chars = {},       -- [GUID] = character record (Characters.lua)
     filter = "all",
     minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
     minimapHidden = false,
@@ -52,6 +52,14 @@ local DEFAULTS = {
 function ns.InitDB()
     if type(ForeverProfessionalDB) ~= "table" then ForeverProfessionalDB = {} end
     local db = ForeverProfessionalDB
+    -- Version 2 keys characters by GUID: drop the old "Realm-Name" entries (they collide on Forever).
+    -- Each character rebuilds its entry on its next login.
+    if db.version and db.version < 2 then
+        for key in pairs(db.chars or {}) do
+            if not tostring(key):match("^Player%-") then db.chars[key] = nil end
+        end
+        db.version = 2
+    end
     for k, v in pairs(DEFAULTS) do
         if db[k] == nil then db[k] = type(v) == "table" and {} or v end
     end

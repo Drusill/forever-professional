@@ -33,12 +33,25 @@ function debugprofilestop() return os.clock() * 1000 end
 function GetBuildInfo() return "1.60.1", "70959", "Nov 17 2026", 16001 end
 function GetLocale() return mock.locale or "enUS" end
 function UnitName(u) return "Tester" end
+function UnitFullName(u) return "Tester", "" end
+mock.guid = "Player-1-0000000A"
+function UnitGUID(u) if u == "player" then return mock.guid end end
+function UnitLevel(u) return mock.level or 60 end
 function GetRealmName() return "Realm" end
 function UnitFactionGroup() return "Horde", "Horde" end
 function UnitClass() return "Mage", "MAGE" end
 function GetTime() return os.clock() end
 function geterrorhandler() return function(e) mock.errors[#mock.errors + 1] = e end end
 WOW_PROJECT_ID = 18
+RAID_CLASS_COLORS = {
+    WARRIOR = { colorStr = "ffc69b6d" }, PALADIN = { colorStr = "fff48cba" }, HUNTER = { colorStr = "ffaad372" },
+    ROGUE = { colorStr = "fffff468" }, PRIEST = { colorStr = "ffffffff" }, SHAMAN = { colorStr = "ff0070dd" },
+    MAGE = { colorStr = "ff3fc7eb" }, WARLOCK = { colorStr = "ff8788ee" }, DRUID = { colorStr = "ffff7c0a" },
+}
+LOCALIZED_CLASS_NAMES_MALE = {
+    WARRIOR = "Warrior", PALADIN = "Paladin", HUNTER = "Hunter", ROGUE = "Rogue", PRIEST = "Priest",
+    SHAMAN = "Shaman", MAGE = "Mage", WARLOCK = "Warlock", DRUID = "Druid",
+}
 UISpecialFrames = {}
 SlashCmdList = {}
 FACTION_STANDING_LABEL4, FACTION_STANDING_LABEL5 = "Neutral", "Friendly"

@@ -45,7 +45,7 @@ class LoadTest(unittest.TestCase):
         a = Addon()
         a.login()
         db = a.g.ForeverProfessionalDB
-        self.assertEqual(db.version, 1)
+        self.assertEqual(db.version, 2)
         self.assertEqual(db.filter, "all")
 
     def test_db_keeps_existing_values(self):
@@ -82,7 +82,7 @@ class CharacterCacheTest(unittest.TestCase):
         self.a.login()
 
     def char(self):
-        return self.a.g.ForeverProfessionalDB.chars["Realm-Tester"]
+        return self.a.g.ForeverProfessionalDB.chars["Player-1-0000000A"]
 
     def test_record_on_login(self):
         c = self.char()
@@ -108,9 +108,9 @@ class CharacterCacheTest(unittest.TestCase):
         self.assertEqual(self.char().professions[171].skill, 125)
 
     def test_other_characters_kept(self):
-        a = Addon(setup=LEARNED_SETUP + '; ForeverProfessionalDB = { chars = { ["Realm-Alt"] = { name = "Alt", learned = { [7183] = true }, professions = {} } } }')
+        a = Addon(setup=LEARNED_SETUP + '; ForeverProfessionalDB = { version = 2, chars = { ["Player-1-0000000B"] = { name = "Alt", learned = { [7183] = true }, professions = {} } } }')
         a.login()
-        self.assertTrue(a.ns.IsLearned(7183, "Realm-Alt"))
+        self.assertTrue(a.ns.IsLearned(7183, "Player-1-0000000B"))
         self.assertFalse(a.ns.IsLearned(7183))
         self.assertTrue(a.ns.IsLearned(2329))
 

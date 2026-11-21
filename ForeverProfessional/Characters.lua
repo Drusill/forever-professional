@@ -1,17 +1,19 @@
 -- ForeverProfessional. Licensed under the GNU GPL v3 or later.
--- Per-character cache of professions and learned recipes, kept in ForeverProfessionalDB.chars
--- so other characters' recipes can be shown later.
+-- Per-character cache of professions and learned recipes, kept in ForeverProfessionalDB.chars.
 local _, ns = ...
 
+-- Characters are keyed by GUID: on Forever the realm name is empty and UnitName gives only the first
+-- name, so two characters can share a name. nil until the GUID is known (before login).
 function ns.CharKey()
-    return (GetRealmName() or "?") .. "-" .. (UnitName("player") or "?")
+    return UnitGUID and UnitGUID("player") or nil
 end
 
 -- Character record, created on demand. Record:
--- { name, realm, class, faction, updated, professions = {[line]={skill,max}}, learned = {[spellID]=true} }
+-- { guid, name, realm, class, faction, level, updated, professions = {[line]={skill,max}}, learned = {[spellID]=true} }
 function ns.GetChar(key)
     if not ns.db then return nil end
     key = key or ns.CharKey()
+    if not key then return nil end
     local c = ns.db.chars[key]
     if not c and key == ns.CharKey() then
         c = { learned = {}, professions = {} }
@@ -34,7 +36,9 @@ end
 function ns.UpdateCharInfo()
     local c = ns.GetChar()
     if not c then return end
+    c.guid = ns.CharKey()
     c.name = UnitName("player")
+    c.level = UnitLevel and UnitLevel("player") or nil
     c.realm = GetRealmName()
     c.class = select(2, UnitClass("player"))
     c.faction = UnitFactionGroup("player")

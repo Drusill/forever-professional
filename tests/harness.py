@@ -91,3 +91,26 @@ class Addon:
 
 def lua_list(t):
     return [t[i] for i in range(1, len(t) + 1)] if t is not None else []
+
+
+_COLOR = re.compile(r"\|c[0-9a-fA-F]{8}|\|r")
+
+
+def plain(s):
+    """Text without colour codes."""
+    return _COLOR.sub("", s) if s is not None else s
+
+
+# Cached alts, seeded through Addon(setup=ALTS). The logged-in mock character is Player-1-0000000A "Tester".
+ALTS = """
+ForeverProfessionalDB = { version = 2, chars = {
+  ["Player-1-0000000B"] = { guid = "Player-1-0000000B", name = "Dru", class = "ROGUE", faction = "Horde", level = 40,
+    updated = 1795000000, professions = { [171] = { skill = 290, max = 300 } }, learned = { [7255] = true } },
+  ["Player-1-0000000C"] = { guid = "Player-1-0000000C", name = "Dru", class = "DRUID", faction = "Horde", level = 30,
+    updated = 1795000000, professions = { [171] = { skill = 150, max = 225 }, [185] = { skill = 50, max = 75 } }, learned = {} },
+  ["Player-1-0000000D"] = { guid = "Player-1-0000000D", name = "Paly", class = "PALADIN", faction = "Alliance", level = 50,
+    updated = 1795000000, professions = { [171] = { skill = 285, max = 300 }, [185] = { skill = 30, max = 75 } }, learned = {} },
+  ["Player-1-0000000E"] = { guid = "Player-1-0000000E", name = "Banco", class = "SHAMAN", faction = "Horde", level = 10,
+    updated = 1795000000, professions = {}, learned = {} },
+} }
+"""

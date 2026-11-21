@@ -52,6 +52,7 @@ TOC changes need a full client restart; `/reload` doesn't pick them up. Errors c
 
 - Interface **16001**, retail-style API. Classic globals (`GetItemInfo`, `GetSpellInfo`, `GetTradeSkillInfo`…) are gone; use `C_Item`, `C_Spell`, `C_TradeSkillUI`. Lua 5.1.
 - **TOC:** the client loads `<Addon>_Camelot.toc` ("Camelot" is Forever's internal codename). Ship `ForeverProfessional_Camelot.toc`; don't rely on `_Forever.toc`. Copy the `camelot` load-condition convention from WhatsTraining's TOC.
+- **Character identity:** `GetRealmName()` and `GetNormalizedRealmName()` return `""`, and `UnitName`/`UnitFullName` give only the first name (two characters can both be "Dru"). Key characters by `UnitGUID("player")` (`Player-6934-0008D960`).
 - `WOW_PROJECT_ID` is **18**, not 1. Detect Forever with `select(4, GetBuildInfo())` in 16000–16999.
 - `C_TradeSkillUI.GetRecipeSchematic(spellID, false)` works with the profession window closed, for unlearned recipes and other professions: output item and reagents.
 - **Learned status:** `C_SpellBook.IsSpellKnown(spellID)` is correct. `GetRecipeInfo().learned` is not reliable with the window closed.
