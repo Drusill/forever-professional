@@ -147,17 +147,24 @@ class WindowTest(unittest.TestCase):
 
     def test_drop_rows_show_the_skull(self):
         row = self.search(1250793)
-        self.assertEqual(row.status.atlas, "VignetteKill")
+        self.assertEqual(row.status.texture, r"Interface\TargetingFrame\UI-TargetingFrame-Skull")
 
     def test_header_watermark(self):
-        self.a.ns.UI.THEME[171].watermark = "test-atlas"
+        self.a.run('mock.atlasInfo["wide-card"] = { width = 664, height = 141 }; '
+                   'mock.atlasInfo["tall-card"] = { width = 225, height = 274 }')
+        w = self.UI.header.watermark
+        self.a.ns.UI.THEME[171].watermark = "wide-card"
         self.UI.Refresh()
-        self.assertTrue(self.UI.header.watermark.shown)
-        self.assertEqual(self.UI.header.watermark.atlas, "test-atlas")
-        self.assertLessEqual(self.UI.header.watermark.alpha or 0, 0.1)
+        self.assertTrue(w.shown)
+        self.assertEqual(w.atlas, "wide-card")
+        self.assertAlmostEqual(w.width / w.height, 664 / 141, places=2)   # natural aspect
+        self.assertLess(w.alpha, 0.5)                                    # faint behind the name
+        self.a.ns.UI.THEME[171].watermark = "tall-card"                  # doesn't fit a 54px header
+        self.UI.Refresh()
+        self.assertFalse(w.shown)
         self.a.ns.UI.THEME[171].watermark = None
         self.UI.Refresh()
-        self.assertFalse(self.UI.header.watermark.shown)
+        self.assertFalse(w.shown)
 
     def test_collapse_all_then_search(self):
         self.UI.CollapseAll()

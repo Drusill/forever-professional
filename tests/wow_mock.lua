@@ -17,6 +17,7 @@ mock = {
     uncachedSpells = {},     -- [spellID] = true -> C_Spell.GetSpellName returns nil
     frames = {},
     missingAtlases = {},     -- [atlas] = true -> C_Texture.GetAtlasInfo returns nil
+    atlasInfo = {},          -- [atlas] = { width, height } overrides the default size
 }
 
 function print(...)
@@ -404,6 +405,7 @@ function GetRealZoneText(id) return "Instance " .. tostring(id) end
 C_Texture = {
     GetAtlasInfo = function(n)
         if mock.missingAtlases[n] then return nil end
+        if mock.atlasInfo[n] then return mock.atlasInfo[n] end
         return { width = 16, height = 68, file = 1, leftTexCoord = 0, rightTexCoord = 1, topTexCoord = 0, bottomTexCoord = 1 }
     end,
 }

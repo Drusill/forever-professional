@@ -51,6 +51,16 @@ class DetailTest(unittest.TestCase):
         self.assertEqual([e.stats[k].value.text for k in ("learned", "learnable", "missing")],
                          ["1", str(learnable), "178"])
 
+    def test_empty_state_card_art(self):
+        self.a.run('mock.atlasInfo["tall-card"] = { width = 225, height = 274 }')
+        self.a.ns.UI.THEME[171].watermark = "tall-card"
+        self.UI.RefreshDetail()
+        w = self.d.empty.watermark
+        self.assertTrue(w.shown)
+        self.assertEqual(w.atlas, "tall-card")
+        self.assertLessEqual(w.height, 150)
+        self.assertAlmostEqual(w.width / w.height, 225 / 274, places=2)
+
     def test_header_learned(self):
         self.select(2329)
         h, rec = self.d.header, self.a.ns.Data.Recipes[171][2329]

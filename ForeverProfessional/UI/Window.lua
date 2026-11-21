@@ -311,10 +311,10 @@ local function CreateHeader(f)
     h.edge:SetPoint("BOTTOMRIGHT")
     h.edge:SetHeight(1)
 
+    -- The profession's banner from the Professions book, faint behind the icon and name.
     h.watermark = h:CreateTexture(nil, "BACKGROUND", nil, 2)
-    h.watermark:SetSize(140, 140)
-    h.watermark:SetPoint("CENTER", h, "CENTER", 0, -10)
-    h.watermark:SetAlpha(0.07)
+    h.watermark:SetPoint("LEFT", h, "LEFT", 0, 0)
+    h.watermark:SetAlpha(0.35)
     h.watermark:Hide()
 
     h.icon = h:CreateTexture(nil, "ARTWORK")
@@ -364,8 +364,10 @@ function UI.RefreshHeader()
             CreateColor(r, g, b, 0.22), CreateColor(r, g, b, 0))) then
         h.glow:SetVertexColor(r, g, b, 0.08)
     end
-    if theme.watermark and UI.SetAtlas(h.watermark, theme.watermark) then
-        h.watermark:Show()
+    -- Only the wide banners fit the header; the tall secondary-profession cards are left out.
+    local aspect = UI.AtlasAspect(theme.watermark)
+    if aspect and aspect >= 2 then
+        UI.FitAtlas(h.watermark, theme.watermark, 2000, UI.HEADER_H - 2)
     else
         h.watermark:Hide()
     end

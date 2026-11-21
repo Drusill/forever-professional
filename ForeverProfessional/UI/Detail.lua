@@ -13,6 +13,7 @@ local CARD_H, CARD_ICON = 40, 24
 local BUTTON_W = 74
 local DETAIL_HEADER_H = 76   -- pinned recipe header above the scroll area
 local SCALE_W, SCALE_CAP = 150, 6
+local EMPTY_ART_H = 150   -- tallest the profession card gets in the empty pane
 local OWNER_DOTS = { known = "40c040", learnable = "ffd100", low = "909090", none = "6d6455" }
 
 local detail = {}
@@ -190,13 +191,13 @@ end
 local function CreateEmpty(parent)
     local e = CreateFrame("Frame", nil, parent)
     e:SetAllPoints()
-    e.watermark = e:CreateTexture(nil, "BACKGROUND")
-    e.watermark:SetSize(260, 260)
-    e.watermark:SetPoint("CENTER", 0, 20)
-    e.watermark:SetAlpha(0.06)
-    e.watermark:Hide()
     e.hint = e:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     e.hint:SetPoint("CENTER", 0, 30)
+    -- The profession's card from the Professions book, above the hint.
+    e.watermark = e:CreateTexture(nil, "BACKGROUND")
+    e.watermark:SetPoint("BOTTOM", e.hint, "TOP", 0, 14)
+    e.watermark:SetAlpha(0.8)
+    e.watermark:Hide()
     e.hint:SetText(L.SELECT_RECIPE)
     e.stats = {}
     local boxes = {
@@ -326,8 +327,7 @@ local function RenderEmpty()
     local e, line = detail.empty, UI.state.line
     e:Show()
     if not line then return end
-    local watermark = UI.Theme(line).watermark
-    e.watermark:SetShown(watermark ~= nil and UI.SetAtlas(e.watermark, watermark))
+    UI.FitAtlas(e.watermark, UI.Theme(line).watermark, math.min(460, ContentWidth() - 20), EMPTY_ART_H)
     local total, learned = M.FilterCounts(line, function(id) return ns.IsLearned(id, UI.state.char) end)
     e.stats.learned.value:SetText(tostring(learned))
     e.stats.learnable.value:SetText(tostring(ns.LearnableCount(line, UI.state.char)))

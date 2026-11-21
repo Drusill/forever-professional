@@ -25,21 +25,25 @@ local Hex = UI.HexColor
 
 -- Theme ----------------------------------------------------------------------------------------
 -- kit: suffix of the game's Skillbar_Fill_Flipbook_<kit> art. accent: rail marker, glow and fallback bar.
--- bar: fallback gradient when the kit art is missing. watermark: the profession's illustration, if found.
+-- bar: fallback gradient when the kit art is missing. watermark: the profession's card from the
+-- Professions book (a wide banner for primary professions, a tall card for secondary ones).
+
+local CARD = "Profession-overview-Card-"
+local GENERIC = "Profession-overview-card-generic-"
 
 UI.THEME = {
-    [164] = { kit = "Blacksmithing",  accent = "ff8a1f", bar = { "d4400c", "ffe680" } },
-    [186] = { kit = "Mining",         accent = "d9a441", bar = { "6a4a22", "ffd970" } },
-    [185] = { kit = "Cooking",        accent = "c9d3de", bar = { "7d8b9a", "ffffff" } },
-    [356] = { kit = "Fishing",        accent = "6aa0ff", bar = { "2f5aa8", "cfe2ff" } },
-    [129] = { kit = "FirstAid",       accent = "6fdc2a", bar = { "3fae12", "d8ffb0" } },
-    [171] = { kit = "Alchemy",        accent = "3fc8c8", bar = { "1f8a8a", "a8f5f5" } },
-    [333] = { kit = "Enchanting",     accent = "e8508a", bar = { "b02a3a", "f0c040" } },
-    [202] = { kit = "Engineering",    accent = "c8a050", bar = { "5a4a30", "e0c070" } },
-    [165] = { kit = "Leatherworking", accent = "b07040", bar = { "6a3a1a", "d09060" } },
-    [197] = { kit = "Tailoring",      accent = "6a5ae8", bar = { "2a2a9a", "8a8af0" } },
-    [182] = { kit = "Herbalism",      accent = "6aa83a", bar = { "2f5a1a", "9ad060" } },
-    [393] = { kit = "Skinning",       accent = "5aa090", bar = { "2a5a50", "8ac8b8" } },
+    [164] = { kit = "Blacksmithing",  accent = "ff8a1f", bar = { "d4400c", "ffe680" }, watermark = CARD .. "Blacksmithing" },
+    [186] = { kit = "Mining",         accent = "d9a441", bar = { "6a4a22", "ffd970" }, watermark = CARD .. "Mining" },
+    [185] = { kit = "Cooking",        accent = "c9d3de", bar = { "7d8b9a", "ffffff" }, watermark = GENERIC .. "Cooking" },
+    [356] = { kit = "Fishing",        accent = "6aa0ff", bar = { "2f5aa8", "cfe2ff" }, watermark = GENERIC .. "Fishing" },
+    [129] = { kit = "FirstAid",       accent = "6fdc2a", bar = { "3fae12", "d8ffb0" }, watermark = GENERIC .. "FirstAid" },
+    [171] = { kit = "Alchemy",        accent = "3fc8c8", bar = { "1f8a8a", "a8f5f5" }, watermark = CARD .. "Alchemy" },
+    [333] = { kit = "Enchanting",     accent = "e8508a", bar = { "b02a3a", "f0c040" }, watermark = CARD .. "Enchanting" },
+    [202] = { kit = "Engineering",    accent = "c8a050", bar = { "5a4a30", "e0c070" }, watermark = CARD .. "Engineering" },
+    [165] = { kit = "Leatherworking", accent = "b07040", bar = { "6a3a1a", "d09060" }, watermark = CARD .. "Leatherworking" },
+    [197] = { kit = "Tailoring",      accent = "6a5ae8", bar = { "2a2a9a", "8a8af0" }, watermark = CARD .. "Tailoring" },
+    [182] = { kit = "Herbalism",      accent = "6aa83a", bar = { "2f5a1a", "9ad060" }, watermark = CARD .. "Herbalism" },
+    [393] = { kit = "Skinning",       accent = "5aa090", bar = { "2a5a50", "8ac8b8" }, watermark = CARD .. "Skinning" },
 }
 local DEFAULT_THEME = { kit = "DefaultBlue", accent = "ffd100", bar = { "a8601f", "ffd100" } }
 
@@ -48,14 +52,14 @@ function UI.Theme(line)
 end
 
 -- Icon per source type (Model.PrimarySource / SourceCards types) and the learned check, picked in
--- game: the gossip glyphs for trainer/vendor/quest, the minimap's rare-kill skull for drops and its
--- treasure chest for objects and containers. "atlas:<name>" values go through UI.SetIcon.
+-- game: the gossip glyphs for trainer/vendor/quest, the target frame's skull for drops and the
+-- minimap's treasure chest for objects and containers. "atlas:<name>" values go through UI.SetIcon.
 UI.SOURCE_ICONS = {
     auto = "Interface\\GossipFrame\\TrainerGossipIcon",
     trainer = "Interface\\GossipFrame\\TrainerGossipIcon",
     vendor = "Interface\\GossipFrame\\VendorGossipIcon",
     quest = "Interface\\GossipFrame\\AvailableQuestIcon",
-    drop = "atlas:VignetteKill",
+    drop = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull",
     object = "atlas:VignetteLoot",
     container = "atlas:VignetteLoot",
     crafted = "Interface\\Icons\\INV_Misc_Gear_01",
@@ -68,6 +72,27 @@ UI.SOURCE_ICONS = {
 local function AtlasExists(name)
     if not (C_Texture and C_Texture.GetAtlasInfo) then return nil end
     return C_Texture.GetAtlasInfo(name)
+end
+
+-- Width / height of an atlas, nil when the client doesn't have it.
+function UI.AtlasAspect(name)
+    local info = name and AtlasExists(name)
+    if not (info and info.width and info.height and info.height > 0) then return nil end
+    return info.width / info.height
+end
+
+-- Show an atlas at its natural aspect within maxW x maxH; false (and hidden) when it's missing.
+function UI.FitAtlas(tex, name, maxW, maxH)
+    local aspect = UI.AtlasAspect(name)
+    if not (aspect and UI.SetAtlas(tex, name)) then
+        tex:Hide()
+        return false
+    end
+    local w, h = maxW, maxW / aspect
+    if h > maxH then w, h = maxH * aspect, maxH end
+    tex:SetSize(w, h)
+    tex:Show()
+    return true
 end
 
 -- Set an atlas only if the client has it; returns false so the caller can fall back.

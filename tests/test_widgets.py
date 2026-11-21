@@ -28,6 +28,12 @@ class WidgetsTest(unittest.TestCase):
         self.assertEqual(self.UI.Theme(164).accent, "ff8a1f")
         self.assertEqual(lua_list(self.UI.Theme(164).bar), ["d4400c", "ffe680"])
 
+    def test_watermark_for_every_profession(self):
+        for line in self.a.ns.Data.Professions.keys():
+            self.assertTrue(self.UI.Theme(line).watermark, line)
+        self.assertEqual(self.UI.Theme(164).watermark, "Profession-overview-Card-Blacksmithing")
+        self.assertEqual(self.UI.Theme(185).watermark, "Profession-overview-card-generic-Cooking")
+
     def test_hex_color(self):
         self.assertEqual(self.UI.HexColor("ff8000"), (1.0, 128 / 255, 0.0))
 
@@ -84,7 +90,7 @@ class WidgetsTest(unittest.TestCase):
         for t in ("auto", "trainer", "vendor", "quest", "drop", "object", "container", "crafted",
                   "worldObject", "more", "unknown", "check"):
             self.assertIsNotNone(self.UI.SOURCE_ICONS[t], t)
-        self.assertEqual(self.UI.SOURCE_ICONS.drop, "atlas:VignetteKill")
+        self.assertEqual(self.UI.SOURCE_ICONS.drop, r"Interface\TargetingFrame\UI-TargetingFrame-Skull")
         self.assertEqual(self.UI.SOURCE_ICONS.object, "atlas:VignetteLoot")
         self.assertEqual(self.UI.SOURCE_ICONS.container, "atlas:VignetteLoot")
 
