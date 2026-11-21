@@ -41,17 +41,41 @@ class WindowTest(unittest.TestCase):
     def test_escape_closes(self):
         self.assertIn("ForeverProfessionalFrame", lua_list(self.a.g.UISpecialFrames))
 
-    def test_tabs_one_per_profession(self):
-        tabs = lua_list(self.UI.tabs)
-        self.assertEqual(len(tabs), 12)
-        names = [t.label.text for t in tabs]
-        self.assertEqual(names[0], "Alchemy")  # player's name for it
-        self.assertEqual(names[-4:], ["Fishing", "Herbalism", "Mining", "Skinning"])
-        alchemy = tabs[0]
-        self.assertEqual(alchemy.skill.text, "Skill 120 / 150")
-        self.assertTrue(alchemy.selectedTex.shown)
-        cooking = next(t for t in tabs if t.line == 185)
-        self.assertEqual(cooking.skill.text, "Not learned")
+    def rail(self, line):
+        return next(b for b in lua_list(self.UI.railButtons) if b.line == line)
+
+    def test_rail_groups_shown_character(self):
+        known, other = self.UI.RailOrder(None)
+        self.assertEqual(lua_list(known), [171, 182])
+        self.assertEqual(lua_list(other), [164, 185, 333, 202, 129, 165, 197, 356, 186, 393])
+        self.assertEqual(self.rail(171).skill.text, "120")
+        self.assertEqual(self.rail(164).group, "other")
+        self.assertFalse(self.rail(164).skill.shown)
+        self.assertLess(Addon.call(self.rail(182), "GetPoint")[-1], 0)   # stacked below the logo
+
+    def test_rail_click_selects(self):
+        Addon.call(self.rail(185), "Click")
+        self.assertEqual(self.UI.state.line, 185)
+        self.assertTrue(self.rail(185).marker.shown)
+        self.assertFalse(self.rail(171).marker.shown)
+
+    def test_rail_tooltip(self):
+        self.a.g.enter(self.rail(171))
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines)[:2], ["Alchemy", "Skill 120 / 150"])
+
+    def test_header(self):
+        h = self.UI.header
+        self.assertEqual((h.name.text, h.skillText.text, h.recipesText.text), ("Alchemy", "120 / 150", "3 / 179"))
+        self.assertTrue(h.skillBar.shown)
+        self.assertFalse(h.notLearned.shown)
+        self.UI.SelectProfession(185)
+        self.assertFalse(h.skillBar.shown)
+        self.assertTrue(h.notLearned.shown)
+
+    def test_no_journal_background_and_selector_in_header(self):
+        textures = [r.texture for r in lua_list(self.a.g.ForeverProfessionalFrame.regions)]
+        self.assertNotIn(r"Interface\EncounterJournal\UI-EJ-JournalBG", textures)
+        self.assertTrue(self.a.lua.eval("rawequal")(self.UI.charButton.parent, self.UI.header))
 
     def test_defaults_to_first_player_profession(self):
         self.assertEqual(self.UI.state.line, 171)
@@ -98,10 +122,6 @@ class WindowTest(unittest.TestCase):
         self.a.call(buttons["all"], "Click")
         self.assertEqual(len(self.recipe_ids()), total)
 
-    def test_counter(self):
-        total = len(list(self.a.ns.Data.Recipes[171].keys()))
-        self.assertEqual(self.a.g.ForeverProfessionalFrame.counter.text, f"3 / {total} learned")
-
     def test_search_box(self):
         self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 3230")
         self.assertEqual(self.recipe_ids(), [3230])
@@ -147,12 +167,12 @@ class WindowTest(unittest.TestCase):
         self.assertGreater(len(self.entries()), 400)
         self.assertLess(len(lua_list(self.UI.list.rows)), 40)
 
-    def test_every_profession_tab(self):
-        for tab in lua_list(self.UI.tabs):
-            self.a.call(tab, "Click")
-            self.assertEqual(self.UI.state.line, tab.line)
-            self.assertEqual(len(self.recipe_ids()), len(list(self.a.ns.Data.Recipes[tab.line].keys())))
-            self.assertTrue(tab.selectedTex.shown)
+    def test_every_profession_rail_button(self):
+        for b in lua_list(self.UI.railButtons):
+            self.a.call(b, "Click")
+            self.assertEqual(self.UI.state.line, b.line)
+            self.assertEqual(len(self.recipe_ids()), len(list(self.a.ns.Data.Recipes[b.line].keys())))
+            self.assertTrue(b.marker.shown)
 
     def test_new_recipe_learned_refreshes_open_window(self):
         self.UI.SetFilter("learned")
@@ -173,20 +193,20 @@ class AltViewTest(unittest.TestCase):
         self.UI = self.a.ns.UI
         self.total = len(list(self.a.ns.Data.Recipes[171].keys()))
 
-    def tab(self, line):
-        return next(t for t in lua_list(self.UI.tabs) if t.line == line)
+    def rail(self, line):
+        return next(b for b in lua_list(self.UI.railButtons) if b.line == line)
 
     def counter(self):
-        return self.a.g.ForeverProfessionalFrame.counter.text
+        return self.UI.header.recipesText.text
 
     def recipe_ids(self):
         return [e.id for e in lua_list(self.UI.entries) if e.kind == "recipe"]
 
     def test_alt_tabs_and_counter(self):
         self.UI.SetChar(DRU_ROGUE)
-        self.assertEqual(self.tab(171).skill.text, "Skill 290 / 300")
-        self.assertEqual(self.tab(182).skill.text, "Not learned")
-        self.assertEqual(self.counter(), f"1 / {self.total} learned")
+        self.assertEqual(self.rail(171).skill.text, "290")
+        self.assertEqual(self.rail(182).group, "other")
+        self.assertEqual(self.counter(), f"1 / {self.total}")
 
     def test_alt_learned_filter_and_checks(self):
         self.UI.SetChar(DRU_ROGUE)
@@ -213,16 +233,26 @@ class AltViewTest(unittest.TestCase):
     def test_live_refresh_keeps_alt_view(self):
         self.UI.SetChar(DRU_ROGUE)
         self.a.run('fire("NEW_RECIPE_LEARNED", 1251753)')
-        self.assertEqual(self.counter(), f"1 / {self.total} learned")
+        self.assertEqual(self.counter(), f"1 / {self.total}")
         self.assertTrue(self.a.g.ForeverProfessionalDB.chars["Player-1-0000000A"].learned[1251753])
         self.UI.SetChar(None)
-        self.assertEqual(self.counter(), f"4 / {self.total} learned")
+        self.assertEqual(self.counter(), f"4 / {self.total}")
 
     def test_forget_viewed_alt_resets_view(self):
         self.UI.SetChar(DRU_ROGUE)
         self.a.slash("forget 3")
         self.assertIsNone(self.UI.state.char)
-        self.assertEqual(self.tab(171).skill.text, "Skill 120 / 150")
+        self.assertEqual(self.rail(171).skill.text, "120")
+
+    def test_rail_follows_alt(self):
+        self.UI.SetChar("Player-1-0000000D")   # Paly: Alchemy, Cooking
+        self.assertEqual(lua_list(self.UI.RailOrder("Player-1-0000000D")[0]), [171, 185])
+        self.assertEqual(self.rail(185).group, "known")
+
+    def test_rail_alt_without_professions(self):
+        self.UI.SetChar("Player-1-0000000E")   # Banco
+        self.assertTrue(all(b.group == "other" for b in lua_list(self.UI.railButtons)))
+        self.assertTrue(self.UI.header.notLearned.shown)
 
 
 class SelectorTest(unittest.TestCase):
@@ -260,8 +290,8 @@ class SelectorTest(unittest.TestCase):
         self.click(self.row("Dru (Rogue)"))
         self.assertEqual(self.UI.state.char, "Player-1-0000000B")
         self.assertFalse(self.UI.charMenu.shown)
-        alchemy = next(t for t in lua_list(self.UI.tabs) if t.line == 171)
-        self.assertEqual(alchemy.skill.text, "Skill 290 / 300")
+        alchemy = next(b for b in lua_list(self.UI.railButtons) if b.line == 171)
+        self.assertEqual(alchemy.skill.text, "290")
         self.click(self.button)
         self.click(self.row("Tester (you)"))
         self.assertIsNone(self.UI.state.char)
@@ -276,11 +306,6 @@ class SelectorTest(unittest.TestCase):
         self.a.slash("")
         self.assertFalse(self.UI.charMenu.shown)
 
-    def test_tabs_below_selector(self):
-        tabs = lua_list(self.UI.tabs)
-        self.assertEqual(Addon.call(tabs[0], "GetPoint")[-1], -40)
-        last_y = Addon.call(tabs[-1], "GetPoint")[-1]
-        self.assertGreater(last_y - 38, -(self.UI.HEIGHT - self.UI.TITLE_H - self.UI.PAD))
 
 
 if __name__ == "__main__":

@@ -15,9 +15,11 @@ local CHECK_NO = "Interface\\RaidFrame\\ReadyCheck-NotReady"
 local PLUS = "Interface\\Buttons\\UI-PlusButton-Up"
 local MINUS = "Interface\\Buttons\\UI-MinusButton-Up"
 
-local function VisibleHeight()
-    return UI.HEIGHT - (UI.TITLE_H + UI.BAR_H + 4) - (UI.PAD + 22) - 8
+-- Height of the list's scroll area: below the header and the toolbar, less the panel gaps and insets.
+function UI.ListVisibleHeight()
+    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - UI.BAR_H - 8
 end
+local function VisibleHeight() return UI.ListVisibleHeight() end
 
 local function CreateRow(list, index)
     local row = CreateFrame("Button", nil, list.child)
@@ -119,7 +121,6 @@ function UI.RefreshList(resetScroll)
         list.scroll:SetVerticalScroll(resetScroll and 0 or maxScroll)
     end
     list.empty:SetShown(#UI.entries == 0)
-    if UI.frame and UI.frame.counter and UI.RefreshCounter then UI.RefreshCounter() end
     UI.RenderList()
 end
 

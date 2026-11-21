@@ -16,12 +16,12 @@ UI.schematics = {}
 local requested = {}   -- [itemID] = true once a load was asked for
 
 local function ContentWidth()
-    return UI.WIDTH - (UI.PAD + UI.TAB_W + 8 + UI.LIST_W + 8) - UI.PAD - 34
+    return UI.DetailPanelWidth() - 36
 end
 
--- Height of the scroll frame: the panel (title bar to bottom padding) less its 8px insets.
+-- Height of the scroll frame: the panel (below the header, inside the gaps) less its 8px insets.
 function UI.DetailVisibleHeight()
-    return UI.HEIGHT - UI.TITLE_H - UI.PAD - 16
+    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - 16
 end
 
 -- Waypoints --------------------------------------------------------------------------------

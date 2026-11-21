@@ -1,17 +1,17 @@
 -- ForeverProfessional. Licensed under the GNU GPL v3 or later.
--- Main window: frame, Encounter Journal art, profession tabs, filter bar and search box.
+-- Main window: flat frame, icon rail of professions, profession header, toolbar, list and detail panes.
 local _, ns = ...
 local L = ns.L
 
 local UI = ns.UI
+local Hex = UI.HexColor
 
-UI.WIDTH, UI.HEIGHT = 1040, 640
-UI.PAD = 12
-UI.TITLE_H = 40
-UI.TAB_W = 190
-UI.LIST_W = 400
-UI.BAR_H = 30
-UI.SELECT_H = 28   -- character selector above the profession tabs
+UI.DEFAULT_W, UI.DEFAULT_H = 1040, 640
+UI.RAIL_W = 64
+UI.HEADER_H = 54
+UI.GAP = 8
+UI.BAR_H = 34      -- toolbar row at the top of the list panel
+UI.LIST_W = 418    -- list panel width (fixed until the window can be resized)
 
 -- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
 UI.state = { line = nil, filter = "all", search = "", selected = nil, char = nil }
@@ -32,6 +32,7 @@ local PROFESSION_ICONS = {
 }
 local GATHERING = { [182] = true, [186] = true, [356] = true, [393] = true }
 UI.PROFESSION_ICONS = PROFESSION_ICONS
+local ADDON_ICON = "Interface\\Icons\\INV_SideTab_Professions_c60"
 
 -- Scroll frames (UIPanelScrollFrameTemplate) --------------------------------------------------
 
@@ -91,6 +92,15 @@ function UI.ProfessionOrder()
     return lines
 end
 
+-- The shown character's professions, then the rest, both in ProfessionOrder.
+function UI.RailOrder(key)
+    local known, other = {}, {}
+    for _, line in ipairs(UI.ProfessionOrder()) do
+        if ns.CharSkill(line, key) then known[#known + 1] = line else other[#other + 1] = line end
+    end
+    return known, other
+end
+
 function UI.DefaultProfession()
     local _, order = ns.GetPlayerProfessions()
     return order[1] or UI.ProfessionOrder()[1]
@@ -113,36 +123,249 @@ local function RestorePosition(f)
     end
 end
 
-local function CreateTab(parent, line, index)
-    local b = CreateFrame("Button", nil, parent)
-    b:SetSize(UI.TAB_W - 12, 38)
-    b:SetPoint("TOPLEFT", 6, -(UI.SELECT_H + 12) - (index - 1) * 40)
+local function Line(parent, layer)
+    local t = parent:CreateTexture(nil, layer or "BORDER")
+    t:SetColorTexture(Hex(UI.COLORS.line2))
+    return t
+end
 
-    b.selectedTex = b:CreateTexture(nil, "BACKGROUND")
-    b.selectedTex:SetAllPoints()
-    if not UI.SetAtlas(b.selectedTex, "loottab-set-background") then
-        b.selectedTex:SetColorTexture(1, 0.82, 0, 0.18)
-    end
-    b.selectedTex:Hide()
+-- Rail ------------------------------------------------------------------------------------------
+
+local RAIL_ICON, RAIL_ICON_SMALL = 34, 26
+local RAIL_KNOWN_H, RAIL_OTHER_H = 52, 30
+
+local function CreateRailButton(rail, line)
+    local b = CreateFrame("Button", nil, rail)
+    b:SetSize(UI.RAIL_W, RAIL_KNOWN_H)
+    b.line = line
+
+    b.glow = b:CreateTexture(nil, "BACKGROUND")
+    b.glow:SetTexture("Interface\\Buttons\\WHITE8X8")
+    b.glow:Hide()
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetTexture(PROFESSION_ICONS[line] or "Interface\\Icons\\INV_Misc_QuestionMark")
+    b.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    b.skill = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    b.marker = b:CreateTexture(nil, "OVERLAY")
+    b.marker:SetPoint("TOPLEFT", 0, -6)
+    b.marker:SetPoint("BOTTOMLEFT", 0, 6)
+    b.marker:SetWidth(3)
+    b.marker:SetTexture("Interface\\Buttons\\WHITE8X8")
+    b.marker:Hide()
     b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
-    b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetSize(30, 30)
-    b.icon:SetPoint("LEFT", 4, 0)
-    b.icon:SetTexture(PROFESSION_ICONS[line] or "Interface\\Icons\\INV_Misc_QuestionMark")
-
-    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    b.label:SetPoint("TOPLEFT", b.icon, "TOPRIGHT", 8, -1)
-    b.label:SetPoint("RIGHT", -4, 0)
-    b.label:SetJustifyH("LEFT")
-
-    b.skill = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    b.skill:SetPoint("BOTTOMLEFT", b.icon, "BOTTOMRIGHT", 8, 1)
-    b.skill:SetJustifyH("LEFT")
-
-    b.line = line
-    b:SetScript("OnClick", function() UI.SelectProfession(line) end)
+    b:SetScript("OnClick", function(self) UI.SelectProfession(self.line) end)
+    b:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(UI.ProfessionName(self.line))
+        local skill, max = ns.CharSkill(self.line, UI.state.char)
+        GameTooltip:AddLine(skill and L.SKILL:format(skill, max or 0) or L.NOT_LEARNED_PROF, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     return b
+end
+
+-- Size and style a rail button for its group.
+local function StyleRailButton(b, known)
+    b.group = known and "known" or "other"
+    local size = known and RAIL_ICON or RAIL_ICON_SMALL
+    b:SetHeight(known and RAIL_KNOWN_H or RAIL_OTHER_H)
+    b.icon:ClearAllPoints()
+    b.icon:SetPoint("TOP", b, "TOP", 0, -3)
+    b.icon:SetSize(size, size)
+    b.icon:SetDesaturated(not known)
+    b.icon:SetAlpha(known and 1 or 0.7)
+    b.glow:ClearAllPoints()
+    b.glow:SetPoint("CENTER", b.icon, "CENTER")
+    b.glow:SetSize(size + 6, size + 6)
+    b.skill:ClearAllPoints()
+    b.skill:SetPoint("TOP", b.icon, "BOTTOM", 0, -1)
+    b.skill:SetShown(known)
+end
+
+local function CreateRail(f)
+    local rail = CreateFrame("Frame", nil, f)
+    rail:SetPoint("TOPLEFT", 1, -1)
+    rail:SetPoint("BOTTOMLEFT", 1, 1)
+    rail:SetWidth(UI.RAIL_W - 1)
+    rail.bg = rail:CreateTexture(nil, "BACKGROUND")
+    rail.bg:SetAllPoints()
+    rail.bg:SetColorTexture(Hex("0a0907"))
+    rail.edge = Line(rail)
+    rail.edge:SetPoint("TOPRIGHT")
+    rail.edge:SetPoint("BOTTOMRIGHT")
+    rail.edge:SetWidth(1)
+
+    rail.logo = CreateFrame("Button", nil, rail)
+    rail.logo:SetSize(36, 36)
+    rail.logo:SetPoint("TOP", 0, -8)
+    rail.logo.icon = rail.logo:CreateTexture(nil, "ARTWORK")
+    rail.logo.icon:SetAllPoints()
+    rail.logo.icon:SetTexture(ADDON_ICON)
+    rail.logo:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L.TITLE)
+        GameTooltip:Show()
+    end)
+    rail.logo:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+
+    rail.divider = Line(rail, "ARTWORK")
+    rail.divider:SetSize(30, 1)
+
+    UI.railButtons = {}
+    for _, line in ipairs(UI.ProfessionOrder()) do
+        UI.railButtons[#UI.railButtons + 1] = CreateRailButton(rail, line)
+    end
+    return rail
+end
+
+function UI.RefreshRail()
+    local rail = UI.rail
+    if not rail then return end
+    local byLine = {}
+    for _, b in ipairs(UI.railButtons) do byLine[b.line] = b end
+    local known, other = UI.RailOrder(UI.state.char)
+    local accent = UI.Theme(UI.state.line).accent
+    local y = -52
+    local function Place(line, isKnown)
+        local b = byLine[line]
+        StyleRailButton(b, isKnown)
+        b:ClearAllPoints()
+        b:SetPoint("TOP", rail, "TOP", 0, y)
+        y = y - b:GetHeight()
+        local selected = (line == UI.state.line)
+        b.marker:SetShown(selected)
+        b.glow:SetShown(selected)
+        if selected then
+            b.marker:SetVertexColor(Hex(accent))
+            local r, g, bl = Hex(accent)
+            b.glow:SetVertexColor(r, g, bl, 0.45)
+        end
+        if isKnown then
+            local skill = ns.CharSkill(line, UI.state.char)
+            b.skill:SetText(tostring(skill or ""))
+            if selected then b.skill:SetTextColor(Hex(accent)) else b.skill:SetTextColor(Hex(UI.COLORS.muted)) end
+        end
+    end
+    for _, line in ipairs(known) do Place(line, true) end
+    rail.divider:ClearAllPoints()
+    rail.divider:SetPoint("TOP", rail, "TOP", 0, y - 5)
+    rail.divider:SetShown(#known > 0 and #other > 0)
+    y = y - 11
+    for _, line in ipairs(other) do Place(line, false) end
+end
+
+-- Header ------------------------------------------------------------------------------------------
+
+local STAT_W = 150
+
+local function CreateStat(header, label)
+    local s = {}
+    s.label = header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    s.label:SetText(label)
+    s.label:SetTextColor(Hex(UI.COLORS.muted))
+    s.value = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    s.value:SetJustifyH("RIGHT")
+    return s
+end
+
+local function CreateHeader(f)
+    local h = CreateFrame("Frame", nil, f)
+    h:SetPoint("TOPLEFT", f, "TOPLEFT", UI.RAIL_W, -1)
+    h:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+    h:SetHeight(UI.HEADER_H)
+
+    h.bg = h:CreateTexture(nil, "BACKGROUND")
+    h.bg:SetAllPoints()
+    h.bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    h.bg:SetVertexColor(Hex("17130e"))
+    h.glow = h:CreateTexture(nil, "BACKGROUND", nil, 1)
+    h.glow:SetPoint("TOPLEFT")
+    h.glow:SetPoint("BOTTOMLEFT")
+    h.glow:SetWidth(320)
+    h.glow:SetTexture("Interface\\Buttons\\WHITE8X8")
+    h.edge = Line(h)
+    h.edge:SetPoint("BOTTOMLEFT")
+    h.edge:SetPoint("BOTTOMRIGHT")
+    h.edge:SetHeight(1)
+
+    h.watermark = h:CreateTexture(nil, "BACKGROUND", nil, 2)
+    h.watermark:SetSize(140, 140)
+    h.watermark:SetPoint("CENTER", h, "CENTER", 0, -10)
+    h.watermark:SetAlpha(0.07)
+    h.watermark:Hide()
+
+    h.icon = h:CreateTexture(nil, "ARTWORK")
+    h.icon:SetSize(34, 34)
+    h.icon:SetPoint("LEFT", 14, 0)
+    h.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    h.name = h:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    h.name:SetPoint("LEFT", h.icon, "RIGHT", 10, 0)
+    h.name:SetJustifyH("LEFT")
+
+    -- Right to left: close button, character selector, recipes, skill.
+    f.close = CreateFrame("Button", "ForeverProfessionalFrameClose", h, "UIPanelCloseButton")
+    f.close:SetPoint("RIGHT", h, "RIGHT", -6, 0)
+    f.close:SetScript("OnClick", function() UI.Hide() end)
+
+    UI.charButton = UI.CreateCharButton(h)
+    UI.charButton:SetPoint("RIGHT", f.close, "LEFT", -6, 0)
+
+    local recipes = CreateStat(h, L.RECIPES)
+    h.recipesLabel, h.recipesText = recipes.label, recipes.value
+    h.recipesBar = UI.CreateProgressBar(h, STAT_W, 4)
+    h.recipesBar:SetPoint("RIGHT", UI.charButton, "LEFT", -14, -7)
+    h.recipesLabel:SetPoint("BOTTOMLEFT", h.recipesBar, "TOPLEFT", 0, 3)
+    h.recipesText:SetPoint("BOTTOMRIGHT", h.recipesBar, "TOPRIGHT", 0, 3)
+
+    local skill = CreateStat(h, L.SKILL_LABEL)
+    h.skillLabel, h.skillText = skill.label, skill.value
+    h.skillBar = UI.CreateSkillBar(h, STAT_W, 10)
+    h.skillBar:SetPoint("RIGHT", h.recipesBar, "LEFT", -16, -2)
+    h.skillLabel:SetPoint("BOTTOMLEFT", h.skillBar, "TOPLEFT", 0, 3)
+    h.skillText:SetPoint("BOTTOMRIGHT", h.skillBar, "TOPRIGHT", 0, 3)
+    h.notLearned = h:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    h.notLearned:SetPoint("LEFT", h.skillBar, "LEFT", 0, 0)
+    h.notLearned:SetText(L.NOT_LEARNED_PROF)
+    h.notLearned:Hide()
+    return h
+end
+
+function UI.RefreshHeader()
+    local h, line = UI.header, UI.state.line
+    if not (h and line) then return end
+    local theme = UI.Theme(line)
+    h.icon:SetTexture(PROFESSION_ICONS[line] or "Interface\\Icons\\INV_Misc_QuestionMark")
+    h.name:SetText(UI.ProfessionName(line))
+    local r, g, b = Hex(theme.accent)
+    if not (CreateColor and pcall(h.glow.SetGradient, h.glow, "HORIZONTAL",
+            CreateColor(r, g, b, 0.22), CreateColor(r, g, b, 0))) then
+        h.glow:SetVertexColor(r, g, b, 0.08)
+    end
+    if theme.watermark and UI.SetAtlas(h.watermark, theme.watermark) then
+        h.watermark:Show()
+    else
+        h.watermark:Hide()
+    end
+
+    local skill, max = ns.CharSkill(line, UI.state.char)
+    h.skillBar:SetTheme(line)
+    h.skillBar:SetProgress(skill or 0, max or 0)
+    h.skillBar:SetShown(skill ~= nil)
+    h.skillText:SetShown(skill ~= nil)
+    h.skillText:SetText(skill and ("%d / %d"):format(skill, max or 0) or "")
+    h.notLearned:SetShown(skill == nil)
+
+    local total, learned = 0, 0
+    for id in pairs(ns.Data.Recipes[line] or {}) do
+        total = total + 1
+        if ns.IsLearned(id, UI.state.char) then learned = learned + 1 end
+    end
+    h.recipesText:SetText(("%d / %d"):format(learned, total))
+    h.recipesBar:SetProgress(learned, total)
 end
 
 -- Character selector ---------------------------------------------------------------------------
@@ -152,6 +375,7 @@ local FACTION_ICON = {
     Alliance = "Interface\\TargetingFrame\\UI-PVP-Alliance",
 }
 local MENU_ROW_H = 22
+local CHAR_W, MENU_W = 150, 250
 
 local function SetFactionIcon(tex, faction)
     local file = FACTION_ICON[faction]
@@ -164,24 +388,23 @@ local function SetFactionIcon(tex, faction)
     end
 end
 
-local function CreateCharButton(parent)
-    local b = CreateFrame("Button", nil, parent)
-    b:SetSize(UI.TAB_W - 12, UI.SELECT_H)
-    b:SetPoint("TOPLEFT", 6, -6)
-    b.bg = b:CreateTexture(nil, "BACKGROUND")
-    b.bg:SetAllPoints()
-    b.bg:SetColorTexture(0, 0, 0, 0.45)
+function UI.CreateCharButton(parent)
+    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    b:SetSize(CHAR_W, 24)
+    b:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    b:SetBackdropColor(Hex("0a0907"))
+    b:SetBackdropBorderColor(Hex(UI.COLORS.line2))
     b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
     b.faction = b:CreateTexture(nil, "ARTWORK")
-    b.faction:SetSize(22, 22)
+    b.faction:SetSize(20, 20)
     b.faction:SetPoint("LEFT", 2, -2)
     b.arrow = b:CreateTexture(nil, "ARTWORK")
     b.arrow:SetSize(16, 16)
     b.arrow:SetPoint("RIGHT", -4, 0)
     b.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
     b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    b.label:SetPoint("LEFT", 28, 0)
+    b.label:SetPoint("LEFT", 26, 0)
     b.label:SetPoint("RIGHT", b.arrow, "LEFT", -4, 0)
     b.label:SetJustifyH("LEFT")
     b.label:SetWordWrap(false)
@@ -190,10 +413,10 @@ local function CreateCharButton(parent)
 end
 
 local function CreateCharMenu(parent, anchor)
-    local m = UI.Panel(parent, 0.92)
+    local m = UI.Panel(parent, 0.97)
     m:SetFrameStrata("DIALOG")
-    m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
-    m:SetWidth(UI.TAB_W + 60)
+    m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+    m:SetWidth(MENU_W)
     m:EnableMouse(true)
     m.rows = {}
     m:Hide()
@@ -263,6 +486,8 @@ function UI.RefreshCharButton()
     SetFactionIcon(b.faction, c and c.faction)
 end
 
+-- Toolbar ----------------------------------------------------------------------------------------
+
 local function CreateFilterButton(parent, key, label, x)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(78, 22)
@@ -273,72 +498,11 @@ local function CreateFilterButton(parent, key, label, x)
     return b
 end
 
-function UI.Create()
-    if UI.frame then return UI.frame end
-    if not ns.db then ns.InitDB() end
-    UI.state.filter = ns.db.filter or "all"
-
-    local f = CreateFrame("Frame", "ForeverProfessionalFrame", UIParent, "BackdropTemplate")
-    UI.frame = f
-    f:Hide()
-    f:SetSize(UI.WIDTH, UI.HEIGHT)
-    f:SetFrameStrata("HIGH")
-    f:SetToplevel(true)
-    f:SetClampedToScreen(true)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    f:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        UI.SavePosition()
-    end)
-    f:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = false, edgeSize = 26,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 },
-    })
-    f:SetBackdropColor(0.06, 0.05, 0.04, 0.97)
-    RestorePosition(f)
-    tinsert(UISpecialFrames, f:GetName())
-
-    -- Encounter Journal background (the journal inset region of the texture).
-    local bg = f:CreateTexture(nil, "BACKGROUND", nil, 1)
-    bg:SetPoint("TOPLEFT", 8, -8)
-    bg:SetPoint("BOTTOMRIGHT", -8, 8)
-    bg:SetTexture("Interface\\EncounterJournal\\UI-EJ-JournalBG")
-    bg:SetTexCoord(0, 0.7686, 0, 0.8301)
-    bg:SetVertexColor(0.55, 0.55, 0.55, 1)
-    f.bg = bg
-
-    f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    f.title:SetPoint("TOPLEFT", UI.PAD + 8, -16)
-    f.title:SetText(L.TITLE)
-
-    f.close = CreateFrame("Button", "ForeverProfessionalFrameClose", f, "UIPanelCloseButton")
-    f.close:SetPoint("TOPRIGHT", -6, -6)
-    f.close:SetScript("OnClick", function() UI.Hide() end)
-
-    -- Left: profession tabs
-    local tabs = UI.Panel(f, 0.35)
-    tabs:SetPoint("TOPLEFT", UI.PAD, -UI.TITLE_H)
-    tabs:SetPoint("BOTTOMLEFT", UI.PAD, UI.PAD)
-    tabs:SetWidth(UI.TAB_W)
-    f.tabPanel = tabs
-    UI.charButton = CreateCharButton(tabs)
-    UI.charMenu = CreateCharMenu(f, UI.charButton)
-    UI.tabs = {}
-    for i, line in ipairs(UI.ProfessionOrder()) do
-        UI.tabs[#UI.tabs + 1] = CreateTab(tabs, line, i)
-    end
-
-    -- Filter bar above the list
-    local listX = UI.PAD + UI.TAB_W + 8
-    local bar = CreateFrame("Frame", nil, f)
-    bar:SetPoint("TOPLEFT", listX, -UI.TITLE_H)
-    bar:SetSize(UI.LIST_W, UI.BAR_H)
-    f.bar = bar
+local function CreateToolbar(panel)
+    local bar = CreateFrame("Frame", nil, panel)
+    bar:SetPoint("TOPLEFT", 6, -6)
+    bar:SetPoint("TOPRIGHT", -6, -6)
+    bar:SetHeight(UI.BAR_H - 12)
     UI.filterButtons = {
         CreateFilterButton(bar, "all", L.FILTER_ALL, 0),
         CreateFilterButton(bar, "learned", L.FILTER_LEARNED, 80),
@@ -346,8 +510,8 @@ function UI.Create()
     }
 
     local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "InputBoxTemplate")
-    search:SetSize(UI.LIST_W - 252, 20)
-    search:SetPoint("LEFT", 252, 0)
+    search:SetSize(UI.LIST_W - 264, 20)
+    search:SetPoint("LEFT", 250, 0)
     search:SetAutoFocus(false)
     search:SetMaxLetters(60)
     search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -364,29 +528,84 @@ function UI.Create()
     search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     UI.searchBox = search
+    bar.edge = Line(panel)
+    bar.edge:SetPoint("TOPLEFT", panel, "TOPLEFT", 1, -UI.BAR_H)
+    bar.edge:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -1, -UI.BAR_H)
+    bar.edge:SetHeight(1)
+    return bar
+end
 
-    -- Middle: recipe list
-    local listPanel = UI.Panel(f, 0.4)
-    listPanel:SetPoint("TOPLEFT", listX, -(UI.TITLE_H + UI.BAR_H + 4))
-    listPanel:SetPoint("BOTTOMLEFT", listX, UI.PAD + 22)
+-- Window ------------------------------------------------------------------------------------------
+
+function UI.Create()
+    if UI.frame then return UI.frame end
+    if not ns.db then ns.InitDB() end
+    UI.state.filter = ns.db.filter or "all"
+
+    local f = CreateFrame("Frame", "ForeverProfessionalFrame", UIParent, "BackdropTemplate")
+    UI.frame = f
+    f:Hide()
+    f:SetSize(UI.DEFAULT_W, UI.DEFAULT_H)
+    f:SetFrameStrata("HIGH")
+    f:SetToplevel(true)
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        UI.SavePosition()
+    end)
+    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    f:SetBackdropColor(Hex(UI.COLORS.window))
+    f:SetBackdropBorderColor(Hex("4a3d2a"))
+    RestorePosition(f)
+    tinsert(UISpecialFrames, f:GetName())
+
+    UI.rail = CreateRail(f)
+    UI.header = CreateHeader(f)
+    UI.charMenu = CreateCharMenu(f, UI.charButton)
+
+    local top = -(UI.HEADER_H + UI.GAP)
+    local listX = UI.RAIL_W + UI.GAP
+
+    -- Middle: toolbar and recipe list
+    local listPanel = UI.Panel(f)
+    listPanel:SetPoint("TOPLEFT", listX, top)
+    listPanel:SetPoint("BOTTOMLEFT", listX, UI.GAP)
     listPanel:SetWidth(UI.LIST_W)
     f.listPanel = listPanel
-    UI.CreateList(listPanel)
-
-    f.counter = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    f.counter:SetPoint("BOTTOMLEFT", listX + 4, UI.PAD + 5)
-    f.counter:SetJustifyH("LEFT")
+    f.bar = CreateToolbar(listPanel)
+    local listBody = CreateFrame("Frame", nil, listPanel)
+    listBody:SetPoint("TOPLEFT", 0, -UI.BAR_H)
+    listBody:SetPoint("BOTTOMRIGHT", 0, 0)
+    f.listBody = listBody
+    UI.CreateList(listBody)
 
     -- Right: detail pane
-    local detail = UI.Panel(f, 0.4)
-    detail:SetPoint("TOPLEFT", listX + UI.LIST_W + 8, -UI.TITLE_H)
-    detail:SetPoint("BOTTOMRIGHT", -UI.PAD, UI.PAD)
+    local detail = UI.Panel(f)
+    detail:SetPoint("TOPLEFT", listX + UI.LIST_W + UI.GAP, top)
+    detail:SetPoint("BOTTOMRIGHT", -UI.GAP, UI.GAP)
     f.detailPanel = detail
     if UI.CreateDetail then UI.CreateDetail(detail) end
 
     f:SetScript("OnShow", function() UI.Refresh() end)
     f:SetScript("OnHide", function() UI.CloseCharMenu() end)
     return f
+end
+
+-- Live sizes (the window will become resizable).
+function UI.Height()
+    return (UI.frame and UI.frame:GetHeight()) or UI.DEFAULT_H
+end
+
+function UI.Width()
+    return (UI.frame and UI.frame:GetWidth()) or UI.DEFAULT_W
+end
+
+function UI.DetailPanelWidth()
+    return UI.Width() - UI.RAIL_W - 3 * UI.GAP - UI.LIST_W
 end
 
 -- State changes ------------------------------------------------------------------------------
@@ -443,36 +662,10 @@ function UI.IsShown()
     return UI.frame and UI.frame:IsShown() or false
 end
 
-function UI.RefreshTabs()
-    for _, b in ipairs(UI.tabs) do
-        b.label:SetText(UI.ProfessionName(b.line))
-        local skill, max = ns.CharSkill(b.line, UI.state.char)
-        if skill then
-            b.skill:SetText(L.SKILL:format(skill, max or 0))
-            b.skill:SetTextColor(1, 1, 1)
-        else
-            b.skill:SetText(L.NOT_LEARNED_PROF)
-            b.skill:SetTextColor(0.5, 0.5, 0.5)
-        end
-        b.selectedTex:SetShown(b.line == UI.state.line)
-        if b.line == UI.state.line then b:LockHighlight() else b:UnlockHighlight() end
-    end
-end
-
 function UI.RefreshFilterButtons()
     for _, b in ipairs(UI.filterButtons) do
         if b.key == UI.state.filter then b:LockHighlight() else b:UnlockHighlight() end
     end
-end
-
-function UI.RefreshCounter()
-    local recipes = ns.Data.Recipes[UI.state.line] or {}
-    local total, learned = 0, 0
-    for id in pairs(recipes) do
-        total = total + 1
-        if ns.IsLearned(id, UI.state.char) then learned = learned + 1 end
-    end
-    UI.frame.counter:SetText(L.COUNT:format(learned, total))
 end
 
 function UI.Refresh()
@@ -481,9 +674,9 @@ function UI.Refresh()
     if UI.state.char and not (ns.db and ns.db.chars[UI.state.char]) then UI.state.char = nil end
     if not UI.state.line then UI.state.line = UI.DefaultProfession() end
     UI.RefreshCharButton()
-    UI.RefreshTabs()
+    UI.RefreshRail()
+    UI.RefreshHeader()
     UI.RefreshFilterButtons()
-    UI.RefreshCounter()
     UI.RefreshList()
     if UI.RefreshDetail then UI.RefreshDetail() end
 end
