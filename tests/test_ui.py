@@ -258,6 +258,13 @@ class WindowTest(unittest.TestCase):
         recipes = self.a.ns.Data.Recipes[164]
         self.assertTrue(all(recipes[r.entry.id] is not None for r in self.visible_rows() if r.entry.kind == "recipe"))
 
+    def test_slash_profession_starts_at_the_top(self):
+        top = lua_list(self.UI.entryTop)
+        self.a.call(self.UI.list.scroll, "SetVerticalScroll", top[40])
+        self.a.slash("tailor")
+        self.assertEqual(self.UI.state.line, 197)
+        self.assertEqual(self.visible_rows()[0].entryIndex, 1)
+
     def test_row_pool_is_small(self):
         a = self.a
         a.slash("leatherworking")
@@ -290,7 +297,7 @@ class ResizeTest(unittest.TestCase):
 
     def test_resizable_with_grip(self):
         self.assertTrue(self.f.resizable)
-        self.assertEqual(lua_list(self.f.resizeBounds)[:2], [900, 520])
+        self.assertEqual(lua_list(self.f.resizeBounds)[:2], [900, 540])
         g = self.UI.resizeGrip
         g.scripts.OnMouseDown(g, "LeftButton")
         self.assertEqual(self.f.sizing, "BOTTOMRIGHT")
@@ -298,6 +305,34 @@ class ResizeTest(unittest.TestCase):
         g.scripts.OnMouseUp(g, "LeftButton")
         db = self.a.g.ForeverProfessionalDB
         self.assertEqual((db.window.w, db.window.h), (1200, 700))
+
+    def test_resize_pins_top_left_first(self):
+        # Sizing a centre-anchored window from a corner makes it leap on this client.
+        g = self.UI.resizeGrip
+        g.scripts.OnMouseDown(g, "LeftButton")
+        point, rel, relPoint, x, y = Addon.call(self.f, "GetPoint")
+        self.assertEqual((point, relPoint, x, y), ("TOPLEFT", "BOTTOMLEFT", 100, 700))
+        self.assertTrue(self.a.lua.eval("rawequal")(rel, self.a.g.UIParent))
+
+    def test_resize_does_not_rebuild_the_list(self):
+        self.a.g._ns = self.a.ns
+        self.a.run("_G.buildCalls = 0; local orig = _ns.Model.BuildTree; "
+                   "_ns.Model.BuildTree = function(...) buildCalls = buildCalls + 1; return orig(...) end")
+        Addon.call(self.f, "SetSize", 1300, 900)
+        self.assertEqual(self.a.g.buildCalls, 0)
+        self.assertTrue([r for r in lua_list(self.UI.list.rows) if r.shown])
+
+    def test_rail_fits_at_minimum_height(self):
+        a = open_addon(ALTS + '; ForeverProfessionalDB.chars["Player-1-0000000F"] = { guid = "Player-1-0000000F", '
+                       'name = "Smith", class = "WARRIOR", faction = "Horde", level = 60, updated = 1795000000, '
+                       'professions = { [164] = { skill = 215, max = 225 }, [186] = { skill = 241, max = 300 }, '
+                       '[185] = { skill = 225, max = 300 }, [356] = { skill = 128, max = 150 }, '
+                       '[129] = { skill = 240, max = 300 } }, learned = {} }; ' + LEARNED)
+        UI = a.ns.UI
+        UI.SetChar("Player-1-0000000F")
+        Addon.call(a.g.ForeverProfessionalFrame, "SetSize", UI.MIN_W, UI.MIN_H)
+        bottom = max(-Addon.call(b, "GetPoint")[-1] + b.height for b in lua_list(UI.railButtons))
+        self.assertLessEqual(bottom, UI.MIN_H - 2)
 
     def test_list_width_split(self):
         self.assertEqual([self.UI.ListWidth(w) for w in (900, 1040, 1400)], [380, 418, 520])
@@ -319,7 +354,7 @@ class ResizeTest(unittest.TestCase):
             return f.width, f.height
         self.assertEqual(size("{ point='CENTER', x=0, y=0, w=1200, h=700 }"), (1200, 700))
         self.assertEqual(size("{ point='CENTER', x=0, y=0, w=5000, h=5000 }"), (1920, 1080))
-        self.assertEqual(size("{ point='CENTER', x=0, y=0, w=100, h=100 }"), (900, 520))
+        self.assertEqual(size("{ point='CENTER', x=0, y=0, w=100, h=100 }"), (900, 540))
         self.assertEqual(size("{}"), (1040, 640))
 
 

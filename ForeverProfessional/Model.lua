@@ -349,12 +349,34 @@ M.SEP = " · "
 local SIDE_LETTER = { Alliance = "A", Horde = "H" }
 
 -- Can a character of `faction` ("Horde"/"Alliance"/nil) use this NPC? Unknown factions count as usable.
+-- For friendly NPCs only (vendors, quest givers): on a mob the flag means who it's friendly to.
 function M.Usable(npcID, faction)
     local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
     local f = npc and npc.faction
     if not f or f == "AH" or not faction then return true end
     return f == SIDE_LETTER[faction]
 end
+
+-- "A" or "H" when every giver of the quest belongs to that side, else nil (open to both or unknown).
+function M.QuestFaction(qid)
+    local q = ns.Data.Quests and ns.Data.Quests[qid]
+    local side
+    for _, npcID in ipairs(q and q.npcs or {}) do
+        local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
+        local f = npc and npc.faction
+        if f ~= "A" and f ~= "H" then return nil end
+        if side and side ~= f then return nil end
+        side = f
+    end
+    return side
+end
+
+function M.QuestUsable(qid, faction)
+    local side = M.QuestFaction(qid)
+    return not side or not faction or side == SIDE_LETTER[faction]
+end
+
+local SIDE_NAME = { A = L.ALLIANCE, H = L.HORDE }
 
 -- Easiest first.
 local PRIMARY_ORDER = { "auto", "trainer", "vendor", "quest", "drop", "object", "container", "crafted", "worldObject" }
@@ -393,8 +415,17 @@ local function PickNPC(ids, faction)
     end
     local id = ids[1]
     local npc = ns.Data.NPCs and ns.Data.NPCs[id]
-    local side = npc and (npc.faction == "A" and L.ALLIANCE or npc.faction == "H" and L.HORDE)
+    local side = npc and SIDE_NAME[npc.faction]
     return NPCWhere(id) .. (side and (M.SEP .. side) or "")
+end
+
+-- The first quest usable by `faction`, else the first one with its side's name appended.
+local function PickQuest(qids, faction)
+    for _, qid in ipairs(qids) do
+        if M.QuestUsable(qid, faction) then return M.QuestName(qid) end
+    end
+    local side = SIDE_NAME[M.QuestFaction(qids[1])]
+    return M.QuestName(qids[1]) .. (side and (M.SEP .. side) or "")
 end
 
 local function ContainerName(itemID)
@@ -415,14 +446,13 @@ local function PrimaryText(rec, t, faction)
         return L.ROW_VENDOR:format(PickNPC(rec.vendors, faction))
     end
     if t == "drop" then
+        -- Drops keep data order (best chance first): a mob's faction says who it's friendly to.
         if not (rec.drops and rec.drops[1]) then return Unverified() end
-        local ids = {}
-        for i, d in ipairs(rec.drops) do ids[i] = d[1] end
-        return L.ROW_DROP:format(PickNPC(ids, faction))
+        return L.ROW_DROP:format(NPCWhere(rec.drops[1][1]))
     end
     if t == "quest" then
         if not (rec.quests and rec.quests[1]) then return Unverified() end
-        return L.ROW_QUEST:format(M.QuestName(rec.quests[1]))
+        return L.ROW_QUEST:format(PickQuest(rec.quests, faction))
     end
     if t == "object" then
         if not (rec.objects and rec.objects[1]) then return Unverified() end
@@ -453,7 +483,8 @@ end
 -- The detail pane's "Where to get it":
 --   { teach = {itemID...}, cards = {card...}, requirements = {string...}, notes = {string...} }
 --   card = { type, title, detail, waypoint = {map, x, y, name}, item = itemID, instance = boolean }
--- Cards follow PRIMARY_ORDER (easiest first); vendors and drops list what `faction` can use first.
+-- Cards follow PRIMARY_ORDER (easiest first); vendors and quests list what `faction` can use first,
+-- drops keep data order (best chance first).
 
 -- Join the non-empty arguments with M.SEP.
 local function JoinSep(...)
@@ -465,11 +496,11 @@ local function JoinSep(...)
     return table.concat(out, M.SEP)
 end
 
--- ids reordered so the ones `faction` can use come first, data order kept within each group.
-local function UsableFirst(entries, faction, idOf)
+-- Entries reordered so the ones usable(e) accepts come first, data order kept within each group.
+local function UsableFirst(entries, usable)
     local first, rest = {}, {}
     for _, e in ipairs(entries) do
-        if M.Usable(idOf(e), faction) then first[#first + 1] = e else rest[#rest + 1] = e end
+        if usable(e) then first[#first + 1] = e else rest[#rest + 1] = e end
     end
     for _, e in ipairs(rest) do first[#first + 1] = e end
     return first
@@ -484,9 +515,11 @@ local function NPCCard(kind, npcID, rate)
     local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
     local name = M.NPCName(npcID)
     local title = (npc and npc.sub) and (name .. " <" .. npc.sub .. ">") or name
+    -- The faction tag only means something for friendly NPCs; on a mob it says who it's friendly to.
+    local tag = kind == "vendor" and npc and FACTION_TAG[npc.faction] or nil
     return {
         type = kind, title = title,
-        detail = JoinSep(rate, npc and FACTION_TAG[npc.faction], ZoneAt(npc)),
+        detail = JoinSep(rate, tag, ZoneAt(npc)),
         waypoint = Waypoint(npc, name),
         instance = (npc and npc.instance and not npc.map) and true or false,
     }
@@ -512,10 +545,10 @@ function M.SourceCards(rec, faction)
     if rec.trainer or Has(src, "trainer") then
         Add({ type = "trainer", title = L.SRC_TRAINER, detail = rec.trainer and M.Money(rec.trainer) or nil })
     end
-    for _, id in ipairs(UsableFirst(rec.vendors or {}, faction, function(id) return id end)) do
+    for _, id in ipairs(UsableFirst(rec.vendors or {}, function(id) return M.Usable(id, faction) end)) do
         Add(NPCCard("vendor", id))
     end
-    for _, qid in ipairs(rec.quests or {}) do
+    for _, qid in ipairs(UsableFirst(rec.quests or {}, function(qid) return M.QuestUsable(qid, faction) end)) do
         local q = ns.Data.Quests and ns.Data.Quests[qid]
         local title = M.QuestName(qid)
         if q and q.level and q.level > 0 then title = L.QUEST_LEVEL:format(q.level, title) end
@@ -530,12 +563,13 @@ function M.SourceCards(rec, faction)
         end
         Add({
             type = "quest", title = title,
-            detail = JoinSep(#names > 0 and L.QUEST_GIVER:format(table.concat(names, ", ")) or nil, ZoneAt(where)),
+            detail = JoinSep(#names > 0 and L.QUEST_GIVER:format(table.concat(names, ", ")) or nil,
+                FACTION_TAG[M.QuestFaction(qid)], ZoneAt(where)),
             waypoint = waypoint,
         })
     end
     if rec.drops and #rec.drops > 0 then
-        for _, d in ipairs(UsableFirst(rec.drops, faction, function(d) return d[1] end)) do
+        for _, d in ipairs(rec.drops) do
             Add(NPCCard("drop", d[1], Rate(d[2])))
         end
         Add(MoreCard(#rec.drops, rec.dropTotal))

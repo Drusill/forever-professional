@@ -188,6 +188,15 @@ class PrimarySourceTest(unittest.TestCase):
         self.assertEqual(self.ps(202, 22704)[:2], ("worldObject", "World object"))
         self.assertEqual(self.ps(171, 2365), ("unknown", "Source unknown", 0))
 
+    def test_drop_ignores_faction(self):
+        # NPC faction flags on mobs mean "friendly to", and drops are listed best chance first.
+        for faction in ("Horde", "Alliance"):
+            self.assertEqual(self.ps(197, 18451, faction)[:2], ("drop", "Drop · Wing Commander Slidore (Map 1459)"))
+
+    def test_quest_follows_giver_faction(self):
+        self.assertEqual(self.ps(185, 6412, "Horde")[1], "Quest · Recipe of the Kaldorei · Alliance")
+        self.assertEqual(self.ps(185, 6412, "Alliance")[1], "Quest · Recipe of the Kaldorei")
+
     def test_unverified_primary(self):
         t, text, _ = self.ps(197, 24903)
         self.assertEqual((t, text), ("drop", "Drop (location unknown)"))
@@ -256,8 +265,20 @@ class SourceCardsTest(unittest.TestCase):
         c = next(c for c in self.cards(171, 2335) if c.type == "container")
         self.assertEqual(c.item, 6307)
 
+    def test_cards_drops_keep_data_order(self):
+        for faction in ("Horde", "Alliance"):
+            self.assertTrue(self.cards(197, 18451, faction)[0].title.startswith("Wing Commander Slidore"))
+
+    def test_cards_quests_usable_first_with_faction_tag(self):
+        horde = [c for c in self.cards(185, 1250148, "Horde") if c.type == "quest"]
+        alliance = [c for c in self.cards(185, 1250148, "Alliance") if c.type == "quest"]
+        self.assertIn("Horde", plain(horde[0].detail))
+        self.assertIn("Alliance", plain(horde[1].detail))
+        self.assertIn("Alliance", plain(alliance[0].detail))
+
     def test_cards_quest(self):
-        c = next(c for c in self.cards(171, 1230564) if c.type == "quest")
+        # Quest 96045 (Alliance givers); a Horde character gets the Horde quest of the same name first.
+        c = next(c for c in self.cards(171, 1230564, "Alliance") if c.title == "[6] Camping 101: Alchemy")
         self.assertEqual(c.title, "[6] Camping 101: Alchemy")
         self.assertTrue(c.detail.startswith("Given by Vosur Brakthel"))
         self.assertIsNotNone(c.waypoint)

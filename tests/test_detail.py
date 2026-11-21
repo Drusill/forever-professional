@@ -285,6 +285,17 @@ class OwnersDetailTest(unittest.TestCase):
         dots = [w.dot for w in lua_list(self.d.ownerRows) if w.shown]
         self.assertEqual(len(dots), 2)
 
+    def test_long_character_lines_wrap(self):
+        extra = "".join(
+            f'; ForeverProfessionalDB.chars["Player-1-000001{i}"] = {{ guid = "Player-1-000001{i}", '
+            f'name = "Longcharactername{i}", class = "MAGE", faction = "Horde", level = 60, updated = 1795000000, '
+            f'professions = {{ [171] = {{ skill = 290, max = 300 }} }}, learned = {{}} }}' for i in range(6))
+        DetailTest.setUp(self, ALTS + extra + "; " + LEARNED)
+        self.select(1251753, 171)
+        row = next(w for w in lua_list(self.d.ownerRows) if w.shown and "Learnable by" in plain(w.text.text))
+        self.assertTrue(row.text.wordWrap)
+        self.assertGreater(row.height, 24)
+
     def test_no_character_line(self):
         self.select(23066, 202)
         r = self.rendered()

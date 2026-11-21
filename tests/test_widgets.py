@@ -104,6 +104,12 @@ class WidgetsTest(unittest.TestCase):
         self.UI.SetIcon(tex, r"Interface\GossipFrame\VendorGossipIcon")
         self.assertEqual(tex.texture, r"Interface\GossipFrame\VendorGossipIcon")
 
+    def test_file_icon_after_atlas_resets_texcoords(self):
+        tex = self.a.run('return CreateFrame("Frame", nil, UIParent):CreateTexture()')
+        self.UI.SetIcon(tex, "atlas:VignetteLoot")
+        self.UI.SetIcon(tex, self.UI.SOURCE_ICONS.vendor)
+        self.assertEqual(lua_list(tex.texcoord), [0, 1, 0, 1])
+
     def test_progress_bar(self):
         bar = self.UI.CreateProgressBar(self.parent, 100, 4)
         Addon.call(bar, "SetProgress", 1, 4)

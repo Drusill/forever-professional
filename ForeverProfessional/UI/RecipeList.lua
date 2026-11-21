@@ -174,6 +174,20 @@ function UI.RefreshList(resetScroll)
     UI.RenderList()
 end
 
+-- After a size change: same entries, new visible height. Grow the pool, keep the scroll in range,
+-- update the scrollbar and redraw.
+function UI.RelayoutList()
+    local list = UI.list
+    if not list then return end
+    UI.EnsureRowPool()
+    if not UI.entries then return end
+    local visible, height = UI.ListVisibleHeight(), UI.contentHeight or 0
+    UI.UpdateScrollBar(list.scroll, height, visible)
+    local maxScroll = math.max(0, height - visible)
+    if list.scroll:GetVerticalScroll() > maxScroll then list.scroll:SetVerticalScroll(maxScroll) end
+    UI.RenderList()
+end
+
 local function RenderHeader(row, e, x)
     row:SetHeight(UI.HEADER_ROW_H)
     row.headerBg:Show()

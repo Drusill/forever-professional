@@ -133,7 +133,9 @@ function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
 function Widget:SetVertexColor(r, g, b, a) self.vertex = { r, g, b, a } end
 function Widget:SetTexture(t) self.texture = t; self.atlas = nil; return true end
 function Widget:GetTexture() return self.texture end
-function Widget:SetAtlas(a) self.atlas = a; self.texture = nil; return true end
+function Widget:SetAtlas(a) self.atlas = a; self.texture = nil; self.texcoord = { 0.1, 0.2, 0.3, 0.4 }; return true end
+function Widget:SetTexCoord(...) self.texcoord = { ... } end
+function Widget:SetWordWrap(v) self.wordWrap = v end
 function Widget:SetColorTexture(r, g, b, a) self.texture = { r, g, b, a } end
 -- Size changes fire OnSizeChanged, like the client.
 local function sized(self, w, h)
@@ -150,7 +152,12 @@ function Widget:StartSizing(p) self.sizing = p end
 function Widget:StopMovingOrSizing() self.sizing = nil end
 function Widget:GetWidth() return self.width end
 function Widget:GetHeight() return self.height end
-function Widget:GetStringHeight() return 14 end
+function Widget:GetStringHeight()
+    if self.wordWrap and (self.width or 0) > 0 then
+        return 14 * math.max(1, math.ceil(self:GetStringWidth() / self.width))
+    end
+    return 14
+end
 function Widget:GetStringWidth() return #(self.text or "") * 6 end
 function Widget:SetPoint(...) self.points[#self.points + 1] = { ... } end
 function Widget:ClearAllPoints() self.points = {} end

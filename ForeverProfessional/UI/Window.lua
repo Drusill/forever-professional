@@ -7,7 +7,7 @@ local UI = ns.UI
 local Hex = UI.HexColor
 
 UI.DEFAULT_W, UI.DEFAULT_H = 1040, 640
-UI.MIN_W, UI.MIN_H = 900, 520
+UI.MIN_W, UI.MIN_H = 900, 540   -- 540: the rail fits five known professions plus the other seven
 UI.RAIL_W = 64
 UI.HEADER_H = 54
 UI.GAP = 8
@@ -641,7 +641,14 @@ function UI.Create()
     grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
     grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
     grip:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then f:StartSizing("BOTTOMRIGHT") end
+        if button ~= "LeftButton" then return end
+        -- Pin the top-left corner first: sizing a centre-anchored window from a corner makes it leap.
+        local left, top = f:GetLeft(), f:GetTop()
+        if left and top then
+            f:ClearAllPoints()
+            f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+        end
+        f:StartSizing("BOTTOMRIGHT")
     end)
     grip:SetScript("OnMouseUp", function()
         f:StopMovingOrSizing()
@@ -691,7 +698,8 @@ function UI.PlaceDetailPanel()
     f.detailPanel:SetWidth(UI.DetailPanelWidth())
 end
 
--- Re-fit the panes to the window size.
+-- Re-fit the panes to the window size. Runs on every size change while dragging, so it only
+-- re-lays out what's there; the entries don't depend on the size.
 function UI.Layout()
     local f = UI.frame
     if not (f and f.listPanel) then return end
@@ -699,12 +707,8 @@ function UI.Layout()
     f.listPanel:SetWidth(listW)
     if UI.list then UI.list.child:SetWidth(listW - 34) end
     UI.PlaceDetailPanel()
-    if UI.EnsureRowPool then UI.EnsureRowPool() end
+    if UI.RelayoutList then UI.RelayoutList() end
     if UI.LayoutDetail then UI.LayoutDetail() end
-    if UI.IsShown() then
-        UI.RefreshList()
-        if UI.RefreshDetail then UI.RefreshDetail() end
-    end
 end
 
 -- State changes ------------------------------------------------------------------------------
@@ -804,7 +808,11 @@ end
 
 function UI.Show(line)
     UI.Create()
-    if line then UI.state.line = line; UI.state.selected = nil end
+    if line then
+        if line ~= UI.state.line then UI.resetListScroll = true end
+        UI.state.line = line
+        UI.state.selected = nil
+    end
     if UI.frame:IsShown() then
         UI.Refresh()
     else

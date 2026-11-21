@@ -114,6 +114,7 @@ function UI.SetIcon(tex, value)
         value = ICON_FALLBACK[value] or M.QUESTION_ICON
     end
     tex:SetTexture(value)
+    tex:SetTexCoord(0, 1, 0, 1)   -- an atlas shown before leaves its sub-rectangle behind
 end
 
 -- Horizontal gradient between two hex colours; a flat colour when gradients aren't available.

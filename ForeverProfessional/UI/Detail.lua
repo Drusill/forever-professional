@@ -236,10 +236,18 @@ function UI.CreateDetail(parent)
     detail.empty = CreateEmpty(parent)
 end
 
--- Re-fit the fixed-width parts to the pane after a resize (RefreshDetail re-renders the content).
+-- After a size change: re-render only when the width changed (the grid, cards and wrapping depend
+-- on it); a height change only moves the scrollbar.
 function UI.LayoutDetail()
     if not detail.child then return end
-    detail.child:SetWidth(ContentWidth())
+    local width = ContentWidth()
+    detail.child:SetWidth(width)
+    if not UI.IsShown() then return end
+    if width ~= detail.renderedWidth then
+        UI.RefreshDetail()
+    elseif detail.rendered then
+        UI.UpdateScrollBar(detail.scroll, detail.child:GetHeight(), UI.DetailVisibleHeight())
+    end
 end
 
 -- Difficulty scale: orange/yellow/green segments over learn → grey plus a grey cap, the four
@@ -502,17 +510,20 @@ local function RenderReagents(b, y, width, pending)
     return y + math.ceil(#b.items / cols) * (SLOT + 5) + 2
 end
 
+local OWNER_ROW_H = 24
+
+-- A character group: a coloured dot and the names, wrapping onto more lines when there are many.
 local function CreateOwnerRow()
     local r = UI.Panel(detail.child, 1)
-    r:SetHeight(24)
+    r:SetHeight(OWNER_ROW_H)
     r.dot = r:CreateTexture(nil, "ARTWORK")
     r.dot:SetSize(8, 8)
-    r.dot:SetPoint("LEFT", 9, 0)
+    r.dot:SetPoint("TOPLEFT", 9, -8)
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.text:SetPoint("LEFT", r.dot, "RIGHT", 8, 0)
-    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetPoint("TOPLEFT", 25, -5)
     r.text:SetJustifyH("LEFT")
-    r.text:SetWordWrap(false)
+    r.text:SetJustifyV("TOP")
+    r.text:SetWordWrap(true)
     return r
 end
 
@@ -521,8 +532,11 @@ local function RenderOwner(b, y, width)
     r:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
     r:SetWidth(width)
     r.dot:SetColorTexture(Hex(OWNER_DOTS[b.group] or OWNER_DOTS.none))
+    r.text:SetWidth(width - 33)
     r.text:SetText(b.text or "")
-    return y + 24 + 4
+    local height = math.max(OWNER_ROW_H, (r.text:GetStringHeight() or 14) + 10)
+    r:SetHeight(height)
+    return y + height + 4
 end
 
 local function CreateCard()
@@ -611,6 +625,7 @@ function UI.RefreshDetail()
         else y = RenderTextLine(b, y, width, pending) end
     end
     HideUnused()
+    detail.renderedWidth = width
     detail.child:SetHeight(y + 8)
     UI.UpdateScrollBar(detail.scroll, y + 8, UI.DetailVisibleHeight())
     detail.rendered = blocks
