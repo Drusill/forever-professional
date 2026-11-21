@@ -1,4 +1,5 @@
 """Window and recipe list tests: the addon driven through /fp and its widgets, with real data."""
+import math
 import sys
 import pathlib
 import unittest
@@ -95,19 +96,19 @@ class WindowTest(unittest.TestCase):
         recipe_row = next(r for r in rows if r.entry.kind == "recipe")
         self.assertIn("Spell ", recipe_row.label.text)
         self.assertIsNotNone(recipe_row.icon.texture)
-        self.assertTrue(recipe_row.range.text)
+        self.assertTrue(recipe_row.sub.text)
 
     def test_learned_check_marks(self):
         self.UI.SetFilter("learned")
         rows = [r for r in self.visible_rows() if r.entry.kind == "recipe"]
         self.assertEqual(len(rows), 3)
         for r in rows:
-            self.assertTrue(r.check.texture.endswith("ReadyCheck-Ready"))
+            self.assertEqual(r.status.texture, self.UI.SOURCE_ICONS.check)
         self.UI.SetFilter("missing")
         rows = [r for r in self.visible_rows() if r.entry.kind == "recipe"]
         self.assertTrue(rows)
         for r in rows:
-            self.assertTrue(r.check.texture.endswith("ReadyCheck-NotReady"))
+            self.assertNotEqual(r.status.texture, self.UI.SOURCE_ICONS.check)
 
     def test_filter_buttons(self):
         total = len(list(self.a.ns.Data.Recipes[171].keys()))
@@ -167,7 +168,7 @@ class WindowTest(unittest.TestCase):
         self.a.call(header_row, "Click")
         self.assertTrue(self.a.g.ForeverProfessionalDB.collapsed[cat])
         self.assertLess(len(self.entries()), before)
-        self.assertEqual(self.visible_rows()[0].expand.texture, r"Interface\Buttons\UI-PlusButton-Up")
+        self.assertEqual(self.visible_rows()[0].expand.rotation, 0)
         self.a.call(self.visible_rows()[0], "Click")
         self.assertIsNone(self.a.g.ForeverProfessionalDB.collapsed[cat])
         self.assertEqual(len(self.entries()), before)
@@ -175,18 +176,50 @@ class WindowTest(unittest.TestCase):
     def test_list_scrollbar_only_when_needed(self):
         bar = self.UI.list.scroll.ScrollBar
         self.assertTrue(self.UI.list.scroll.scrollBarHideable)
-        self.UI.SelectProfession(186)   # Mining: 17 recipes, fits
+        self.UI.SelectProfession(393)   # Skinning: 3 recipes, fits
         self.assertFalse(bar.shown)
+        self.UI.SelectProfession(186)   # Mining: 17 two-line rows don't fit any more
+        self.assertTrue(bar.shown)
         self.UI.SelectProfession(164)   # Blacksmithing: 419 recipes
         self.assertTrue(bar.shown)
         self.assertEqual(bar.thumb.texture, r"Interface\Buttons\WHITE8X8")
 
-    def test_scrolling_moves_rows(self):
-        self.a.call(self.UI.list.scroll, "SetVerticalScroll", 10 * self.UI.ROW_H)
-        self.UI.RenderList()
-        first = self.visible_rows()[0]
-        self.assertEqual(first.entryIndex, 11)
-        self.assertEqual(first.label.text, self.visible_rows()[0].label.text)
+    def search(self, spell):
+        self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", f"spell {spell}")
+        return next(r for r in self.visible_rows() if r.entry.kind == "recipe" and r.entry.id == spell)
+
+    def test_row_heights_and_content_height(self):
+        rows = self.visible_rows()
+        self.assertEqual(rows[0].height, 24)
+        self.assertEqual(next(r for r in rows if r.entry.kind == "recipe").height, 34)
+        e = self.entries()
+        self.assertEqual(self.UI.list.child.height, sum(24 if x.kind == "header" else 34 for x in e))
+
+    def test_missing_row(self):
+        row = self.search(7255)
+        self.assertEqual(plain(row.label.text), "Spell 7255")
+        self.assertEqual(plain(row.sub.text), "Learn 100 · Vendor · Kzixx (Map 1431) · +2 more")
+        self.assertEqual(row.status.texture, self.UI.SOURCE_ICONS.vendor)
+
+    def test_learned_row(self):
+        row = self.search(2329)
+        rec = self.a.ns.Data.Recipes[171][2329]
+        self.assertEqual(row.sub.text, self.a.ns.Model.RangeText(rec, 120))
+        self.assertEqual(row.status.texture, self.UI.SOURCE_ICONS.check)
+
+    def test_header_row(self):
+        h = self.visible_rows()[0]
+        self.assertEqual((h.label.text, h.expand.rotation), ("Camping", -math.pi / 2))
+        self.assertRegex(h.count.text, r"^\d+/\d+$")
+        self.a.call(h, "Click")
+        self.assertEqual(self.visible_rows()[0].expand.rotation, 0)
+
+    def test_scroll_with_mixed_heights(self):
+        top = lua_list(self.UI.entryTop)
+        for offset, expected in ((top[10], 11), (top[10] + 5, 11)):
+            self.a.call(self.UI.list.scroll, "SetVerticalScroll", offset)
+            self.UI.RenderList()
+            self.assertEqual(self.visible_rows()[0].entryIndex, expected)
 
     def test_row_pool_is_small(self):
         a = self.a
@@ -242,7 +275,14 @@ class AltViewTest(unittest.TestCase):
         self.assertEqual(self.recipe_ids(), [7255])
         rows = [r for r in lua_list(self.UI.list.rows) if r.shown and r.entry.kind == "recipe"]
         self.assertEqual(len(rows), 1)
-        self.assertTrue(rows[0].check.texture.endswith("ReadyCheck-Ready"))
+        self.assertEqual(rows[0].status.texture, self.UI.SOURCE_ICONS.check)
+
+    def test_learn_neutral_without_profession(self):
+        self.UI.SetChar("Player-1-0000000E")
+        self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 1251750")
+        row = next(r for r in lua_list(self.UI.list.rows)
+                   if r.shown and r.entry.kind == "recipe" and r.entry.id == 1251750)
+        self.assertTrue(row.sub.text.startswith("Learn 180"))
 
     def test_alt_detail_status(self):
         self.UI.SetChar(DRU_ROGUE)
