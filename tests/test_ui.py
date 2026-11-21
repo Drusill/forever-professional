@@ -221,6 +221,17 @@ class WindowTest(unittest.TestCase):
             self.UI.RenderList()
             self.assertEqual(self.visible_rows()[0].entryIndex, expected)
 
+    def test_switch_profession_while_scrolled(self):
+        # In game: scrolled down in one profession, clicking another redrew the old rows against
+        # the new profession's recipes (BugSack: RangeText on a nil recipe).
+        top = lua_list(self.UI.entryTop)
+        self.a.call(self.UI.list.scroll, "SetVerticalScroll", top[40])
+        Addon.call(next(b for b in lua_list(self.UI.railButtons) if b.line == 164), "Click")
+        self.assertEqual(self.UI.state.line, 164)
+        self.assertEqual(self.visible_rows()[0].entryIndex, 1)
+        recipes = self.a.ns.Data.Recipes[164]
+        self.assertTrue(all(recipes[r.entry.id] is not None for r in self.visible_rows() if r.entry.kind == "recipe"))
+
     def test_row_pool_is_small(self):
         a = self.a
         a.slash("leatherworking")

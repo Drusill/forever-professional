@@ -181,7 +181,12 @@ function Widget:Click(button)
 end
 function Widget:SetScrollChild(c) self.scrollChild = c; c.parent = self end
 function Widget:GetScrollChild() return self.scrollChild end
-function Widget:SetVerticalScroll(v) self.vscroll = v end
+-- Like the client, a scroll change fires OnVerticalScroll.
+function Widget:SetVerticalScroll(v)
+    local changed = v ~= (self.vscroll or 0)
+    self.vscroll = v
+    if changed and self.scripts.OnVerticalScroll then self.scripts.OnVerticalScroll(self, v) end
+end
 function Widget:GetVerticalScroll() return self.vscroll or 0 end
 function Widget:GetVerticalScrollRange() return 0 end
 function Widget:SetThumbTexture(t)

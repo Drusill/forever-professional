@@ -711,7 +711,9 @@ function UI.SelectProfession(line)
     if s.line ~= line then
         s.line = line
         s.selected = nil
-        if UI.list then UI.list.scroll:SetVerticalScroll(0) end
+        -- Scroll back to the top only once the new profession's entries exist: setting the scroll
+        -- now would redraw the old entries against the new profession's recipes.
+        UI.resetListScroll = true
     end
     UI.Refresh()
 end
@@ -791,7 +793,8 @@ function UI.Refresh()
     UI.RefreshRail()
     UI.RefreshHeader()
     UI.RefreshFilterButtons()
-    UI.RefreshList()
+    UI.RefreshList(UI.resetListScroll)
+    UI.resetListScroll = nil
     if UI.RefreshDetail then UI.RefreshDetail() end
 end
 
