@@ -26,9 +26,11 @@ Restart the client fully (a new TOC isn't picked up by `/reload`) and enable **F
 
 - `/fp` toggles the window; `/fp <profession>` (e.g. `/fp tailor`) opens a profession.
 - Or click the professions icon (crossed hammer and pick) on the minimap (drag it around the edge to move it; `/fp minimap` hides or shows it), or the **ForeverProfessional** entry in the addon list button by the minimap.
-- Left: one tab per profession. Middle: recipes by category (click a header to collapse it), with learned ✓/✗ and the skill range coloured against your skill. Right: what the recipe makes, its reagents, and where to get it, with **Waypoint** buttons for NPCs and objects with known coordinates.
-- Filter by All / Learned / Missing, or search by name.
-- Your other characters: pick one in the selector above the profession tabs to see its recipes, skills and counts. A recipe's **Characters** section, and the tooltip of any recipe item (at a vendor, in the Auction House, in a chat link), say who knows it, who can learn it now (with a hint when only the other faction's vendors sell it) and who needs more skill.
+- Left: a rail of profession icons (yours first, with your skill). Top: the profession's skill bar, recipes learned and the character selector.
+- Middle: recipes by category, two lines each: the name in its difficulty colour, then the skill range if you know it, or the learn level and where to get it (with ✓ or a trainer, vendor, quest, drop or chest icon). Click a header to collapse it, or use **collapse all / expand all**. Filter by All / Learned / Missing (with counts), or search by name.
+- Right: the recipe's header (what it makes, learned or not, difficulty scale) stays put while the rest scrolls. A recipe you don't know leads with **where to get it** (cards with **Waypoint** buttons for NPCs and objects with known coordinates), then who could learn it, then reagents; a known one leads with reagents and folds its sources into one line.
+- Drag the bottom-right corner to resize the window; its size and position are remembered.
+- Your other characters: pick one in the selector at the top right to see its recipes, skills and counts. A recipe's **Characters** section, and the tooltip of any recipe item (at a vendor, in the Auction House, in a chat link), say who knows it, who can learn it now (with a hint when only the other faction's vendors sell it) and who needs more skill.
 - Every character you log in on is remembered. `/fp chars` lists them with a number; `/fp forget <number|name>` removes one you no longer play.
 
 ## Develop
