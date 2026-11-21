@@ -4,7 +4,7 @@ import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon, lua_list  # noqa: E402
+from harness import ALTS, Addon, lua_list, plain  # noqa: E402
 
 LEARNED = "mock.learned = { [2329] = true, [3170] = true, [7183] = true }"
 
@@ -162,6 +162,67 @@ class WindowTest(unittest.TestCase):
     def test_unknown_profession_message(self):
         self.a.slash("basketweaving")
         self.assertTrue(any("basketweaving" in p for p in self.a.printed()))
+
+
+DRU_ROGUE = "Player-1-0000000B"
+
+
+class AltViewTest(unittest.TestCase):
+    def setUp(self):
+        self.a = open_addon(ALTS + "; " + LEARNED)
+        self.UI = self.a.ns.UI
+        self.total = len(list(self.a.ns.Data.Recipes[171].keys()))
+
+    def tab(self, line):
+        return next(t for t in lua_list(self.UI.tabs) if t.line == line)
+
+    def counter(self):
+        return self.a.g.ForeverProfessionalFrame.counter.text
+
+    def recipe_ids(self):
+        return [e.id for e in lua_list(self.UI.entries) if e.kind == "recipe"]
+
+    def test_alt_tabs_and_counter(self):
+        self.UI.SetChar(DRU_ROGUE)
+        self.assertEqual(self.tab(171).skill.text, "Skill 290 / 300")
+        self.assertEqual(self.tab(182).skill.text, "Not learned")
+        self.assertEqual(self.counter(), f"1 / {self.total} learned")
+
+    def test_alt_learned_filter_and_checks(self):
+        self.UI.SetChar(DRU_ROGUE)
+        self.UI.SetFilter("learned")
+        self.assertEqual(self.recipe_ids(), [7255])
+        rows = [r for r in lua_list(self.UI.list.rows) if r.shown and r.entry.kind == "recipe"]
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0].check.texture.endswith("ReadyCheck-Ready"))
+
+    def test_alt_detail_status(self):
+        self.UI.SetChar(DRU_ROGUE)
+        self.UI.SelectRecipe(7255)
+        self.assertIn("Learned", plain(self.UI.detail.status.text))
+        self.assertNotIn("Not learned", plain(self.UI.detail.status.text))
+        self.UI.SetChar(None)
+        self.assertIn("Not learned", plain(self.UI.detail.status.text))
+
+    def test_set_char_self_or_unknown_is_nil(self):
+        self.UI.SetChar("Player-1-0000000A")
+        self.assertIsNone(self.UI.state.char)
+        self.UI.SetChar("Player-9-X")
+        self.assertIsNone(self.UI.state.char)
+
+    def test_live_refresh_keeps_alt_view(self):
+        self.UI.SetChar(DRU_ROGUE)
+        self.a.run('fire("NEW_RECIPE_LEARNED", 1251753)')
+        self.assertEqual(self.counter(), f"1 / {self.total} learned")
+        self.assertTrue(self.a.g.ForeverProfessionalDB.chars["Player-1-0000000A"].learned[1251753])
+        self.UI.SetChar(None)
+        self.assertEqual(self.counter(), f"4 / {self.total} learned")
+
+    def test_forget_viewed_alt_resets_view(self):
+        self.UI.SetChar(DRU_ROGUE)
+        self.a.slash("forget 3")
+        self.assertIsNone(self.UI.state.char)
+        self.assertEqual(self.tab(171).skill.text, "Skill 120 / 150")
 
 
 if __name__ == "__main__":

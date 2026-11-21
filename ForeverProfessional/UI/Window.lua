@@ -13,7 +13,8 @@ UI.TAB_W = 190
 UI.LIST_W = 400
 UI.BAR_H = 30
 
-UI.state = { line = nil, filter = "all", search = "", selected = nil }
+-- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
+UI.state = { line = nil, filter = "all", search = "", selected = nil, char = nil }
 
 local PROFESSION_ICONS = {
     [129] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
@@ -316,6 +317,14 @@ function UI.SetSearch(text)
     end
 end
 
+-- Show another cached character. nil, the logged-in character's key or an unknown key all mean the
+-- logged-in character (whose data keeps refreshing live). Profession and selection are kept.
+function UI.SetChar(key)
+    if key == ns.CharKey() or not (ns.db and ns.db.chars[key]) then key = nil end
+    UI.state.char = key
+    UI.Refresh()
+end
+
 function UI.SelectRecipe(spellID)
     UI.state.selected = spellID
     UI.RenderList()
@@ -337,7 +346,7 @@ end
 function UI.RefreshTabs()
     for _, b in ipairs(UI.tabs) do
         b.label:SetText(UI.ProfessionName(b.line))
-        local skill, max = ns.CharSkill(b.line)
+        local skill, max = ns.CharSkill(b.line, UI.state.char)
         if skill then
             b.skill:SetText(L.SKILL:format(skill, max or 0))
             b.skill:SetTextColor(1, 1, 1)
@@ -361,13 +370,15 @@ function UI.RefreshCounter()
     local total, learned = 0, 0
     for id in pairs(recipes) do
         total = total + 1
-        if ns.IsLearned(id) then learned = learned + 1 end
+        if ns.IsLearned(id, UI.state.char) then learned = learned + 1 end
     end
     UI.frame.counter:SetText(L.COUNT:format(learned, total))
 end
 
 function UI.Refresh()
     if not UI.IsShown() then return end
+    -- The shown character may have been forgotten.
+    if UI.state.char and not (ns.db and ns.db.chars[UI.state.char]) then UI.state.char = nil end
     if not UI.state.line then UI.state.line = UI.DefaultProfession() end
     UI.RefreshTabs()
     UI.RefreshFilterButtons()

@@ -108,7 +108,7 @@ function UI.RefreshList(resetScroll)
         filter = s.filter,
         search = s.search,
         collapsed = ns.db.collapsed,
-        isLearned = function(id) return ns.IsLearned(id) end,
+        isLearned = function(id) return ns.IsLearned(id, s.char) end,
     })
     local list = UI.list
     local height = #UI.entries * ROW_H
@@ -146,7 +146,7 @@ local function RenderRow(row, e, skill)
         row.range:SetText(("|cffb0b0b0%d/%d|r"):format(e.learned, e.count))
     else
         local rec = ns.Data.Recipes[UI.state.line][e.id]
-        local learned = ns.IsLearned(e.id)
+        local learned = ns.IsLearned(e.id, UI.state.char)
         row.headerBg:Hide()
         row.selectedTex:SetShown(e.id == UI.state.selected)
         row.expand:Hide()
@@ -171,7 +171,7 @@ function UI.RenderList()
     local list = UI.list
     if not (list and UI.entries) then return end
     local first = math.floor((list.scroll:GetVerticalScroll() or 0) / ROW_H) + 1
-    local skill = ns.CharSkill(UI.state.line)
+    local skill = ns.CharSkill(UI.state.line, UI.state.char)
     for i, row in ipairs(list.rows) do
         local index = first + i - 1
         local e = UI.entries[index]
