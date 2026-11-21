@@ -1,6 +1,6 @@
 # UI redesign: design
 
-Date: 2026-11-21. Status: awaiting approval.
+Date: 2026-11-21. Status: approved 2026-11-21. Plan: [../plans/2026-11-21-ui-redesign.md](../plans/2026-11-21-ui-redesign.md).
 
 Reference mockup: [2026-11-21-ui-redesign-mockup.html](2026-11-21-ui-redesign-mockup.html) (open it in a browser).
 Emoji in it stand in for game icons and art.
