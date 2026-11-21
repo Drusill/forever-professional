@@ -56,19 +56,17 @@ end
 ns.ClassName = ClassName
 
 -- Plain display name. Names aren't unique on Forever (first name only): a shared name gets the class,
--- "Dru (Rogue)", and a shared name and class also gets a number, "Dru (Rogue) 2", in ListChars order.
+-- "Dru (Rogue)", and a shared name and class also gets a number, "Dru (Rogue) 2", ranked by key (GUID)
+-- so the number names the same character whoever is logged in.
 function ns.CharName(key)
     local c = ns.db and ns.db.chars[key]
     if not c then return "?" end
     local name = c.name or "?"
-    local sameName, sameClass, rank = false, 0, 0
-    for _, e in ipairs(ns.ListChars()) do
-        if e.char.name == c.name then
-            if e.key ~= key then sameName = true end
-            if e.char.class == c.class then
-                sameClass = sameClass + 1
-                if e.key == key then rank = sameClass end
-            end
+    local sameName, rank = false, 1
+    for k, other in pairs(ns.db.chars) do
+        if other.name == c.name and k ~= key then
+            sameName = true
+            if other.class == c.class and k < key then rank = rank + 1 end
         end
     end
     if not sameName then return name end

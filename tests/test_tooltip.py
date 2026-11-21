@@ -84,6 +84,9 @@ class TooltipTest(unittest.TestCase):
         self.a.run("_ns.OwnerLines = function() error('boom') end")
         self.set_item(250999)   # must not raise
         self.assertEqual(self.lines(), [])
+        errors = lua_list(self.a.mock.errors)
+        self.assertEqual(len(errors), 1)   # reported to the error handler (BugSack), not lost
+        self.assertIn("boom", errors[0])
 
 
 class FallbackHookTest(unittest.TestCase):

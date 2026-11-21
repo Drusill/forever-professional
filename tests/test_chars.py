@@ -183,3 +183,19 @@ class SlashTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FinalFixesTest(unittest.TestCase):
+    def test_no_newline_escape_in_strings(self):
+        a = Addon()
+        bad = [k for k, v in a.ns.L.items() if isinstance(v, str) and "|n" in v.replace("||", "")]
+        self.assertEqual(bad, [])
+
+    def test_same_name_same_class_rank_stable_across_logins(self):
+        extra = ('; ForeverProfessionalDB.chars["Player-1-0000000G"] = '
+                 '{ name = "Dru", class = "ROGUE", faction = "Horde", professions = {}, learned = {} }')
+        for me in ("Player-1-0000000B", "Player-1-0000000G"):
+            a = logged_in(f'mock.guid = "{me}"; function UnitName() return "Dru" end; '
+                          'function UnitClass() return "Rogue", "ROGUE" end; ' + ALTS + extra)
+            self.assertEqual(a.ns.CharName("Player-1-0000000B"), "Dru (Rogue)", me)
+            self.assertEqual(a.ns.CharName("Player-1-0000000G"), "Dru (Rogue) 2", me)

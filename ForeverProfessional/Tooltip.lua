@@ -56,8 +56,11 @@ local function OnItem(tooltip, data)
     if ns.AddRecipeLines(tooltip, itemID) then tooltip:Show() end
 end
 
--- Never let an error here break someone else's tooltip.
-local function Safe(tooltip, data) pcall(OnItem, tooltip, data) end
+-- Never let an error here break someone else's tooltip, but still report it (BugSack).
+local function Safe(tooltip, data)
+    local ok, err = pcall(OnItem, tooltip, data)
+    if not ok and geterrorhandler then geterrorhandler()(err) end
+end
 
 local viaProcessor = false
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
