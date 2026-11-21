@@ -239,6 +239,29 @@ function M.Flatten(tree, opts)
     return Walk(tree, 0)
 end
 
+-- Every category id of a tree, at any depth, in tree order (for collapse all / expand all).
+function M.CategoryIDs(tree)
+    local out = {}
+    local function Walk(node)
+        for _, child in ipairs(node.children or {}) do
+            out[#out + 1] = child.id
+            Walk(child)
+        end
+    end
+    Walk(tree)
+    return out
+end
+
+-- Recipe count of a profession and how many isLearned(id) says are learned.
+function M.FilterCounts(line, isLearned)
+    local total, learned = 0, 0
+    for id in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
+        total = total + 1
+        if isLearned(id) then learned = learned + 1 end
+    end
+    return total, learned
+end
+
 -- Difficulty ------------------------------------------------------------------------------
 
 M.COLORS = {

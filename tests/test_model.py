@@ -100,6 +100,14 @@ class ModelTest(unittest.TestCase):
         entries, _, _ = self.flat(search="spell 7183", collapsed={2450: True})
         self.assertEqual(self.recipe_ids(entries), [7183])
 
+    def test_category_ids_nested(self):
+        tree = self.a.lua.eval('{ children = { { id = 1, recipes = {}, children = { { id = 2, recipes = {}, '
+                               'children = {} } } }, { id = "other", recipes = {}, children = {} } }, recipes = {} }')
+        self.assertEqual(lua_list(self.M.CategoryIDs(tree)), [1, 2, "other"])
+
+    def test_filter_counts(self):
+        self.assertEqual(self.M.FilterCounts(171, self.a.lua.eval("function(id) return id == 2329 end")), (179, 1))
+
     def test_every_profession_builds(self):
         for line in self.a.ns.Data.Professions.keys():
             _, count, _ = self.flat(line=line)

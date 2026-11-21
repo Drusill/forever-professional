@@ -488,35 +488,48 @@ end
 
 -- Toolbar ----------------------------------------------------------------------------------------
 
-local function CreateFilterButton(parent, key, label, x)
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(78, 22)
-    b:SetPoint("LEFT", x, 0)
-    b:SetText(label)
-    b.key = key
-    b:SetScript("OnClick", function() UI.SetFilter(key) end)
-    return b
-end
+local SEARCH_ICON = "Interface\\Common\\UI-Searchbox-Icon"
+local COLLAPSE_ICON = "Interface\\Buttons\\UI-MinusButton-Up"
+local EXPAND_ICON = "Interface\\Buttons\\UI-PlusButton-Up"
 
 local function CreateToolbar(panel)
     local bar = CreateFrame("Frame", nil, panel)
     bar:SetPoint("TOPLEFT", 6, -6)
     bar:SetPoint("TOPRIGHT", -6, -6)
     bar:SetHeight(UI.BAR_H - 12)
-    UI.filterButtons = {
-        CreateFilterButton(bar, "all", L.FILTER_ALL, 0),
-        CreateFilterButton(bar, "learned", L.FILTER_LEARNED, 80),
-        CreateFilterButton(bar, "missing", L.FILTER_MISSING, 160),
-    }
 
-    local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "InputBoxTemplate")
-    search:SetSize(UI.LIST_W - 264, 20)
-    search:SetPoint("LEFT", 250, 0)
+    -- Right to left: expand all, collapse all, the filter toggle; the search box takes the rest.
+    UI.expandAllButton = UI.CreateIconButton(bar, EXPAND_ICON, L.EXPAND_ALL, function() UI.ExpandAll() end)
+    UI.expandAllButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
+    UI.collapseAllButton = UI.CreateIconButton(bar, COLLAPSE_ICON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
+    UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
+
+    UI.filterControl = UI.CreateSegmented(bar, {
+        { key = "all", label = L.FILTER_ALL },
+        { key = "learned", label = L.FILTER_LEARNED },
+        { key = "missing", label = L.FILTER_MISSING },
+    }, function(key) UI.SetFilter(key) end)
+    UI.filterControl:SetPoint("RIGHT", UI.collapseAllButton, "LEFT", -6, 0)
+    UI.filterButtons = UI.filterControl.order
+
+    local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "BackdropTemplate")
+    search:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    search:SetPoint("RIGHT", UI.filterControl, "LEFT", -6, 0)
+    search:SetHeight(22)
+    search:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    search:SetBackdropColor(Hex("090807"))
+    search:SetBackdropBorderColor(Hex(UI.COLORS.line2))
+    search:SetFontObject(GameFontHighlightSmall)
+    search:SetTextInsets(20, 6, 0, 0)
     search:SetAutoFocus(false)
     search:SetMaxLetters(60)
-    search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    search.placeholder:SetPoint("LEFT", 2, 0)
-    search.placeholder:SetText(L.SEARCH)
+    search.icon = search:CreateTexture(nil, "OVERLAY")
+    search.icon:SetSize(12, 12)
+    search.icon:SetPoint("LEFT", 5, 0)
+    search.icon:SetTexture(SEARCH_ICON)
+    search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    search.placeholder:SetPoint("LEFT", 20, 0)
+    search.placeholder:SetText(L.SEARCH_RECIPES)
     search:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
         self.placeholder:SetShown(text == "")
@@ -656,6 +669,19 @@ function UI.ToggleCategory(cat)
     UI.RefreshList()
 end
 
+-- Collapse or expand every category of the current profession. A search still shows all matches.
+local function SetAllCollapsed(value)
+    if not (ns.db and UI.state.line) then return end
+    local M = ns.Model
+    for _, id in ipairs(M.CategoryIDs(M.BuildTree(UI.state.line))) do
+        ns.db.collapsed[id] = value or nil
+    end
+    UI.RefreshList()
+end
+
+function UI.CollapseAll() SetAllCollapsed(true) end
+function UI.ExpandAll() SetAllCollapsed(false) end
+
 -- Refresh --------------------------------------------------------------------------------------
 
 function UI.IsShown()
@@ -663,8 +689,14 @@ function UI.IsShown()
 end
 
 function UI.RefreshFilterButtons()
-    for _, b in ipairs(UI.filterButtons) do
-        if b.key == UI.state.filter then b:LockHighlight() else b:UnlockHighlight() end
+    local c = UI.filterControl
+    if not c then return end
+    c:SetSelected(UI.state.filter)
+    if UI.state.line then
+        local total, learned = ns.Model.FilterCounts(UI.state.line, function(id) return ns.IsLearned(id, UI.state.char) end)
+        c:SetCount("all", total)
+        c:SetCount("learned", learned)
+        c:SetCount("missing", total - learned)
     end
 end
 

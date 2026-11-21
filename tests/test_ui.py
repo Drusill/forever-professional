@@ -122,6 +122,34 @@ class WindowTest(unittest.TestCase):
         self.a.call(buttons["all"], "Click")
         self.assertEqual(len(self.recipe_ids()), total)
 
+    def test_filter_counts_ignore_search(self):
+        b = {x.key: x for x in lua_list(self.UI.filterButtons)}
+        self.assertEqual([b[k].count.text for k in ("all", "learned", "missing")], ["179", "3", "176"])
+        self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 3230")
+        self.assertEqual(b["all"].count.text, "179")
+        self.a.call(b["learned"], "Click")
+        self.assertTrue(b["learned"].selected)
+        self.assertFalse(b["all"].selected)
+
+    def test_collapse_all_and_expand_all(self):
+        before = len(self.entries())
+        self.a.call(self.UI.collapseAllButton, "Click")
+        self.assertTrue(all(e.kind == "header" and e.collapsed for e in self.entries()))
+        self.assertTrue(all(self.a.g.ForeverProfessionalDB.collapsed[e.cat] for e in self.entries()))
+        self.a.call(self.UI.expandAllButton, "Click")
+        self.assertEqual(len(self.entries()), before)
+
+    def test_collapse_all_then_search(self):
+        self.UI.CollapseAll()
+        self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 3230")
+        self.assertEqual(self.recipe_ids(), [3230])
+        self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "")
+        self.assertEqual(self.recipe_ids(), [])
+
+    def test_search_placeholder(self):
+        self.assertEqual(self.a.g.ForeverProfessionalSearchBox.placeholder.text, "Search recipes…")
+        self.assertIsNotNone(self.a.g.ForeverProfessionalSearchBox.icon)
+
     def test_search_box(self):
         self.a.call(self.a.g.ForeverProfessionalSearchBox, "SetText", "spell 3230")
         self.assertEqual(self.recipe_ids(), [3230])
