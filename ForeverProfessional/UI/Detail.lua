@@ -185,6 +185,11 @@ function UI.DetailLines(spellID, rec)
         end
     end
 
+    Add({ kind = "section", text = L.CHARACTERS })
+    local owners = ns.OwnerLines(UI.state.line, spellID)
+    if #owners == 0 then owners = { L.NO_CHARACTER } end
+    for _, text in ipairs(owners) do Add({ kind = "text", text = text, indent = 1 }) end
+
     Add({ kind = "section", text = L.SOURCES })
     for _, l in ipairs(M.SourceLines(rec)) do
         if l.kind == "section" then l.kind = "subsection" end

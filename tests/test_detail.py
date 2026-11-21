@@ -4,7 +4,7 @@ import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon, lua_list  # noqa: E402
+from harness import ALTS, Addon, lua_list, plain  # noqa: E402
 
 LEARNED = "mock.learned = { [2329] = true }"
 
@@ -181,6 +181,32 @@ class DetailTest(unittest.TestCase):
         self.UI.SelectProfession(185)
         self.assertIsNone(self.UI.state.selected)
         self.assertTrue(self.d.empty.shown)
+
+
+class OwnersDetailTest(unittest.TestCase):
+    def setUp(self):
+        DetailTest.setUp(self, ALTS + "; " + LEARNED)
+
+    select = DetailTest.select
+
+    def rendered(self):
+        return [(l.kind, plain(l.text)) for l in lua_list(self.d.rendered)]
+
+    def test_characters_section_order(self):
+        self.select(1251753, 171)
+        r = self.rendered()
+        sections = [t for k, t in r if k == "section"]
+        self.assertLess(sections.index("Recipe item"), sections.index("Characters"))
+        self.assertLess(sections.index("Characters"), sections.index("Sources"))
+        i = r.index(("section", "Characters"))
+        self.assertEqual(r[i + 1], ("text", "Learnable by: Dru (Rogue), Paly (Horde vendors only)"))
+        self.assertEqual(r[i + 2], ("text", "Skill too low: Tester 120 / 280, Dru (Druid) 150 / 280"))
+
+    def test_no_character_line(self):
+        self.select(23066, 202)
+        r = self.rendered()
+        i = r.index(("section", "Characters"))
+        self.assertEqual(r[i + 1], ("text", "No character has this profession"))
 
 
 if __name__ == "__main__":

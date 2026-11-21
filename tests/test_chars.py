@@ -116,6 +116,13 @@ class OwnersTest(unittest.TestCase):
     def test_owners_nobody(self):
         self.assertEqual(self.owners(202, 23066), ([], [], []))
 
+    def test_owner_lines(self):
+        lines = [plain(x) for x in lua_list(self.ns.OwnerLines(171, 1251753))]
+        self.assertEqual(lines, ["Learnable by: Dru (Rogue), Paly (Horde vendors only)",
+                                 "Skill too low: Tester 120 / 280, Dru (Druid) 150 / 280"])
+        self.assertEqual(plain(lua_list(self.ns.OwnerLines(171, 7255))[0]), "Known by: Dru (Rogue)")
+        self.assertEqual(lua_list(self.ns.OwnerLines(202, 23066)), [])
+
 
 class SlashTest(unittest.TestCase):
     def setUp(self):

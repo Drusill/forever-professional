@@ -122,6 +122,30 @@ function ns.RecipeOwners(line, spellID)
     return out
 end
 
+-- Up to three display lines for the detail pane and tooltips: known by, learnable by, skill too low.
+-- Empty groups are left out; {} when no cached character knows or could learn the recipe.
+function ns.OwnerLines(line, spellID)
+    local L = ns.L
+    local rec = ns.Data.Recipes[line] and ns.Data.Recipes[line][spellID]
+    local o = ns.RecipeOwners(line, spellID)
+    local out = {}
+    local function Add(color, fmt, names)
+        if #names > 0 then out[#out + 1] = color .. fmt:format("|r" .. table.concat(names, ", ")) end
+    end
+    local known, learnable, low = {}, {}, {}
+    for _, key in ipairs(o.known) do known[#known + 1] = ns.CharLabel(key) end
+    for _, e in ipairs(o.learnable) do
+        learnable[#learnable + 1] = ns.CharLabel(e.key) .. (e.hint and (" " .. e.hint) or "")
+    end
+    for _, e in ipairs(o.low) do
+        low[#low + 1] = ("%s %d / %d"):format(ns.CharLabel(e.key), e.skill, rec and rec.learn or 0)
+    end
+    Add("|cff40c040", L.KNOWN_BY, known)
+    Add("|cffffd200", L.LEARNABLE_BY, learnable)
+    Add("|cff909090", L.SKILL_TOO_LOW, low)
+    return out
+end
+
 -- /fp chars and /fp forget ------------------------------------------------------------------------
 
 local function ProfessionSummary(c)
