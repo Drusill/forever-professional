@@ -257,5 +257,66 @@ class PrimarySourceTest(unittest.TestCase):
         self.assertEqual(plain(self.M.RowSubtitle(rec, 100, False, "Horde")), "Learn 60 · Contained in Box")
 
 
+class SourceCardsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a = Addon()
+        cls.a.login()
+        cls.M, cls.R = cls.a.ns.Model, cls.a.ns.Data.Recipes
+
+    def cards(self, line, spell, faction="Horde"):
+        return lua_list(self.M.SourceCards(self.R[line][spell], faction).cards)
+
+    def test_cards_trainer(self):
+        c = self.cards(171, 2329)[0]
+        self.assertEqual((c.type, c.title, c.detail), ("trainer", "Trainer", "50" + COPPER))
+
+    def test_cards_vendors_own_faction_first(self):
+        names = lambda f: [c.title.split(" <")[0] for c in self.cards(171, 7255, f)]  # noqa: E731
+        self.assertEqual(names("Horde"), ["Kzixx", "Hula'mahi", "Xandar Goodbeard"])
+        self.assertEqual(names("Alliance"), ["Xandar Goodbeard", "Kzixx", "Hula'mahi"])
+        self.assertEqual(self.cards(171, 7255, "Horde")[0].title, "Kzixx <Rare Goods>")
+
+    def test_cards_gated_vendor(self):
+        s = self.M.SourceCards(self.R[171][1251750], "Horde")
+        v = lua_list(s.cards)[0]
+        self.assertIn("Map 1413", v.detail)
+        self.assertEqual(v.waypoint.map, self.a.ns.Data.NPCs[248196].map)
+        self.assertEqual(sorted(lua_list(s.requirements)), ["120 Merchant's Favor", "Faction 2586: Friendly"])
+
+    def test_cards_drops_rates_more_and_objects(self):
+        cards = self.cards(171, 3230)
+        self.assertIn("0.5%", cards[0].detail)
+        self.assertIn(("more", "+535 more"), [(c.type, c.title) for c in cards])
+        self.assertTrue(any(c.type == "object" for c in cards))
+        self.assertEqual(lua_list(self.M.SourceCards(self.R[171][3230], "Horde").teach), [2553])
+
+    def test_cards_dungeon_drop(self):
+        c = self.cards(185, 1262978)[0]
+        self.assertTrue(c.instance)
+        self.assertIsNone(c.waypoint)
+
+    def test_cards_container_is_item(self):
+        c = next(c for c in self.cards(171, 2335) if c.type == "container")
+        self.assertEqual(c.item, 6307)
+
+    def test_cards_quest(self):
+        c = next(c for c in self.cards(171, 1230564) if c.type == "quest")
+        self.assertEqual(c.title, "[6] Camping 101: Alchemy")
+        self.assertTrue(c.detail.startswith("Given by Vosur Brakthel"))
+        self.assertIsNotNone(c.waypoint)
+
+    def test_cards_notes(self):
+        self.assertEqual(lua_list(self.M.SourceCards(self.R[171][2365], "Horde").notes), ["Source unknown"])
+        notes = lua_list(self.M.SourceCards(self.R[197][24903], "Horde").notes)
+        self.assertTrue(any("(location unknown)" in n for n in notes))
+
+    def test_every_recipe_has_cards_or_notes(self):
+        for line in self.R.keys():
+            for spell, rec in self.R[line].items():
+                s = self.M.SourceCards(rec, "Horde")
+                self.assertTrue(lua_list(s.cards) or lua_list(s.notes), (line, spell))
+
+
 if __name__ == "__main__":
     unittest.main()

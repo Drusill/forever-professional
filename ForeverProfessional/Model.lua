@@ -537,6 +537,128 @@ function M.PrimarySource(rec, faction)
     return { type = primary, text = PrimaryText(rec, primary, faction), more = math.max(0, total - 1) }
 end
 
+-- Source cards ---------------------------------------------------------------------------
+-- The detail pane's "Where to get it":
+--   { teach = {itemID...}, cards = {card...}, requirements = {string...}, notes = {string...} }
+--   card = { type, title, detail, waypoint = {map, x, y, name}, item = itemID, instance = boolean }
+-- Cards follow PRIMARY_ORDER (easiest first); vendors and drops list what `faction` can use first.
+
+-- Join the non-empty arguments with M.SEP.
+local function JoinSep(...)
+    local out = {}
+    for i = 1, select("#", ...) do
+        local p = select(i, ...)
+        if p and p ~= "" then out[#out + 1] = p end
+    end
+    return table.concat(out, M.SEP)
+end
+
+-- ids reordered so the ones `faction` can use come first, data order kept within each group.
+local function UsableFirst(entries, faction, idOf)
+    local first, rest = {}, {}
+    for _, e in ipairs(entries) do
+        if M.Usable(idOf(e), faction) then first[#first + 1] = e else rest[#rest + 1] = e end
+    end
+    for _, e in ipairs(rest) do first[#first + 1] = e end
+    return first
+end
+
+local function ZoneAt(rec)
+    local zone = M.ZoneName(rec)
+    return zone and (zone .. Coords(rec)) or nil
+end
+
+local function NPCCard(kind, npcID, rate)
+    local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
+    local name = M.NPCName(npcID)
+    local title = (npc and npc.sub) and (name .. " <" .. npc.sub .. ">") or name
+    return {
+        type = kind, title = title,
+        detail = JoinSep(rate, npc and FACTION_TAG[npc.faction], ZoneAt(npc)),
+        waypoint = Waypoint(npc, name),
+        instance = (npc and npc.instance and not npc.map) and true or false,
+    }
+end
+
+local function MoreCard(shown, total)
+    if total and total > shown then return { type = "more", title = L.MORE:format(total - shown) } end
+end
+
+function M.SourceCards(rec, faction)
+    local out = { teach = {}, cards = {}, requirements = {}, notes = {} }
+    local cards = out.cards
+    local function Add(card) if card then cards[#cards + 1] = card end end
+    local src = rec.src or {}
+
+    if type(rec.teach) == "table" then
+        for _, id in ipairs(rec.teach) do out.teach[#out.teach + 1] = id end
+    elseif rec.teach then
+        out.teach[1] = rec.teach
+    end
+
+    if Has(src, "auto") then Add({ type = "auto", title = L.SRC_AUTO }) end
+    if rec.trainer or Has(src, "trainer") then
+        Add({ type = "trainer", title = L.SRC_TRAINER, detail = rec.trainer and M.Money(rec.trainer) or nil })
+    end
+    for _, id in ipairs(UsableFirst(rec.vendors or {}, faction, function(id) return id end)) do
+        Add(NPCCard("vendor", id))
+    end
+    for _, qid in ipairs(rec.quests or {}) do
+        local q = ns.Data.Quests and ns.Data.Quests[qid]
+        local title = M.QuestName(qid)
+        if q and q.level and q.level > 0 then title = L.QUEST_LEVEL:format(q.level, title) end
+        local names, where, waypoint = {}, nil, nil
+        for _, npcID in ipairs(q and q.npcs or {}) do
+            names[#names + 1] = M.NPCName(npcID)
+            local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
+            if not waypoint then
+                waypoint = Waypoint(npc, M.NPCName(npcID))
+                if waypoint then where = npc end
+            end
+        end
+        Add({
+            type = "quest", title = title,
+            detail = JoinSep(#names > 0 and L.QUEST_GIVER:format(table.concat(names, ", ")) or nil, ZoneAt(where)),
+            waypoint = waypoint,
+        })
+    end
+    if rec.drops and #rec.drops > 0 then
+        for _, d in ipairs(UsableFirst(rec.drops, faction, function(d) return d[1] end)) do
+            Add(NPCCard("drop", d[1], Rate(d[2])))
+        end
+        Add(MoreCard(#rec.drops, rec.dropTotal))
+    end
+    if rec.objects and #rec.objects > 0 then
+        for _, o in ipairs(rec.objects) do
+            local obj = ns.Data.Objects and ns.Data.Objects[o[1]]
+            local name = M.ObjectName(o[1])
+            Add({ type = "object", title = name, detail = JoinSep(Rate(o[2]), ZoneAt(obj)), waypoint = Waypoint(obj, name) })
+        end
+        Add(MoreCard(#rec.objects, rec.objectTotal))
+    end
+    if rec.containers and #rec.containers > 0 then
+        for _, c in ipairs(rec.containers) do
+            Add({ type = "container", item = c[1], detail = Rate(c[2]) })
+        end
+        Add(MoreCard(#rec.containers, rec.containerTotal))
+    end
+    if Has(src, "crafted") then Add({ type = "crafted", title = L.SRC_CRAFTED }) end
+    if Has(src, "worldObject") then Add({ type = "worldObject", title = L.SRC_WORLDOBJECT }) end
+
+    for _, t in ipairs(rec.unverified or {}) do
+        out.notes[#out.notes + 1] = L.UNVERIFIED:format(TYPE_LABEL[t] or t)
+    end
+    if rec.unknown then out.notes[#out.notes + 1] = L.SRC_UNKNOWN end
+
+    local req = out.requirements
+    if rec.rep then req[#req + 1] = L.REP:format(M.FactionName(rec.rep[1]), M.StandingName(rec.rep[2])) end
+    if rec.favor then req[#req + 1] = L.FAVOR:format(rec.favor) end
+    if rec.side then
+        req[#req + 1] = L.SIDE_ONLY:format(rec.side == "Alliance" and L.ALLIANCE or rec.side == "Horde" and L.HORDE or rec.side)
+    end
+    return out
+end
+
 -- Second line of a recipe row. Learned: the four thresholds. Missing: "Learn N · <source> · +N more",
 -- with the learn level in red when the character's skill is known and too low.
 function M.RowSubtitle(rec, skill, learned, faction)
