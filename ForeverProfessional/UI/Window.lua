@@ -12,6 +12,7 @@ UI.TITLE_H = 40
 UI.TAB_W = 190
 UI.LIST_W = 400
 UI.BAR_H = 30
+UI.SELECT_H = 28   -- character selector above the profession tabs
 
 -- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
 UI.state = { line = nil, filter = "all", search = "", selected = nil, char = nil }
@@ -137,7 +138,7 @@ end
 local function CreateTab(parent, line, index)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(UI.TAB_W - 12, 38)
-    b:SetPoint("TOPLEFT", 6, -6 - (index - 1) * 40)
+    b:SetPoint("TOPLEFT", 6, -(UI.SELECT_H + 12) - (index - 1) * 40)
 
     b.selectedTex = b:CreateTexture(nil, "BACKGROUND")
     b.selectedTex:SetAllPoints()
@@ -164,6 +165,124 @@ local function CreateTab(parent, line, index)
     b.line = line
     b:SetScript("OnClick", function() UI.SelectProfession(line) end)
     return b
+end
+
+-- Character selector ---------------------------------------------------------------------------
+
+local FACTION_ICON = {
+    Horde = "Interface\\TargetingFrame\\UI-PVP-Horde",
+    Alliance = "Interface\\TargetingFrame\\UI-PVP-Alliance",
+}
+local MENU_ROW_H = 22
+
+local function SetFactionIcon(tex, faction)
+    local file = FACTION_ICON[faction]
+    if file then
+        tex:SetTexture(file)
+        tex:SetTexCoord(0, 0.6, 0, 0.6)
+        tex:Show()
+    else
+        tex:Hide()
+    end
+end
+
+local function CreateCharButton(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(UI.TAB_W - 12, UI.SELECT_H)
+    b:SetPoint("TOPLEFT", 6, -6)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.bg:SetColorTexture(0, 0, 0, 0.45)
+    b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+
+    b.faction = b:CreateTexture(nil, "ARTWORK")
+    b.faction:SetSize(22, 22)
+    b.faction:SetPoint("LEFT", 2, -2)
+    b.arrow = b:CreateTexture(nil, "ARTWORK")
+    b.arrow:SetSize(16, 16)
+    b.arrow:SetPoint("RIGHT", -4, 0)
+    b.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    b.label:SetPoint("LEFT", 28, 0)
+    b.label:SetPoint("RIGHT", b.arrow, "LEFT", -4, 0)
+    b.label:SetJustifyH("LEFT")
+    b.label:SetWordWrap(false)
+    b:SetScript("OnClick", function() UI.ToggleCharMenu() end)
+    return b
+end
+
+local function CreateCharMenu(parent, anchor)
+    local m = UI.Panel(parent, 0.92)
+    m:SetFrameStrata("DIALOG")
+    m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    m:SetWidth(UI.TAB_W + 60)
+    m:EnableMouse(true)
+    m.rows = {}
+    m:Hide()
+    return m
+end
+
+local function MenuRow(m, i)
+    if m.rows[i] then return m.rows[i] end
+    local r = CreateFrame("Button", nil, m)
+    r:SetHeight(MENU_ROW_H)
+    r:SetPoint("TOPLEFT", 6, -6 - (i - 1) * MENU_ROW_H)
+    r:SetPoint("RIGHT", -6, 0)
+    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    r.faction = r:CreateTexture(nil, "ARTWORK")
+    r.faction:SetSize(20, 20)
+    r.faction:SetPoint("LEFT", 0, -2)
+    r.class = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.class:SetPoint("RIGHT", -4, 0)
+    r.class:SetJustifyH("RIGHT")
+    r.class:SetTextColor(0.7, 0.7, 0.7)
+    r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    r.label:SetPoint("LEFT", 24, 0)
+    r.label:SetPoint("RIGHT", r.class, "LEFT", -6, 0)
+    r.label:SetJustifyH("LEFT")
+    r.label:SetWordWrap(false)
+    r:SetScript("OnClick", function(self)
+        UI.CloseCharMenu()
+        UI.SetChar(self.key)
+    end)
+    m.rows[i] = r
+    return r
+end
+
+function UI.OpenCharMenu()
+    local m = UI.charMenu
+    if not m then return end
+    local me, list = ns.CharKey(), ns.ListChars()
+    for i, e in ipairs(list) do
+        local r = MenuRow(m, i)
+        r.key = e.key
+        SetFactionIcon(r.faction, e.char.faction)
+        local label = ns.CharLabel(e.key)
+        if e.key == me then label = label .. " " .. L.YOU end
+        r.label:SetText(label)
+        r.class:SetText(ns.ClassName(e.char.class) or "")
+        r:Show()
+    end
+    for i = #list + 1, #m.rows do m.rows[i]:Hide() end
+    m:SetHeight(12 + #list * MENU_ROW_H)
+    m:Show()
+end
+
+function UI.CloseCharMenu()
+    if UI.charMenu then UI.charMenu:Hide() end
+end
+
+function UI.ToggleCharMenu()
+    if UI.charMenu and UI.charMenu:IsShown() then UI.CloseCharMenu() else UI.OpenCharMenu() end
+end
+
+function UI.RefreshCharButton()
+    local b = UI.charButton
+    if not b then return end
+    local key = UI.state.char or ns.CharKey()
+    local c = key and ns.db and ns.db.chars[key]
+    b.label:SetText(c and ns.CharLabel(key) or "")
+    SetFactionIcon(b.faction, c and c.faction)
 end
 
 local function CreateFilterButton(parent, key, label, x)
@@ -229,6 +348,8 @@ function UI.Create()
     tabs:SetPoint("BOTTOMLEFT", UI.PAD, UI.PAD)
     tabs:SetWidth(UI.TAB_W)
     f.tabPanel = tabs
+    UI.charButton = CreateCharButton(tabs)
+    UI.charMenu = CreateCharMenu(f, UI.charButton)
     UI.tabs = {}
     for i, line in ipairs(UI.ProfessionOrder()) do
         UI.tabs[#UI.tabs + 1] = CreateTab(tabs, line, i)
@@ -286,6 +407,7 @@ function UI.Create()
     if UI.CreateDetail then UI.CreateDetail(detail) end
 
     f:SetScript("OnShow", function() UI.Refresh() end)
+    f:SetScript("OnHide", function() UI.CloseCharMenu() end)
     return f
 end
 
@@ -380,6 +502,7 @@ function UI.Refresh()
     -- The shown character may have been forgotten.
     if UI.state.char and not (ns.db and ns.db.chars[UI.state.char]) then UI.state.char = nil end
     if not UI.state.line then UI.state.line = UI.DefaultProfession() end
+    UI.RefreshCharButton()
     UI.RefreshTabs()
     UI.RefreshFilterButtons()
     UI.RefreshCounter()

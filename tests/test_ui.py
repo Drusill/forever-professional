@@ -225,5 +225,63 @@ class AltViewTest(unittest.TestCase):
         self.assertEqual(self.tab(171).skill.text, "Skill 120 / 150")
 
 
+class SelectorTest(unittest.TestCase):
+    def setUp(self):
+        self.a = open_addon(ALTS + "; " + LEARNED)
+        self.UI = self.a.ns.UI
+        self.button = self.UI.charButton
+
+    def click(self, w):
+        Addon.call(w, "Click")
+
+    def menu_rows(self):
+        return [r for r in lua_list(self.UI.charMenu.rows) if r.shown]
+
+    def row(self, label):
+        return next(r for r in self.menu_rows() if plain(r.label.text) == label)
+
+    def test_button_shows_viewed_character(self):
+        self.assertEqual(plain(self.button.label.text), "Tester")
+        self.assertEqual(self.button.faction.texture, r"Interface\TargetingFrame\UI-PVP-Horde")
+        self.UI.SetChar("Player-1-0000000D")
+        self.assertEqual(plain(self.button.label.text), "Paly")
+        self.assertEqual(self.button.faction.texture, r"Interface\TargetingFrame\UI-PVP-Alliance")
+
+    def test_menu_lists_characters(self):
+        self.assertFalse(self.UI.charMenu.shown)
+        self.click(self.button)
+        self.assertTrue(self.UI.charMenu.shown)
+        labels = [plain(r.label.text) for r in self.menu_rows()]
+        self.assertEqual(labels, ["Tester (you)", "Banco", "Dru (Rogue)", "Dru (Druid)", "Paly"])
+        self.assertEqual(self.row("Paly")["class"].text, "Paladin")
+
+    def test_pick_row_switches_and_closes(self):
+        self.click(self.button)
+        self.click(self.row("Dru (Rogue)"))
+        self.assertEqual(self.UI.state.char, "Player-1-0000000B")
+        self.assertFalse(self.UI.charMenu.shown)
+        alchemy = next(t for t in lua_list(self.UI.tabs) if t.line == 171)
+        self.assertEqual(alchemy.skill.text, "Skill 290 / 300")
+        self.click(self.button)
+        self.click(self.row("Tester (you)"))
+        self.assertIsNone(self.UI.state.char)
+
+    def test_button_toggles_menu(self):
+        self.click(self.button)
+        self.click(self.button)
+        self.assertFalse(self.UI.charMenu.shown)
+
+    def test_menu_hides_with_window(self):
+        self.click(self.button)
+        self.a.slash("")
+        self.assertFalse(self.UI.charMenu.shown)
+
+    def test_tabs_below_selector(self):
+        tabs = lua_list(self.UI.tabs)
+        self.assertEqual(Addon.call(tabs[0], "GetPoint")[-1], -40)
+        last_y = Addon.call(tabs[-1], "GetPoint")[-1]
+        self.assertGreater(last_y - 38, -(self.UI.HEIGHT - self.UI.TITLE_H - self.UI.PAD))
+
+
 if __name__ == "__main__":
     unittest.main()

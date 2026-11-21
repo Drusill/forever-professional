@@ -62,6 +62,7 @@ L.ALLIANCE = "Alliance"
 L.HORDE = "Horde"
 L.INSTANCE = "dungeon"
 L.VENDORS_ONLY = "(%s vendors only)"
+L.YOU = "(you)"
 
 L.CHARS_LINE = "%d. %s - %s, level %s - %s - updated %s"
 L.NO_PROFESSIONS = "no professions"
