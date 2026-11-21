@@ -12,7 +12,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 |---|---|
 | `ForeverProfessional/` | The addon (the folder that goes into `Interface\AddOns`) |
 | `ForeverProfessional/Data/` | **Generated** baked data. Never edit by hand |
-| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `UI/Window`, `UI/RecipeList`, `UI/Detail`, `UI/Minimap` (minimap button, compartment entry) |
+| `ForeverProfessional/*.lua`, `UI/` | Addon code: `Core` (events, DB, `/fp`), `Characters` (learned cache), `Model` (frame-free logic), `Tooltip` (recipe item tooltips), `UI/Window`, `UI/RecipeList`, `UI/Detail`, `UI/Minimap` (minimap button, compartment entry) |
 | `tests/` | Addon tests: `wow_mock.lua` (mock client API), `harness.py` (loads the real TOC and data through `lupa`), `test_*.py` |
 | `tools/` | Offline data pipeline (Python, stdlib only): `python tools/build_data.py` |
 | `tools/overrides.json` | Hand-verified data fixes, applied last by the pipeline |

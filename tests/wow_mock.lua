@@ -234,14 +234,38 @@ end
 
 UIParent = newWidget("Frame", "UIParent")
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) mock.printed[#mock.printed + 1] = msg end }
-GameTooltip = newWidget("GameTooltip", "GameTooltip", UIParent)
-GameTooltip.lines = {}
-function GameTooltip:SetOwner(o) self.owner = o; self.lines = {} end
-function GameTooltip:SetItemByID(id) self.item = id end
-function GameTooltip:SetSpellByID(id) self.spell = id end
-function GameTooltip:SetHyperlink(l) self.link = l end
-function GameTooltip:AddLine(t) self.lines[#self.lines + 1] = t end
-function GameTooltip:SetText(t) self.lines = { t } end
+-- Tooltips. Setting an item clears the tooltip (OnTooltipCleared) and then runs the item post-calls
+-- registered through TooltipDataProcessor, like the retail-style client.
+mock.postCalls = {}          -- [Enum.TooltipDataType] = { fn... }
+Enum = { TooltipDataType = { Item = 0, Spell = 1 } }
+TooltipDataProcessor = {
+    AddTooltipPostCall = function(kind, fn)
+        mock.postCalls[kind] = mock.postCalls[kind] or {}
+        table.insert(mock.postCalls[kind], fn)
+    end,
+}
+local function newTooltip(name)
+    local t = newWidget("GameTooltip", name, UIParent)
+    t.lines = {}
+    local function clear(self)
+        self.lines = {}
+        if self.scripts.OnTooltipCleared then self.scripts.OnTooltipCleared(self) end
+    end
+    function t:SetOwner(o) self.owner = o; clear(self) end
+    function t:SetItemByID(id)
+        clear(self)
+        self.item = id
+        for _, fn in ipairs(mock.postCalls[Enum.TooltipDataType.Item] or {}) do fn(self, { type = 0, id = id }) end
+    end
+    function t:GetItem() if self.item then return "Item " .. self.item, "item:" .. self.item end end
+    function t:SetSpellByID(id) self.spell = id end
+    function t:SetHyperlink(l) self.link = l end
+    function t:AddLine(text) self.lines[#self.lines + 1] = text end
+    function t:SetText(text) self.lines = { text } end
+    return t
+end
+GameTooltip = newTooltip("GameTooltip")
+ItemRefTooltip = newTooltip("ItemRefTooltip")
 -- Minimap: 198x198 like Forever's round minimap. GetMinimapShape is absent unless a test defines it.
 Minimap = newWidget("Frame", "Minimap", UIParent)
 Minimap.width, Minimap.height = 198, 198
