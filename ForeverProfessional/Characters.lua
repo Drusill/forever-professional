@@ -142,15 +142,17 @@ function ns.RecipeOwners(line, spellID)
     return out
 end
 
--- Up to three display lines for the detail pane and tooltips: known by, learnable by, skill too low.
--- Empty groups are left out; {} when no cached character knows or could learn the recipe.
-function ns.OwnerLines(line, spellID)
+-- Up to three groups for the detail pane: known by, learnable by, skill too low, each as
+-- { group = "known"|"learnable"|"low", text }. Empty groups are left out.
+function ns.OwnerGroups(line, spellID)
     local L = ns.L
     local rec = ns.Data.Recipes[line] and ns.Data.Recipes[line][spellID]
     local o = ns.RecipeOwners(line, spellID)
     local out = {}
-    local function Add(color, fmt, names)
-        if #names > 0 then out[#out + 1] = color .. fmt:format("|r" .. table.concat(names, ", ")) end
+    local function Add(group, color, fmt, names)
+        if #names > 0 then
+            out[#out + 1] = { group = group, text = color .. fmt:format("|r" .. table.concat(names, ", ")) }
+        end
     end
     local known, learnable, low = {}, {}, {}
     for _, key in ipairs(o.known) do known[#known + 1] = ns.CharLabel(key) end
@@ -160,9 +162,17 @@ function ns.OwnerLines(line, spellID)
     for _, e in ipairs(o.low) do
         low[#low + 1] = ("%s %d / %d"):format(ns.CharLabel(e.key), e.skill, rec and rec.learn or 0)
     end
-    Add("|cff40c040", L.KNOWN_BY, known)
-    Add("|cffffd200", L.LEARNABLE_BY, learnable)
-    Add("|cff909090", L.SKILL_TOO_LOW, low)
+    Add("known", "|cff40c040", L.KNOWN_BY, known)
+    Add("learnable", "|cffffd200", L.LEARNABLE_BY, learnable)
+    Add("low", "|cff909090", L.SKILL_TOO_LOW, low)
+    return out
+end
+
+-- The same groups as plain display lines, for item tooltips; {} when no cached character knows or
+-- could learn the recipe.
+function ns.OwnerLines(line, spellID)
+    local out = {}
+    for _, g in ipairs(ns.OwnerGroups(line, spellID)) do out[#out + 1] = g.text end
     return out
 end
 

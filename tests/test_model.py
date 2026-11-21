@@ -100,6 +100,10 @@ class ModelTest(unittest.TestCase):
         entries, _, _ = self.flat(search="spell 7183", collapsed={2450: True})
         self.assertEqual(self.recipe_ids(entries), [7183])
 
+    def test_detail_order(self):
+        self.assertEqual(lua_list(self.M.DetailOrder(True)), ["reagents", "characters", "sources"])
+        self.assertEqual(lua_list(self.M.DetailOrder(False)), ["sources", "characters", "reagents"])
+
     def test_category_ids_nested(self):
         tree = self.a.lua.eval('{ children = { { id = 1, recipes = {}, children = { { id = 2, recipes = {}, '
                                'children = {} } } }, { id = "other", recipes = {}, children = {} } }, recipes = {} }')
@@ -130,15 +134,6 @@ class ModelTest(unittest.TestCase):
                          "|cffff804050|r |cffffff0080|r |cff40c040100|r |cff808080120|r")
         self.assertTrue(self.M.RangeText(rec, 10).startswith("|cffff202050|r"))
 
-    def lines(self, line, spell):
-        return lua_list(self.M.SourceLines(self.a.ns.Data.Recipes[line][spell]))
-
-    def texts(self, line, spell):
-        return [l.text for l in self.lines(line, spell) if l.text]
-
-    def test_sources_trainer(self):
-        self.assertIn("Trainer: 50" + COPPER, self.texts(171, 2329))
-
     def test_money_uses_coin_icons_and_skips_zero_units(self):
         # The client's GetCoinTextureString isn't used: in game it fell back to "0g 1s 0c".
         self.assertEqual(self.M.Money(50), "50" + COPPER)
@@ -146,53 +141,6 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(self.M.Money(10203), "1" + GOLD + " 2" + SILVER + " 3" + COPPER)
         self.assertEqual(self.M.Money(20000), "2" + GOLD)
         self.assertEqual(self.M.Money(0), "0" + COPPER)
-
-    def test_sources_gated_vendor(self):
-        lines = self.lines(171, 1251750)
-        texts = [l.text for l in lines]
-        self.assertIn("Vendors", texts)
-        name = self.a.ns.Data.NPCs[248196].name
-        vendor = next(l for l in lines if l.kind == "text" and l.text.startswith(name))
-        self.assertIn("Map ", vendor.text)
-        self.assertIsNotNone(vendor.waypoint)
-        self.assertIn("Requirements", texts)
-        self.assertIn("Faction 2586: Friendly", texts)
-        self.assertIn("120 Merchant's Favor", texts)
-
-    def test_sources_drop_rates(self):
-        texts = self.texts(171, 1250793)
-        self.assertIn("Drops", texts)
-        self.assertTrue(any("rate unknown" in t for t in texts))
-        texts = self.texts(171, 3230)
-        self.assertTrue(any(" - 0.5%" in t for t in texts))
-        self.assertTrue(any(t.startswith("+") and t.endswith("more") for t in texts))
-        self.assertIn("Found in", texts)
-
-    def test_sources_containers_are_items(self):
-        items = [l for l in self.lines(171, 2335) if l.kind == "item"]
-        self.assertTrue(items)
-        self.assertIsNotNone(items[0].item)
-
-    def test_sources_unknown_and_quest(self):
-        notes = [l.text for l in self.lines(171, 2365) if l.kind == "note"]
-        self.assertEqual(notes, ["Source unknown"])
-        texts = self.texts(171, 1230564)
-        self.assertIn("Quests", texts)
-        self.assertTrue(any(t.startswith("Given by ") for t in texts))
-
-    def test_sources_unverified(self):
-        for line in self.a.ns.Data.Recipes.keys():
-            for spell, rec in self.a.ns.Data.Recipes[line].items():
-                if rec.unverified:
-                    notes = [l.text for l in self.lines(line, spell) if l.kind == "note"]
-                    self.assertTrue(any("(location unknown)" in n for n in notes))
-                    return
-        self.fail("no unverified recipe in data")
-
-    def test_every_recipe_has_source_lines(self):
-        for line in self.a.ns.Data.Recipes.keys():
-            for spell in self.a.ns.Data.Recipes[line].keys():
-                self.assertTrue(self.lines(line, spell), (line, spell))
 
     def test_localized_npc_names(self):
         a = Addon(locale="deDE")

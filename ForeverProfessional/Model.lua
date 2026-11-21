@@ -300,11 +300,7 @@ function M.RangeText(rec, skill)
 end
 
 -- Sources ---------------------------------------------------------------------------------
--- SourceLines returns display lines:
---   { kind = "section", text }             section title
---   { kind = "text", text, indent, waypoint = { map, x, y, name } }
---   { kind = "item", item = itemID, suffix, indent }   item name resolved by the UI
---   { kind = "note", text }                warning / gap
+-- Shared helpers for the rows' primary source and the detail pane's source cards (below).
 
 local function Has(list, value)
     if not list then return false end
@@ -329,16 +325,6 @@ local function Coords(rec)
     return ""
 end
 
--- Join the non-empty arguments (any of them may be nil) with " - ".
-local function Join(...)
-    local out = {}
-    for i = 1, select("#", ...) do
-        local p = select(i, ...)
-        if p and p ~= "" then out[#out + 1] = p end
-    end
-    return table.concat(out, " - ")
-end
-
 local function Rate(chance)
     if chance then return ("%s%%"):format((("%.2f"):format(chance):gsub("%.?0+$", ""))) end
     return L.RATE_UNKNOWN
@@ -349,107 +335,10 @@ local TYPE_LABEL = {
     object = L.TYPE_OBJECT, container = L.TYPE_CONTAINER,
 }
 
-function M.NPCLine(npcID, extra, indent)
-    local npc = ns.Data.NPCs and ns.Data.NPCs[npcID]
-    local name = M.NPCName(npcID)
-    local label = name
-    if npc and npc.sub then label = label .. " <" .. npc.sub .. ">" end
-    local zone = M.ZoneName(npc)
-    if zone then zone = zone .. Coords(npc) end
-    if npc and npc.instance and not npc.map then zone = (zone or "") .. " (" .. L.INSTANCE .. ")" end
-    local faction = npc and FACTION_TAG[npc.faction]
-    return { kind = "text", text = Join(label, extra, faction, zone), indent = indent or 1,
-        waypoint = Waypoint(npc, name) }
-end
-
-function M.SourceLines(rec)
-    local lines = {}
-    local function Add(line) lines[#lines + 1] = line end
-    local src = rec.src or {}
-
-    if Has(src, "auto") then Add({ kind = "text", text = L.SRC_AUTO, indent = 0 }) end
-
-    if rec.trainer then
-        Add({ kind = "text", text = L.SRC_TRAINER_COST:format(M.Money(rec.trainer)), indent = 0 })
-    elseif Has(src, "trainer") then
-        Add({ kind = "text", text = L.SRC_TRAINER, indent = 0 })
-    end
-
-    if rec.vendors and #rec.vendors > 0 then
-        Add({ kind = "section", text = L.SRC_VENDORS })
-        for _, id in ipairs(rec.vendors) do Add(M.NPCLine(id)) end
-    end
-
-    if rec.drops and #rec.drops > 0 then
-        Add({ kind = "section", text = L.SRC_DROPS })
-        for _, d in ipairs(rec.drops) do Add(M.NPCLine(d[1], Rate(d[2]))) end
-        if rec.dropTotal and rec.dropTotal > #rec.drops then
-            Add({ kind = "text", text = L.MORE:format(rec.dropTotal - #rec.drops), indent = 1 })
-        end
-    end
-
-    if rec.objects and #rec.objects > 0 then
-        Add({ kind = "section", text = L.SRC_OBJECTS })
-        for _, o in ipairs(rec.objects) do
-            local obj = ns.Data.Objects and ns.Data.Objects[o[1]]
-            local name = M.ObjectName(o[1])
-            local zone = M.ZoneName(obj)
-            if zone then zone = zone .. Coords(obj) end
-            Add({ kind = "text", text = Join(name, Rate(o[2]), zone), indent = 1, waypoint = Waypoint(obj, name) })
-        end
-        if rec.objectTotal and rec.objectTotal > #rec.objects then
-            Add({ kind = "text", text = L.MORE:format(rec.objectTotal - #rec.objects), indent = 1 })
-        end
-    end
-
-    if rec.containers and #rec.containers > 0 then
-        Add({ kind = "section", text = L.SRC_CONTAINERS })
-        for _, c in ipairs(rec.containers) do
-            Add({ kind = "item", item = c[1], suffix = Rate(c[2]), indent = 1 })
-        end
-        if rec.containerTotal and rec.containerTotal > #rec.containers then
-            Add({ kind = "text", text = L.MORE:format(rec.containerTotal - #rec.containers), indent = 1 })
-        end
-    end
-
-    if rec.quests and #rec.quests > 0 then
-        Add({ kind = "section", text = L.SRC_QUESTS })
-        for _, qid in ipairs(rec.quests) do
-            local q = ns.Data.Quests and ns.Data.Quests[qid]
-            local name = M.QuestName(qid)
-            if q and q.level and q.level > 0 then name = L.QUEST_LEVEL:format(q.level, name) end
-            Add({ kind = "text", text = name, indent = 1 })
-            for _, npcID in ipairs(q and q.npcs or {}) do
-                local line = M.NPCLine(npcID, nil, 2)
-                line.text = L.QUEST_GIVER:format(line.text)
-                Add(line)
-            end
-        end
-    end
-
-    if Has(src, "crafted") then Add({ kind = "text", text = L.SRC_CRAFTED, indent = 0 }) end
-    if Has(src, "worldObject") then Add({ kind = "text", text = L.SRC_WORLDOBJECT, indent = 0 }) end
-
-    for _, t in ipairs(rec.unverified or {}) do
-        Add({ kind = "note", text = L.UNVERIFIED:format(TYPE_LABEL[t] or t) })
-    end
-    if rec.unknown then Add({ kind = "note", text = L.SRC_UNKNOWN }) end
-
-    -- Requirements
-    local req = {}
-    if rec.rep then
-        req[#req + 1] = L.REP:format(M.FactionName(rec.rep[1]), M.StandingName(rec.rep[2]))
-    end
-    if rec.favor then req[#req + 1] = L.FAVOR:format(rec.favor) end
-    if rec.side then
-        req[#req + 1] = L.SIDE_ONLY:format(rec.side == "Alliance" and L.ALLIANCE or rec.side == "Horde" and L.HORDE or rec.side)
-    end
-    if #req > 0 then
-        Add({ kind = "section", text = L.REQUIREMENTS })
-        for _, r in ipairs(req) do Add({ kind = "text", text = r, indent = 1 }) end
-    end
-
-    return lines
+-- Detail pane order: what you need first depends on whether the recipe is known.
+function M.DetailOrder(learned)
+    if learned then return { "reagents", "characters", "sources" } end
+    return { "sources", "characters", "reagents" }
 end
 
 -- Rows ------------------------------------------------------------------------------------

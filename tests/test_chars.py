@@ -65,6 +65,12 @@ class OwnersTest(unittest.TestCase):
     def name(self, key):
         return self.ns.CharName(key)
 
+    def test_owner_groups(self):
+        groups = [(g.group, plain(g.text)) for g in lua_list(self.ns.OwnerGroups(171, 1251753))]
+        self.assertEqual(groups, [("learnable", "Learnable by: Dru (Rogue), Paly (Horde vendors only)"),
+                                  ("low", "Skill too low: Tester 120 / 280, Dru (Druid) 150 / 280")])
+        self.assertEqual(lua_list(self.ns.OwnerGroups(202, 23066)), [])
+
     def test_learnable_count(self):
         recs = self.ns.Data.Recipes[171]
         expected = sum(1 for i, r in recs.items()

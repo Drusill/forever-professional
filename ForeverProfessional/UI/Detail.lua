@@ -1,17 +1,19 @@
 -- ForeverProfessional. Licensed under the GNU GPL v3 or later.
--- Right pane: the selected recipe's output, reagents, recipe item and sources, with map waypoints.
+-- Right pane: a pinned recipe header (output, difficulty scale) over sections that follow the learned
+-- state: where to get it, who knows it, reagents. Source cards carry map waypoints.
 local _, ns = ...
 local L = ns.L
 local M = ns.Model
 local UI = ns.UI
-
 local Hex = UI.HexColor
 
 local ICON = 18
+local SLOT = 28
+local CARD_H, CARD_ICON = 40, 24
 local BUTTON_W = 74
-local INDENT = 14
 local DETAIL_HEADER_H = 76   -- pinned recipe header above the scroll area
 local SCALE_W, SCALE_CAP = 150, 6
+local OWNER_DOTS = { known = "40c040", learnable = "ffd100", low = "909090", none = "6d6455" }
 
 local detail = {}
 UI.detail = detail
@@ -26,6 +28,10 @@ end
 -- recipe header and the insets.
 function UI.DetailVisibleHeight()
     return UI.Height() - UI.HEADER_H - 2 * UI.GAP - 16 - DETAIL_HEADER_H - 4
+end
+
+function UI.ReagentColumns(width)
+    return (width or 0) >= 440 and 2 or 1
 end
 
 -- Waypoints --------------------------------------------------------------------------------
@@ -67,6 +73,13 @@ local function ItemColor(itemID)
     return c and c.hex or "|cffffffff"
 end
 
+-- Coloured item name; an uncached item is queued in `pending` for loading.
+local function ItemText(itemID, pending)
+    local name, cached = ItemName(itemID)
+    if not cached and not requested[itemID] then pending[#pending + 1] = itemID end
+    return ItemColor(itemID) .. name .. "|r"
+end
+
 function UI.GetSchematic(spellID)
     local cached = UI.schematics[spellID]
     if cached ~= nil then return cached or nil end
@@ -79,36 +92,17 @@ function UI.GetSchematic(spellID)
     return s
 end
 
--- Widgets ----------------------------------------------------------------------------------------
-
-local function CreateLine(index)
-    local line = CreateFrame("Button", nil, detail.child)
-    line.index = index
-    line.icon = line:CreateTexture(nil, "ARTWORK")
-    line.icon:SetSize(ICON, ICON)
-    line.text = line:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    line.text:SetJustifyH("LEFT")
-    line.text:SetJustifyV("TOP")
-    line.text:SetWordWrap(true)
-
-    line.waypoint = CreateFrame("Button", nil, line, "UIPanelButtonTemplate")
-    line.waypoint:SetSize(BUTTON_W, 18)
-    line.waypoint:SetPoint("TOPRIGHT", 0, 1)
-    line.waypoint:SetText(L.WAYPOINT)
-    line.waypoint:SetScript("OnClick", function(self) UI.SetWaypoint(self:GetParent().wp) end)
-
-    line:SetScript("OnEnter", function(self)
-        if self.item and GameTooltip then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetItemByID(self.item)
-            GameTooltip:Show()
-        end
-    end)
-    line:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-    return line
+local function ShowItemTooltip(self)
+    if not (self.item and GameTooltip) then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetItemByID(self.item)
+    GameTooltip:Show()
 end
+local function HideTooltip() if GameTooltip then GameTooltip:Hide() end end
 
--- Pinned header: output icon, name, "Creates …", chips and the difficulty scale.
+-- Pinned header ----------------------------------------------------------------------------------
+-- Output icon, name, "Creates …", chips and the difficulty scale.
+
 local function CreateScale(parent)
     local s = CreateFrame("Frame", nil, parent)
     s:SetSize(SCALE_W, 30)
@@ -236,108 +230,15 @@ function UI.CreateDetail(parent)
     child:SetSize(ContentWidth(), 1)
     scroll:SetScrollChild(child)
     UI.StyleScroll(scroll)
-    detail.scroll, detail.child, detail.lines = scroll, child, {}
+    detail.scroll, detail.child = scroll, child
+    detail.lines, detail.slots, detail.cardWidgets, detail.ownerRows = {}, {}, {}, {}
     detail.empty = CreateEmpty(parent)
 end
 
--- Re-fit the fixed-width parts to the pane after a resize (RefreshDetail re-renders the lines).
+-- Re-fit the fixed-width parts to the pane after a resize (RefreshDetail re-renders the content).
 function UI.LayoutDetail()
     if not detail.child then return end
     detail.child:SetWidth(ContentWidth())
-end
-
--- Rendering --------------------------------------------------------------------------------------
-
--- Build the list of display lines for a recipe (header excluded).
-function UI.DetailLines(spellID, rec)
-    local out = {}
-    local function Add(l) out[#out + 1] = l end
-
-    local s = UI.GetSchematic(spellID)
-    if s and s.reagentSlotSchematics and #s.reagentSlotSchematics > 0 then
-        Add({ kind = "section", text = L.REAGENTS })
-        for _, slot in ipairs(s.reagentSlotSchematics) do
-            local r = slot.reagents and slot.reagents[1]
-            if r and r.itemID then
-                Add({ kind = "item", item = r.itemID, prefix = (slot.quantityRequired or 1) .. "x", indent = 1 })
-            end
-        end
-    end
-
-    local teach = rec.teach
-    if teach then
-        Add({ kind = "section", text = L.RECIPE_ITEM })
-        if type(teach) == "table" then
-            for _, id in ipairs(teach) do Add({ kind = "item", item = id, indent = 1 }) end
-        else
-            Add({ kind = "item", item = teach, indent = 1 })
-        end
-    end
-
-    Add({ kind = "section", text = L.CHARACTERS })
-    local owners = ns.OwnerLines(UI.state.line, spellID)
-    if #owners == 0 then owners = { L.NO_CHARACTER } end
-    for _, text in ipairs(owners) do Add({ kind = "text", text = text, indent = 1 }) end
-
-    Add({ kind = "section", text = L.SOURCES })
-    for _, l in ipairs(M.SourceLines(rec)) do
-        if l.kind == "section" then l.kind = "subsection" end
-        if l.indent then l.indent = l.indent + 1 end
-        Add(l)
-    end
-    return out
-end
-
-local function RenderLine(line, l, y, width, pending)
-    line:ClearAllPoints()
-    line:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
-    line:SetWidth(width)
-    line.item, line.wp = nil, nil
-    local x = (l.indent or 0) * INDENT
-    local font, text, height = "GameFontHighlightSmall", l.text or "", 14
-    local hasIcon = false
-
-    if l.kind == "section" then
-        font = "GameFontNormal"
-        y = y + 6
-        line:ClearAllPoints()
-        line:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
-    elseif l.kind == "subsection" then
-        font = "GameFontNormalSmall"
-    elseif l.kind == "note" then
-        text = "|cffff8040" .. text .. "|r"
-    elseif l.kind == "item" then
-        local name, cached = ItemName(l.item)
-        if not cached and not requested[l.item] then pending[#pending + 1] = l.item end
-        text = ItemColor(l.item) .. name .. "|r"
-        if l.prefix then text = l.prefix .. " " .. text end
-        if l.suffix then text = text .. " - " .. l.suffix end
-        line.item = l.item
-        line.icon:SetTexture(M.ItemIcon(l.item) or M.QUESTION_ICON)
-        hasIcon = true
-    end
-
-    line.icon:SetShown(hasIcon)
-    if hasIcon then
-        line.icon:ClearAllPoints()
-        line.icon:SetPoint("TOPLEFT", x, 0)
-        x = x + ICON + 4
-        height = ICON
-    end
-
-    line.wp = l.waypoint
-    line.waypoint:SetShown(l.waypoint ~= nil)
-    local textWidth = width - x - (l.waypoint and (BUTTON_W + 4) or 0)
-
-    line.text:SetFontObject(_G[font])
-    line.text:ClearAllPoints()
-    line.text:SetPoint("TOPLEFT", x, hasIcon and -3 or 0)
-    line.text:SetWidth(textWidth)
-    line.text:SetText(text)
-    height = math.max(height, (line.text:GetStringHeight() or 14) + (hasIcon and 3 or 0), l.waypoint and 18 or 0)
-    line:SetHeight(height)
-    line:Show()
-    return y + height + 3
 end
 
 -- Difficulty scale: orange/yellow/green segments over learn → grey plus a grey cap, the four
@@ -396,9 +297,7 @@ local function CreatesText(spellID, rec, pending)
     elseif rec.count and rec.count > 1 then
         count = tostring(rec.count)
     end
-    local name, cached = ItemName(output)
-    if not cached and not requested[output] then pending[#pending + 1] = output end
-    local text = ItemColor(output) .. name .. "|r"
+    local text = ItemText(output, pending)
     if count then text = count .. "x " .. text end
     local subtype = C_Item and C_Item.GetItemInfoInstant and select(3, C_Item.GetItemInfoInstant(output))
     if subtype and subtype ~= "" then text = text .. M.SEP .. subtype end
@@ -435,6 +334,251 @@ local function RenderEmpty()
     e.stats.missing.value:SetText(tostring(total - learned))
 end
 
+-- Blocks ----------------------------------------------------------------------------------------------
+-- What the scroll area shows, in order:
+--   section (text, toggle), reagents (items = {{item, count}}), owner (group, text), get (item),
+--   card (card), req (text), note (text), folded (text)
+
+function UI.ToggleSources()
+    UI.state.sourcesOpen = not UI.state.sourcesOpen
+    UI.RefreshDetail()
+end
+
+function UI.DetailBlocks(spellID, rec)
+    local blocks = {}
+    local function Add(b) blocks[#blocks + 1] = b end
+    local learned = ns.IsLearned(spellID, UI.state.char)
+    local faction = ns.CharFaction(UI.state.char)
+
+    for _, part in ipairs(M.DetailOrder(learned)) do
+        if part == "reagents" then
+            local s = UI.GetSchematic(spellID)
+            local items = {}
+            for _, slot in ipairs(s and s.reagentSlotSchematics or {}) do
+                local r = slot.reagents and slot.reagents[1]
+                if r and r.itemID then items[#items + 1] = { item = r.itemID, count = slot.quantityRequired or 1 } end
+            end
+            if #items > 0 then
+                Add({ kind = "section", text = L.REAGENTS })
+                Add({ kind = "reagents", items = items })
+            end
+        elseif part == "characters" then
+            Add({ kind = "section", text = L.CHARACTERS })
+            local groups = ns.OwnerGroups(UI.state.line, spellID)
+            if #groups == 0 then Add({ kind = "owner", group = "none", text = L.NO_CHARACTER }) end
+            for _, g in ipairs(groups) do Add({ kind = "owner", group = g.group, text = g.text }) end
+        elseif learned and not UI.state.sourcesOpen then
+            Add({ kind = "folded", text = L.WHERE .. M.SEP .. M.PrimarySource(rec, faction).text })
+        else
+            Add({ kind = "section", text = L.WHERE, toggle = learned })
+            local sc = M.SourceCards(rec, faction)
+            for _, id in ipairs(sc.teach) do Add({ kind = "get", item = id }) end
+            for _, r in ipairs(sc.requirements) do Add({ kind = "req", text = r }) end
+            for _, c in ipairs(sc.cards) do Add({ kind = "card", card = c }) end
+            for _, n in ipairs(sc.notes) do Add({ kind = "note", text = n }) end
+        end
+    end
+    return blocks
+end
+
+-- Widget pools -------------------------------------------------------------------------------------------
+
+local used = {}
+
+local function Take(pool, create)
+    used[pool] = (used[pool] or 0) + 1
+    local w = pool[used[pool]]
+    if not w then
+        w = create()
+        pool[used[pool]] = w
+    end
+    w:ClearAllPoints()
+    w:Show()
+    return w
+end
+
+local function HideUnused()
+    for _, pool in ipairs({ detail.lines, detail.slots, detail.cardWidgets, detail.ownerRows }) do
+        for i = (used[pool] or 0) + 1, #pool do pool[i]:Hide() end
+    end
+    wipe(used)
+end
+
+-- Text line: section titles, the folded sources line, "Get <item> from:", requirements and notes.
+local function CreateTextLine()
+    local line = CreateFrame("Button", nil, detail.child)
+    line.icon = line:CreateTexture(nil, "ARTWORK")
+    line.icon:SetSize(ICON, ICON)
+    line.icon:SetPoint("LEFT", 0, 0)
+    line.chevron = line:CreateTexture(nil, "ARTWORK")
+    line.chevron:SetSize(10, 10)
+    line.chevron:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+    line.chevron:SetPoint("LEFT", 0, 0)
+    line.text = line:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    line.text:SetJustifyH("LEFT")
+    line.text:SetWordWrap(false)
+    line.rule = line:CreateTexture(nil, "BORDER")
+    line.rule:SetHeight(1)
+    line.rule:SetColorTexture(Hex(UI.COLORS.line))
+    line:SetScript("OnEnter", ShowItemTooltip)
+    line:SetScript("OnLeave", HideTooltip)
+    line:SetScript("OnClick", function(self) if self.toggle then UI.ToggleSources() end end)
+    return line
+end
+
+local function RenderTextLine(b, y, width, pending)
+    local line = Take(detail.lines, CreateTextLine)
+    line:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
+    line:SetWidth(width)
+    line.item, line.toggle = nil, nil
+    line.icon:Hide()
+    line.chevron:Hide()
+    line.rule:Hide()
+    local x, height, font, text = 0, 16, "GameFontHighlightSmall", b.text or ""
+    local color = nil
+    if b.kind == "section" or b.kind == "folded" then
+        y = y + 6
+        line:ClearAllPoints()
+        line:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
+        height, font = 18, "GameFontNormal"
+        if b.kind == "folded" or b.toggle then
+            line.toggle = true
+            line.chevron:Show()
+            line.chevron:SetRotation(b.kind == "folded" and 0 or -math.pi / 2)
+            x = 14
+        end
+        if b.kind == "folded" then
+            detail.folded = line
+            color = "c9a227"
+        end
+    elseif b.kind == "get" then
+        line.item = b.item
+        line.icon:Show()
+        line.icon:SetTexture(M.ItemIcon(b.item) or M.QUESTION_ICON)
+        x, height = ICON + 6, ICON + 2
+        text = L.GET_FROM:format(ItemText(b.item, pending))
+    elseif b.kind == "req" then
+        color = "e8c37a"
+    elseif b.kind == "note" then
+        color = "ff8040"
+    end
+    line:SetHeight(height)
+    line.text:SetFontObject(_G[font])
+    line.text:ClearAllPoints()
+    line.text:SetPoint("LEFT", x, 0)
+    line.text:SetText(text)
+    if color then line.text:SetTextColor(Hex(color))
+    elseif font == "GameFontNormal" then line.text:SetTextColor(Hex(UI.COLORS.gold))
+    else line.text:SetTextColor(1, 1, 1) end
+    if b.kind == "section" then
+        line.rule:Show()
+        line.rule:ClearAllPoints()
+        line.rule:SetPoint("LEFT", line.text, "RIGHT", 8, 0)
+        line.rule:SetPoint("RIGHT", line, "RIGHT", 0, 0)
+    end
+    return y + height + 4
+end
+
+local function CreateSlotWidget()
+    local s = UI.CreateSlot(detail.child, SLOT)
+    s.name = s:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    s.name:SetPoint("LEFT", s, "RIGHT", 7, 0)
+    s.name:SetJustifyH("LEFT")
+    s.name:SetWordWrap(false)
+    return s
+end
+
+local function RenderReagents(b, y, width, pending)
+    local cols = UI.ReagentColumns(width)
+    local colW = math.floor(width / cols)
+    for i, r in ipairs(b.items) do
+        local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+        local s = Take(detail.slots, CreateSlotWidget)
+        s:SetPoint("TOPLEFT", detail.child, "TOPLEFT", col * colW, -(y + row * (SLOT + 5)))
+        s:SetItem(r.item, r.count)
+        s.name:SetWidth(colW - SLOT - 14)
+        s.name:SetText(ItemText(r.item, pending))
+    end
+    return y + math.ceil(#b.items / cols) * (SLOT + 5) + 2
+end
+
+local function CreateOwnerRow()
+    local r = UI.Panel(detail.child, 1)
+    r:SetHeight(24)
+    r.dot = r:CreateTexture(nil, "ARTWORK")
+    r.dot:SetSize(8, 8)
+    r.dot:SetPoint("LEFT", 9, 0)
+    r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.text:SetPoint("LEFT", r.dot, "RIGHT", 8, 0)
+    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    return r
+end
+
+local function RenderOwner(b, y, width)
+    local r = Take(detail.ownerRows, CreateOwnerRow)
+    r:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
+    r:SetWidth(width)
+    r.dot:SetColorTexture(Hex(OWNER_DOTS[b.group] or OWNER_DOTS.none))
+    r.text:SetText(b.text or "")
+    return y + 24 + 4
+end
+
+local function CreateCard()
+    local w = CreateFrame("Button", nil, detail.child, "BackdropTemplate")
+    w:SetHeight(CARD_H)
+    w:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    w:SetBackdropColor(Hex(UI.COLORS.field))
+    w:SetBackdropBorderColor(Hex(UI.COLORS.line))
+    w.icon = w:CreateTexture(nil, "ARTWORK")
+    w.icon:SetSize(CARD_ICON, CARD_ICON)
+    w.icon:SetPoint("LEFT", 8, 0)
+    w.waypoint = CreateFrame("Button", nil, w, "UIPanelButtonTemplate")
+    w.waypoint:SetSize(BUTTON_W, 20)
+    w.waypoint:SetPoint("RIGHT", -8, 0)
+    w.waypoint:SetText(L.WAYPOINT)
+    w.waypoint:SetScript("OnClick", function(self) UI.SetWaypoint(self:GetParent().card.waypoint) end)
+    w.dungeon = w:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    w.dungeon:SetPoint("RIGHT", -10, 0)
+    w.dungeon:SetText(L.DUNGEON)
+    w.title = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    w.title:SetPoint("TOPLEFT", w.icon, "TOPRIGHT", 9, 1)
+    w.title:SetJustifyH("LEFT")
+    w.title:SetWordWrap(false)
+    w.detail = w:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    w.detail:SetPoint("BOTTOMLEFT", w.icon, "BOTTOMRIGHT", 9, -1)
+    w.detail:SetJustifyH("LEFT")
+    w.detail:SetWordWrap(false)
+    w.detail:SetTextColor(Hex(UI.COLORS.muted))
+    w:SetScript("OnEnter", ShowItemTooltip)
+    w:SetScript("OnLeave", HideTooltip)
+    return w
+end
+
+local function RenderCard(b, y, width, pending)
+    local card = b.card
+    if card.type == "more" then
+        return RenderTextLine({ kind = "text", text = card.title }, y, width, pending)
+    end
+    local w = Take(detail.cardWidgets, CreateCard)
+    w:SetPoint("TOPLEFT", detail.child, "TOPLEFT", 0, -y)
+    w:SetWidth(width)
+    w.card, w.item = card, card.item
+    w.icon:SetTexture(UI.SOURCE_ICONS[card.type] or UI.SOURCE_ICONS.unknown)
+    w.title:SetText(card.title or (card.item and ItemText(card.item, pending)) or "")
+    w.detail:SetText(card.detail or "")
+    w.waypoint:SetShown(card.waypoint ~= nil)
+    w.dungeon:SetShown(card.waypoint == nil and card.instance or false)
+    local right = (card.waypoint and BUTTON_W + 16) or (card.instance and 70) or 10
+    local textW = width - (8 + CARD_ICON + 9) - right
+    w.title:SetWidth(textW)
+    w.detail:SetWidth(textW)
+    return y + CARD_H + 5
+end
+
+-- Rendering ----------------------------------------------------------------------------------------------
+
 function UI.RefreshDetail()
     if not detail.child then return end
     local spellID = UI.state.selected
@@ -457,17 +601,19 @@ function UI.RefreshDetail()
     RenderHeader(spellID, rec, skill, learned, pending)
 
     local width = ContentWidth()
-    local y = 4
-    local lines = UI.DetailLines(spellID, rec)
-    for i, l in ipairs(lines) do
-        local line = detail.lines[i] or CreateLine(i)
-        detail.lines[i] = line
-        y = RenderLine(line, l, y, width, pending)
+    local y = 2
+    local blocks = UI.DetailBlocks(spellID, rec)
+    detail.folded = nil
+    for _, b in ipairs(blocks) do
+        if b.kind == "reagents" then y = RenderReagents(b, y, width, pending)
+        elseif b.kind == "owner" then y = RenderOwner(b, y, width)
+        elseif b.kind == "card" then y = RenderCard(b, y, width, pending)
+        else y = RenderTextLine(b, y, width, pending) end
     end
-    for i = #lines + 1, #detail.lines do detail.lines[i]:Hide() end
+    HideUnused()
     detail.child:SetHeight(y + 8)
     UI.UpdateScrollBar(detail.scroll, y + 8, UI.DetailVisibleHeight())
-    detail.rendered = lines
+    detail.rendered = blocks
     if detail.lastSpell ~= spellID then
         detail.scroll:SetVerticalScroll(0)
         detail.lastSpell = spellID
