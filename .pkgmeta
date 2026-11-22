@@ -1,0 +1,22 @@
+# BigWigs packager (https://github.com/BigWigsMods/packager), run by .github/workflows/release.yml.
+# The addon lives in a subfolder: package it as ForeverProfessional/ and leave the rest of the repo out.
+package-as: ForeverProfessional
+
+move-folders:
+  ForeverProfessional/ForeverProfessional: ForeverProfessional
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - AGENTS.md
+  - CHANGELOG.md
+  - CLAUDE.md
+  - README.md
+  - docs
+  - mise.toml
+  - requirements-dev.txt
+  - spike
+  - tests
+  - tools

@@ -19,6 +19,9 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 | `tools/REPORT.md` | Generated coverage report and list of data gaps |
 | `spike/` | Throwaway in-game API probe from the viability study. Reference only |
 | `spike/tests/mock_harness.py` | Runs addon Lua in Lua 5.1 against a mock WoW API through `lupa` |
+| `ForeverProfessional/NOTICES.txt` | Third-party licence notices for the baked data (the MIT texts must ship) |
+| `.pkgmeta`, `.github/workflows/release.yml`, `CHANGELOG.md` | Release packaging: see **Releasing** |
+| `docs/logo/` | CurseForge avatar (SVG source, 400px PNG) |
 
 ## Rules
 
@@ -41,6 +44,16 @@ python -m unittest discover tests     # addon tests; need `pip install -r requir
 ```
 
 If `python` isn't on the PATH, prefix with `mise exec --`. The addon tests read the TOC, so a new Lua file must be listed there (with the camelot suffix) before its tests can see it.
+
+## Releasing
+
+Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the TOC). Pushing a `v*` tag runs `.github/workflows/release.yml`: the tests, then the [BigWigs packager](https://github.com/BigWigsMods/packager), which builds the zip by the rules in `.pkgmeta` and uploads it to CurseForge and as a GitHub release. A tag containing `beta` or `alpha` uploads that file type instead of a release. Needs the repo secret `CF_API_TOKEN` (from https://authors.curseforge.com/#/settings/api-tokens).
+
+1. Rewrite `CHANGELOG.md` with this release's notes only, for players: it becomes the CurseForge changelog, and CurseForge rejects files without one.
+2. When the client's interface number changes, update `## Interface` (and the client facts below).
+3. Tag and push only when the user asks: `git tag v0.2.0 && git push origin v0.2.0`.
+
+The packager replaces `@project-version@` in the TOC with the tag, so a linked dev copy shows the raw token in game; that's expected. The zip holds `ForeverProfessional/` (addon files, `NOTICES.txt`, and `LICENSE` from the repo root); everything else is in `.pkgmeta`'s `ignore`. A new top-level file or folder must be added there, or it ships.
 
 In-game testing: link the addon folder into the game once:
 
