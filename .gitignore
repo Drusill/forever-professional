@@ -5,3 +5,6 @@ tools/.cache/
 __pycache__/
 *.pyc
 .venv/
+
+# Brainstorm mockups
+.superpowers/
