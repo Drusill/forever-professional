@@ -17,6 +17,5 @@ ignore:
   - docs
   - mise.toml
   - requirements-dev.txt
-  - spike
   - tests
   - tools

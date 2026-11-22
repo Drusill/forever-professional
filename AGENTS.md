@@ -17,8 +17,6 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 | `tools/` | Offline data pipeline (Python, stdlib only): `python tools/build_data.py` |
 | `tools/overrides.json` | Hand-verified data fixes, applied last by the pipeline |
 | `tools/REPORT.md` | Generated coverage report and list of data gaps |
-| `spike/` | Throwaway in-game API probe from the viability study. Reference only |
-| `spike/tests/mock_harness.py` | Runs addon Lua in Lua 5.1 against a mock WoW API through `lupa` |
 | `ForeverProfessional/NOTICES.txt` | Third-party licence notices for the baked data (the MIT texts must ship) |
 | `.pkgmeta`, `.github/workflows/release.yml`, `CHANGELOG.md` | Release packaging: see **Releasing** |
 | `docs/logo/` | CurseForge avatar (SVG source, 400px PNG) |
@@ -30,7 +28,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 - Work on `develop`. Commit small, working steps with clear messages. Don't push unless asked.
 - Run the tests after each change.
 - **Follow Blizzard's [UI Add-On Development Policy](https://us.forums.blizzard.com/en/wow/t/ui-add-on-development-policy/24534).** The addon stays free and its code readable: data files stay plain Lua tables, never compressed or encoded. No ads, and no donation requests in game: a donation link may go on the download page, never in the TOC or the UI.
-- Use only the in-game API. Never automate gameplay, and don't bundle Blizzard art or sound: reference client textures and atlases by name. `spike/` never ships.
+- Use only the in-game API. Never automate gameplay, and don't bundle Blizzard art or sound: reference client textures and atlases by name.
 
 ## Commands
 
