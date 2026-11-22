@@ -54,7 +54,8 @@ jobs:
         env:
           VERSION: ${{ steps.check.outputs.version }}
           TAG: ${{ steps.check.outputs.tag }}
-        run: echo "Nothing to release: CHANGELOG.md says $VERSION and $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "Nothing to release: CHANGELOG.md says $VERSION and $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Test
         if: steps.go.outputs.release == 'true'
