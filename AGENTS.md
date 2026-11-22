@@ -20,13 +20,14 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 | `ForeverProfessional/NOTICES.txt` | Third-party licence notices for the baked data (the MIT texts must ship) |
 | `.pkgmeta`, `.github/`, `CHANGELOG.md` | Release packaging and CI: see **Releasing** |
 | `docs/logo/` | CurseForge avatar (SVG source, 400px PNG) |
-| `docs/ideas.md` | Ideas and decisions not built yet: check it before planning a feature |
+| `docs/ideas.md` | Ideas not built yet, and the decided ones with their GitHub issue: check it before planning a feature |
 
 ## Rules
 
 - **Never modify the community addons** in `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns`. They are read-only references (WhatsTraining for TOC conventions and recipe data, ForeverDungeonJournal for Journal-style frames).
 - **Never hand-edit `ForeverProfessional/Data/`.** Data fixes go in `tools/overrides.json`, then rebuild. Ask before changing anything under `tools/`.
-- Work on `develop`. Commit small, working steps with clear messages. Don't push unless asked.
+- Work on `develop`, or on a feature branch off it. Commit small, working steps with clear messages. Don't push unless asked.
+- **Planned features are GitHub issues.** Start at the pinned roadmap issue (#8): it gives the priority order and dependencies. Ask the maintainer an issue's open questions before designing, then write its spec and plan under `docs/superpowers/`. Branch from `develop` as `feat/<issue>-<slug>` (`fix/` and `docs/` for those kinds of work) and open the pull request into `develop` with `Closes #<issue>`; the issue closes when the release merge reaches `main`.
 - Run the tests after each change.
 - **Follow Blizzard's [UI Add-On Development Policy](https://us.forums.blizzard.com/en/wow/t/ui-add-on-development-policy/24534).** The addon stays free and its code readable: data files stay plain Lua tables, never compressed or encoded. No ads, and no donation requests in game: a donation link may go on the download page, never in the TOC or the UI.
 - Use only the in-game API. Never automate gameplay, and don't bundle Blizzard art or sound: reference client textures and atlases by name.
