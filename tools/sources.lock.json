@@ -1,0 +1,46 @@
+{
+  "whatstraining": {
+    "repo": "fusionpit/WhatsTraining",
+    "licence": "MIT",
+    "ref": "0de3283e92421a1339c1e890f4369a1b21a00a78",
+    "path": "Crafting/Recipes/Camelot",
+    "files": [
+      "Alchemy.lua",
+      "Blacksmithing.lua",
+      "Cooking.lua",
+      "Enchanting.lua",
+      "Engineering.lua",
+      "FirstAid.lua",
+      "Fishing.lua",
+      "Herbalism.lua",
+      "Leatherworking.lua",
+      "Mining.lua",
+      "Skinning.lua",
+      "Tailoring.lua"
+    ]
+  },
+  "allthethings": {
+    "repo": "ATTWoWAddon/AllTheThings",
+    "licence": "MIT (client tables: Blizzard Entertainment's game data)",
+    "ref": "5db93e927f35604f68b8a298125457189f871c53",
+    "path": ".contrib/.db/forever/.config/.wago",
+    "build": "1.60.1.71037",
+    "tables": [
+      "SkillLineAbility"
+    ]
+  },
+  "foreverdb": {
+    "repo": "foreverfraddons/forever-db",
+    "licence": "GPL-3.0",
+    "asset": "forever.json.gz",
+    "hash": "1ad079482d0b3599",
+    "build": "2026-11-21"
+  },
+  "wago": {
+    "licence": "Blizzard Entertainment's game data",
+    "build": "1.60.1.71037",
+    "tables": [
+      "TradeSkillCategory"
+    ]
+  }
+}

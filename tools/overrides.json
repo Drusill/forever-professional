@@ -1,0 +1,9 @@
+{
+  "_readme": "Hand-verified fixes, applied last. Key recipes by spell ID. Any recipe field can be replaced: vendors, drops ([[npc, chance%]] or [[npc]]), quests, sources, learn, merchantFavor, reputation ({faction, standing}), side. Keys starting with _ are ignored; use _note / _evidence for where the fix came from.",
+  "recipes": {
+    "_example_1255143": {
+      "vendors": [258306],
+      "_evidence": "In-game vendor check, 2026-11-20"
+    }
+  }
+}

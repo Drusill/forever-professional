@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ForeverProfessional redesign</title>
+<!--
+  Reference mockup for docs/superpowers/specs/2026-11-21-ui-redesign-design.md.
+  Emoji stand in for game icons and art. Sizes are the window's default (1040 x 640).
+-->
+<style>
+  :root { --page: #e9e6e0; --ink: #1d1b18; --ink2: #5d5850; }
+  @media (prefers-color-scheme: dark) { :root { --page: #1b1a18; --ink: #ece8e1; --ink2: #a39d93; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, "Segoe UI", sans-serif; padding: 28px 24px 60px; }
+  .page { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  h2 { font-size: 17px; margin: 34px 0 4px; }
+  .lead, .sub { color: var(--ink2); max-width: 860px; margin-bottom: 12px; }
+  .notes { color: var(--ink2); font-size: 13px; max-width: 960px; margin: 10px 0 0 18px; }
+  .notes li { margin: 2px 0; }
+  .scroller { overflow-x: auto; padding-bottom: 6px; }
+  .panes { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 6px; }
+  .cap { font-size: 12px; color: var(--ink2); margin-bottom: 4px; }
+
+  .fpw { --win:#0d0b09; --panel:#15120e; --panel2:#1c1813; --line:#2e271d; --line2:#3d3326; --gold:#ffd100; --gold2:#c9a227;
+    --text:#efe6d2; --muted:#9a8f7a; --dim:#6d6455; --acc:#ff8a1f; --accbar:linear-gradient(90deg,#7a1205,#d4400c 40%,#ff9a1f 75%,#ffe680);
+    color: var(--text); font: 12px/1.35 "Segoe UI", Arial, sans-serif; }
+  .fpw * { box-sizing: border-box; }
+  .win { width: 1040px; height: 640px; background: var(--win); border: 1px solid #4a3d2a; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; overflow: hidden; position: relative; }
+  .grip { position: absolute; right: 3px; bottom: 3px; width: 12px; height: 12px; background: repeating-linear-gradient(135deg, transparent 0 3px, #8a7450 3px 4px); clip-path: polygon(100% 0, 100% 100%, 0 100%); opacity: .8; }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); } .dim { color: var(--dim); }
+  .pico { width: 28px; height: 28px; flex: none; border-radius: 4px; border: 1px solid #000; display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, #6b5a3e, #241c12); font-size: 15px; box-shadow: inset 0 0 0 1px rgba(255,209,0,.15); }
+  .pbar { height: 4px; background: #000; border-radius: 2px; overflow: hidden; }
+  .pbar > i { display: block; height: 100%; background: linear-gradient(90deg, #a8601f, var(--gold)); }
+  .charsel { display: flex; align-items: center; gap: 6px; background: #0a0907; border: 1px solid var(--line2); border-radius: 4px; padding: 3px 8px 3px 4px; white-space: nowrap; }
+  .charsel .fac { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(#d33 30%, #611); border: 1px solid #000; }
+  .charsel .caret { color: var(--muted); font-size: 9px; }
+  .xbtn { width: 22px; height: 22px; border-radius: 4px; background: linear-gradient(#7a2216, #4a120a); border: 1px solid #000; color: var(--gold); display: grid; place-items: center; font-weight: bold; }
+  .wbody { flex: 1; display: flex; gap: 8px; padding: 8px; min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; position: relative; }
+  .grow { flex: 1; min-width: 0; }
+  .thumb { position: absolute; right: 3px; width: 4px; background: #a8601f; border-radius: 2px; }
+
+  .rail { width: 64px; flex: none; background: #0a0907; border-right: 1px solid var(--line2); display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 2px; }
+  .rail .logo { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: linear-gradient(135deg, #5a4318, #1d160b); border: 1px solid #000; font-size: 18px; margin-bottom: 8px; }
+  .ritem { width: 64px; display: flex; flex-direction: column; align-items: center; padding: 4px 0 3px; position: relative; }
+  .ritem .pico { width: 34px; height: 34px; font-size: 17px; }
+  .ritem .sk { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .ritem.active::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--acc); border-radius: 0 3px 3px 0; }
+  .ritem.active .pico { box-shadow: 0 0 0 1px var(--acc), 0 0 12px var(--acc); }
+  .ritem.active .sk { color: var(--acc); }
+  .ritem.off .pico { width: 26px; height: 26px; font-size: 13px; filter: grayscale(.85) brightness(.65); }
+  .ritem.off { padding: 2px 0; }
+  .railsep { width: 30px; height: 1px; background: var(--line2); margin: 5px 0; }
+  .phead { flex: none; height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--line2); position: relative; overflow: hidden;
+    background: radial-gradient(ellipse at 15% 0%, rgba(255,138,31,.22), transparent 60%), linear-gradient(#1f1a13, #121009); }
+  .phead .wm { position: absolute; right: 330px; top: -14px; font-size: 76px; opacity: .07; pointer-events: none; }
+  .phead .pico { width: 34px; height: 34px; font-size: 18px; }
+  .phead .pn { font-family: Georgia, serif; font-size: 19px; color: var(--gold); line-height: 1.1; }
+  .stat { display: flex; flex-direction: column; gap: 3px; width: 150px; }
+  .stat .t { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); }
+  .stat .t b { color: var(--text); font-weight: 600; }
+  .skillbar { height: 7px; background: #000; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px #3d3326; }
+  .skillbar > i { display: block; height: 100%; background: var(--accbar); }
+
+  .toolbar { flex: none; display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  .seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 4px; overflow: hidden; flex: none; }
+  .seg span { padding: 3px 8px; font-size: 11px; color: var(--muted); background: #0e0c09; border-left: 1px solid var(--line2); white-space: nowrap; }
+  .seg span:first-child { border-left: 0; }
+  .seg span.on { background: linear-gradient(#4a3815, #2e230d); color: var(--gold); }
+  .seg span em { font-style: normal; color: var(--dim); margin-left: 3px; font-size: 10px; }
+  .seg span.on em { color: var(--gold2); }
+  .search { flex: 1; min-width: 60px; position: relative; background: #090807; border: 1px solid var(--line2); border-radius: 4px; padding: 3px 8px 3px 22px; color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
+  .search::before { content: "⌕"; position: absolute; left: 7px; top: 0; font-size: 14px; color: var(--muted); }
+  .ibtn { width: 23px; height: 23px; flex: none; border: 1px solid var(--line2); border-radius: 4px; background: #0e0c09; display: grid; place-items: center; }
+  .ibtn svg { width: 12px; height: 12px; stroke: var(--gold2); fill: none; stroke-width: 1.6; }
+  .lscroll { flex: 1; overflow: hidden; position: relative; }
+  .hdr { height: 24px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; margin-top: 2px; background: linear-gradient(90deg, #2a2216, #18140f 75%); border-top: 1px solid #33291b; }
+  .hdr svg { width: 10px; height: 10px; stroke: var(--gold2); fill: none; stroke-width: 2; flex: none; }
+  .hdr .hn { color: var(--gold); font-family: Georgia, serif; font-size: 12.5px; flex: 1; }
+  .hdr .hc { color: var(--muted); font-size: 10.5px; width: 34px; text-align: right; }
+  .hdr .pbar { width: 34px; }
+  .ricon { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #000; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .rn { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .st { width: 16px; text-align: center; font-size: 11px; flex: none; }
+  .st.ok { color: #40c040; font-weight: bold; }
+  .row2 { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 22px; border-bottom: 1px solid rgba(255,255,255,.03); }
+  .row2.sel { background: rgba(255,209,0,.11); box-shadow: inset 2px 0 0 var(--gold); }
+  .row2 .lines { flex: 1; min-width: 0; }
+  .row2 .l1 { display: flex; gap: 6px; align-items: baseline; }
+  .row2 .l2 { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .hero { flex: none; display: flex; gap: 12px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,209,0,.06), transparent); }
+  .bigicon { width: 46px; height: 46px; border-radius: 5px; border: 2px solid #0070dd; flex: none; display: grid; place-items: center; font-size: 22px; }
+  .hname { font-family: Georgia, serif; font-size: 19px; line-height: 1.15; }
+  .creates { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .chip { font-size: 10.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line2); color: var(--muted); background: #0e0c09; white-space: nowrap; }
+  .chip.bad { color: #ff7262; border-color: #6a2a20; background: #261009; }
+  .chip.ok { color: #6fdc6f; border-color: #2a5a2a; background: #0d1f0d; }
+  .scale { margin-left: auto; width: 150px; flex: none; padding-top: 4px; }
+  .scale .t { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .dbar { width: 100%; height: 6px; display: flex; background: #000; border-radius: 2px; position: relative; }
+  .dbar i { display: block; height: 100%; }
+  .dbar .tick { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; border-radius: 1px; box-shadow: 0 0 2px #000; }
+  .nums { display: flex; justify-content: space-between; font-size: 10px; margin-top: 2px; }
+  .dscroll { flex: 1; overflow: hidden; padding-bottom: 10px; position: relative; }
+  .sec { display: flex; align-items: center; gap: 8px; margin: 12px 14px 6px; color: var(--gold); font-family: Georgia, serif; font-size: 12.5px; }
+  .sec::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .sec.closed { color: var(--gold2); }
+  .sec svg { width: 10px; height: 10px; stroke: var(--gold2); fill: none; stroke-width: 2; flex: none; }
+  .sec .n { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5px; color: var(--muted); }
+  .rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 12px; padding: 0 14px; }
+  .reag { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .slot { width: 28px; height: 28px; flex: none; border: 1px solid #5a4a32; border-radius: 3px; position: relative; box-shadow: inset 0 0 0 1px #000; }
+  .slot b { position: absolute; right: 2px; bottom: 0; font-size: 10.5px; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+  .reag span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+  .getline { display: flex; align-items: center; gap: 7px; padding: 0 14px 6px; font-size: 11.5px; }
+  .scard { margin: 0 14px 6px; padding: 8px 10px; background: #0e0c09; border: 1px solid var(--line); border-radius: 4px; display: flex; align-items: center; gap: 10px; }
+  .scard .ty { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #231b10; border: 1px solid #4a3a22; flex: none; font-size: 13px; }
+  .scard .ct { flex: 1; min-width: 0; }
+  .scard .ct div + div { font-size: 10.5px; color: var(--muted); }
+  .pin { font-size: 10.5px; color: var(--gold2); border: 1px solid var(--line2); border-radius: 4px; padding: 3px 8px; background: #17130d; white-space: nowrap; }
+  .pin.off { color: var(--dim); }
+  .who { display: flex; align-items: center; gap: 8px; margin: 0 14px 4px; padding: 6px 10px; border-radius: 4px; background: #0e0c09; border: 1px solid var(--line); font-size: 11.5px; }
+  .who .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dpane { width: 532px; height: 570px; flex: none; }
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; position: relative; }
+  .empty .wm { position: absolute; font-size: 210px; opacity: .06; }
+  .empty .hint { color: var(--muted); font-size: 13px; }
+  .empty .stats { display: flex; gap: 10px; }
+  .empty .stats div { background: #0e0c09; border: 1px solid var(--line); border-radius: 4px; padding: 8px 14px; text-align: center; min-width: 110px; }
+  .empty .stats b { display: block; font-size: 18px; font-family: Georgia, serif; }
+  .empty .stats span { font-size: 10.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>ForeverProfessional redesign: reference mockup</h1>
+  <p class="lead">What was decided while brainstorming, drawn at the window's default size (1040 × 640; it can be resized). Emoji stand in for game icons and art. The character's Blacksmithing skill is 215.</p>
+
+  <h2>1 · The window: a recipe you don't know is selected</h2>
+  <div class="fpw scroller"><div class="win">
+    <div class="rail" data-rail></div>
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+      <div class="phead">
+        <span class="wm">⚒️</span>
+        <div class="pico">⚒️</div>
+        <div class="pn">Blacksmithing</div>
+        <span class="spacer"></span>
+        <div class="stat"><div class="t"><span>Skill</span><span><b>215</b> / 225</span></div><div class="skillbar"><i style="width:95.5%"></i></div></div>
+        <div class="stat"><div class="t"><span>Recipes</span><span><b>91</b> / 419</span></div><div class="pbar"><i style="width:21.7%"></i></div></div>
+        <div class="charsel" style="margin-left:6px"><span class="fac"></span><span style="color:#f48cba">Salvador</span><span class="caret">▼</span></div>
+        <div class="xbtn">✕</div>
+      </div>
+      <div class="wbody">
+        <div class="panel" style="width:420px;flex:none">
+          <div class="toolbar" data-toolbar></div>
+          <div class="lscroll" data-list><span class="thumb" style="top:30px;height:50px"></span></div>
+        </div>
+        <div class="panel grow" data-pane="missing"></div>
+      </div>
+    </div>
+    <span class="grip"></span>
+  </div></div>
+  <ul class="notes">
+    <li><b>Rail:</b> the shown character's professions first (skill under each), then a divider and the rest, smaller and greyed. The selected profession gets its colour as a left marker and glow.</li>
+    <li><b>Header:</b> profession icon and name, its skill bar in the game's own art for that profession, recipes learned, the character selector and the close button. A faint profession illustration sits behind it.</li>
+    <li><b>Toolbar:</b> search, All / Learned / Missing with counts, collapse all, expand all.</li>
+    <li><b>Rows:</b> two lines. Line 1 is the name in its difficulty colour, with ✓ or the source icon on the right. Line 2 is the learn level plus where to get it (missing), or the four skill numbers (learned).</li>
+    <li><b>Detail, not learned:</b> pinned header (icon, name, Creates, chips, skill scale), then Where to get it, Characters, Reagents. Only the part under the header scrolls.</li>
+    <li>Bottom-right corner: resize grip.</li>
+  </ul>
+
+  <h2>2 · Detail pane: learned recipe, and nothing selected</h2>
+  <div class="fpw panes">
+    <div><p class="cap">Learned: reagents first, sources folded into one line</p><div class="panel dpane" data-pane="learned"></div></div>
+    <div><p class="cap">Nothing selected</p><div class="panel dpane" data-pane="empty"></div></div>
+  </div>
+</div>
+
+<script>
+(function () {
+const SKILL = 215;
+const COL = { red: "#ff2020", orange: "#ff8040", yellow: "#ffff00", green: "#40c040", grey: "#808080" };
+const SRC = { trainer: ["📘", "Trainer"], vendor: ["🪙", "Vendor"], drop: ["💰", "Drop"], quest: ["❗", "Quest"] };
+const HUES = ["#8a6a3a", "#6a7a8a", "#7a4a3a", "#4a6a5a", "#8a8a7a", "#5a5a8a", "#9a6a2a", "#6a3a5a"];
+const PROFS = [["⚒️", "Blacksmithing", 215, true], ["🍳", "Cooking", 225], ["🩹", "First Aid", 240], ["🎣", "Fishing", 128], ["⛏️", "Mining", 241]];
+const OTHER = [["⚗️", "Alchemy"], ["✨", "Enchanting"], ["⚙️", "Engineering"], ["🥾", "Leatherworking"], ["🧵", "Tailoring"], ["🌿", "Herbalism"], ["🔪", "Skinning"]];
+const CHEV_DOWN = '<svg viewBox="0 0 10 10"><path d="M2 3.5l3 3 3-3"/></svg>';
+const CHEV_RIGHT = '<svg viewBox="0 0 10 10"><path d="M3.5 2l3 3-3 3"/></svg>';
+const COLLAPSE = '<svg viewBox="0 0 12 12"><path d="M3 1.5l3 3 3-3M3 10.5l3-3 3 3"/></svg>';
+const EXPAND = '<svg viewBox="0 0 12 12"><path d="M3 4.5l3-3 3 3M3 7.5l3 3 3-3"/></svg>';
+// [name, [learn,yellow,green,grey], learned, source, sourceText, selected]
+const LIST = [
+  { h: "Camping", c: [2, 3] },
+  { h: "Reagents", c: [5, 7], rows: [["Rough Grinding Stone", [25, 45, 65, 85], 1], ["Coarse Grinding Stone", [50, 50, 70, 90], 1], ["Heavy Grinding Stone", [100, 100, 112, 125], 1],
+    ["Iron Buckle", [125, 125, 127, 130], 1], ["Solid Grinding Stone", [175, 175, 180, 185], 1], ["Inlaid Mithril Cylinder", [200, 200, 212, 225], 0, "trainer", "Trainer · 50s"], ["Dense Grinding Stone", [225, 230, 232, 235], 0, "trainer", "Trainer · 1g"]] },
+  { h: "One-Handed Weapons", c: [2, 9], rows: [["Big Bronze Knife", [105, 135, 150, 165], 1], ["Pearl-handled Dagger", [110, 140, 155, 170], 1],
+    ["Moonsteel Broadsword", [180, 210, 225, 240], 0, "vendor", "Vendor · Jutak (Stranglethorn Vale) · +2 more"], ["Heartseeker", [300, 320, 330, 340], 0, "drop", "Drop · Cannon Master Willey (Stratholme)", 1]] },
+  { h: "Weapon Stones", c: [8, 11] }, { h: "Plate Helmets", c: [1, 15] }, { h: "Plate Pauldrons", c: [1, 14] },
+];
+function diff(r) { if (SKILL < r[0]) return "red"; if (SKILL < r[1]) return "orange"; if (SKILL < r[2]) return "yellow"; if (SKILL < r[3]) return "green"; return "grey"; }
+function dbar(r) {
+  const [l, y, g, gr] = r, span = Math.max(gr - l, 1), w = 94;
+  const seg = (a, b, c) => b > a ? `<i style="width:${(b - a) / span * w}%;background:${c}"></i>` : "";
+  const html = (gr === l ? "" : seg(l, y, COL.orange) + seg(y, g, COL.yellow) + seg(g, gr, COL.green)) + `<i style="flex:1;background:${COL.grey}"></i>`;
+  const tick = (SKILL >= l && SKILL <= gr + 15) ? `<span class="tick" style="left:calc(${Math.min((SKILL - l) / span * w, 98)}% - 1px)"></span>` : "";
+  return `<span class="dbar">${html}${tick}</span>`;
+}
+function list() {
+  let out = "", i = 0;
+  for (const g of LIST) {
+    out += `<div class="hdr">${g.rows ? CHEV_DOWN : CHEV_RIGHT}<span class="hn">${g.h}</span><span class="pbar"><i style="width:${g.c[0] / g.c[1] * 100}%"></i></span><span class="hc">${g.c[0]}/${g.c[1]}</span></div>`;
+    for (const r of g.rows || []) {
+      const [name, rng, learned, src, srcText, sel] = r;
+      const st = learned ? `<span class="st ok">✓</span>` : `<span class="st">${SRC[src][0]}</span>`;
+      const l2 = learned
+        ? `<span style="color:${COL.orange}">${rng[0]}</span> <span style="color:${COL.yellow}">${rng[1]}</span> <span style="color:${COL.green}">${rng[2]}</span> <span style="color:${COL.grey}">${rng[3]}</span>`
+        : `<span style="color:${SKILL < rng[0] ? "#ff7262" : "var(--muted)"}">Learn ${rng[0]}</span> · ${SRC[src][0]} ${srcText}`;
+      out += `<div class="row2${sel ? " sel" : ""}"><span class="ricon" style="background:linear-gradient(135deg,${HUES[i++ % HUES.length]},#1a1410)"></span><div class="lines"><div class="l1"><span class="rn" style="color:${COL[diff(rng)]}">${name}</span>${st}</div><div class="l2">${l2}</div></div></div>`;
+    }
+  }
+  return out;
+}
+function toolbar() {
+  return `<div class="search">Search recipes…</div><div class="seg"><span class="on">All<em>419</em></span><span>Learned<em>91</em></span><span>Missing<em>328</em></span></div>` +
+    `<div class="ibtn" title="Collapse all">${COLLAPSE}</div><div class="ibtn" title="Expand all">${EXPAND}</div>`;
+}
+const R = {
+  missing: { name: "Heartseeker", color: COL.red, icon: "🗡️", grad: "#b03a3a,#3a0e12", q: "#0070dd", creates: '<span style="color:#0070dd">Heartseeker</span> · One-Hand Dagger',
+    learned: false, rng: [300, 320, 330, 340], cat: "One-Handed Weapons",
+    reag: [["10", "Arcanite Bar", "#1eff00", "#5aa"], ["10", "Enchanted Thorium Bar", "#fff", "#8ab"], ["2", "Enchanted Leather", "#fff", "#a86"], ["6", "Star Ruby", "#1eff00", "#c34"], ["6", "Azerothian Diamond", "#1eff00", "#cc4"], ["6", "Large Opal", "#1eff00", "#e83"], ["4", "Dense Grinding Stone", "#fff", "#998"]],
+    recipe: '<span class="slot" style="width:22px;height:22px;background:linear-gradient(135deg,#6a7a9a,#1a1a22)"></span>Get <span style="color:#0070dd">Plans: Heartseeker</span> from:',
+    sources: [["💰", "Cannon Master Willey", "6% drop · Stratholme (dungeon)", "Dungeon", true]],
+    chars: [["#909090", '<span style="color:#f48cba">Salvador</span> <span class="muted">· skill too low, 215 / 300</span>']] },
+  learned: { name: "Solid Grinding Stone", color: COL.grey, icon: "🪨", grad: "#8a8a7a,#2a2a22", q: "#9d9d9d", creates: "Solid Grinding Stone · Reagent",
+    learned: true, rng: [175, 175, 180, 185], cat: "Reagents", reag: [["4", "Solid Stone", "#fff", "#998"]],
+    chars: [["#40c040", '<span style="color:#f48cba">Salvador</span> <span class="muted">· knows it</span>']], summary: "📘 Trainer · 1g 50s" },
+};
+function hero(r) {
+  return `<div class="hero"><div class="bigicon" style="background:linear-gradient(135deg,${r.grad});border-color:${r.q};box-shadow:0 0 10px ${r.q}55">${r.icon}</div>
+    <div style="min-width:0;flex:1"><div class="hname" style="color:${r.color}">${r.name}</div><div class="creates">Creates ${r.creates}</div>
+      <div class="chips">${r.learned ? '<span class="chip ok">✓ Learned</span>' : '<span class="chip bad">Not learned</span>'}<span class="chip">${r.cat}</span></div></div>
+    <div class="scale"><div class="t">Skill</div>${dbar(r.rng)}<div class="nums"><span style="color:${SKILL < r.rng[0] ? COL.red : COL.orange}">${r.rng[0]}</span><span style="color:${COL.yellow}">${r.rng[1]}</span><span style="color:${COL.green}">${r.rng[2]}</span><span style="color:${COL.grey}">${r.rng[3]}</span></div></div></div>`;
+}
+const sec = (t, n) => `<div class="sec">${t}${n ? ` <span class="n">${n}</span>` : ""}</div>`;
+const reagents = r => sec("Reagents", r.reag.length) + `<div class="rgrid">${r.reag.map(([n, name, c, h]) => `<div class="reag"><span class="slot" style="background:linear-gradient(135deg,${h},#151210)"><b>${n}</b></span><span style="color:${c}">${name}</span></div>`).join("")}</div>`;
+const chars = r => sec("Characters") + r.chars.map(([dot, t]) => `<div class="who"><span class="dot" style="background:${dot}"></span>${t}</div>`).join("");
+const sources = r => sec("Where to get it") + `<div class="getline">${r.recipe}</div>` +
+  r.sources.map(([ic, who, det, pin, off]) => `<div class="scard"><span class="ty">${ic}</span><div class="ct"><div>${who}</div><div>${det}</div></div><span class="pin${off ? " off" : ""}">${pin}</span></div>`).join("");
+function pane(kind) {
+  if (kind === "missing") { const r = R.missing; return hero(r) + `<div class="dscroll"><span class="thumb" style="top:6px;height:230px"></span>${sources(r)}${chars(r)}${reagents(r)}</div>`; }
+  if (kind === "learned") { const r = R.learned; return hero(r) + `<div class="dscroll">${reagents(r)}${chars(r)}<div class="sec closed">${CHEV_RIGHT}Where to get it <span class="n">${r.summary}</span></div></div>`; }
+  return `<div class="empty"><span class="wm">⚒️</span><div class="hint">Select a recipe.</div><div class="stats"><div><b style="color:#40c040">91</b><span>Learned</span></div><div><b style="color:#ffd100">12</b><span>Learnable now</span></div><div><b style="color:#9a8f7a">328</b><span>Missing</span></div></div></div>`;
+}
+function rail() {
+  return `<div class="logo">📖</div>` + PROFS.map(([ic, n, s, act]) => `<div class="ritem${act ? " active" : ""}" title="${n}"><span class="pico">${ic}</span><span class="sk">${s}</span></div>`).join("") +
+    `<div class="railsep"></div>` + OTHER.map(([ic, n]) => `<div class="ritem off" title="${n} (not learned)"><span class="pico">${ic}</span></div>`).join("");
+}
+document.querySelectorAll("[data-list]").forEach(e => e.insertAdjacentHTML("beforeend", list()));
+document.querySelectorAll("[data-toolbar]").forEach(e => e.innerHTML = toolbar());
+document.querySelectorAll("[data-pane]").forEach(e => e.innerHTML = pane(e.dataset.pane));
+document.querySelectorAll("[data-rail]").forEach(e => e.innerHTML = rail());
+})();
+</script>
+</body>
+</html>

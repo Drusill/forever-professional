@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ForeverProfessional logo: the CurseForge project avatar.
+  A tabbed recipe book with a cross-peen hammer carved into its leather cover.
+  Original artwork. Part of ForeverProfessional, GPL-3.0-or-later.
+  docs/logo/README.md has the command that exports logo-400.png.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <!-- background -->
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#2d3549"/>
+      <stop offset="1" stop-color="#10141d"/>
+    </radialGradient>
+
+    <!-- book -->
+    <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#94603a"/>
+      <stop offset="1" stop-color="#55321a"/>
+    </linearGradient>
+    <linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe1b9" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#ffe1b9" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".5"/>
+    </linearGradient>
+    <linearGradient id="spine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2a1407"/>
+      <stop offset=".45" stop-color="#6a3d1c"/>
+      <stop offset="1" stop-color="#2a1407"/>
+    </linearGradient>
+    <linearGradient id="rib" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a5a32"/>
+      <stop offset="1" stop-color="#2a1407"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9a3"/>
+      <stop offset=".55" stop-color="#d9a640"/>
+      <stop offset="1" stop-color="#a5711f"/>
+    </linearGradient>
+    <linearGradient id="pages" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f6ead0"/>
+      <stop offset="1" stop-color="#d8c496"/>
+    </linearGradient>
+    <pattern id="edgeV" width="4" height="10" patternUnits="userSpaceOnUse">
+      <rect width="4" height="10" fill="#efe1bf"/>
+      <rect width="1.3" height="10" fill="#b9a172"/>
+    </pattern>
+    <pattern id="edgeH" width="10" height="4" patternUnits="userSpaceOnUse">
+      <rect width="10" height="4" fill="#efe1bf"/>
+      <rect width="10" height="1.3" fill="#b9a172"/>
+    </pattern>
+    <clipPath id="coverClip">
+      <rect x="40" y="24" width="278" height="332" rx="12"/>
+    </clipPath>
+
+    <!-- carved hammer -->
+    <linearGradient id="recess" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4e2c14"/>
+      <stop offset="1" stop-color="#2a160a"/>
+    </linearGradient>
+
+    <!-- leather grain -->
+    <filter id="grain" x="0" y="0" width="1" height="1">
+      <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <!-- shadow under the book -->
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <!-- pressed into the leather: dark inner shadow top-left, light inner edge bottom-right, light lip outside -->
+    <filter id="deboss" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+      <feComponentTransfer in="SourceAlpha" result="inv">
+        <feFuncA type="table" tableValues="1 0"/>
+      </feComponentTransfer>
+      <feOffset in="inv" dx="5" dy="6" result="invOff"/>
+      <feGaussianBlur in="invOff" stdDeviation="2.5" result="invBlur"/>
+      <feFlood flood-color="#000" flood-opacity=".8"/>
+      <feComposite in2="invBlur" operator="in" result="sh1"/>
+      <feComposite in="sh1" in2="SourceAlpha" operator="in" result="innerShadow"/>
+      <feOffset in="inv" dx="-3" dy="-4" result="invOff2"/>
+      <feGaussianBlur in="invOff2" stdDeviation="1.5" result="invBlur2"/>
+      <feFlood flood-color="#ffe2b8" flood-opacity=".45"/>
+      <feComposite in2="invBlur2" operator="in" result="hl1"/>
+      <feComposite in="hl1" in2="SourceAlpha" operator="in" result="innerHighlight"/>
+      <feOffset in="SourceAlpha" dx="2" dy="3" result="lipOff"/>
+      <feFlood flood-color="#ffd6a0" flood-opacity=".3"/>
+      <feComposite in2="lipOff" operator="in" result="lip"/>
+      <feMerge>
+        <feMergeNode in="lip"/>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="innerShadow"/>
+        <feMergeNode in="innerHighlight"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- background, full bleed: CurseForge rounds the corners itself -->
+  <rect width="400" height="400" fill="url(#bg)"/>
+
+  <!-- shadow under the whole book -->
+  <rect x="50" y="36" width="334" height="352" rx="14" fill="#000" opacity=".55" filter="url(#soft)"/>
+
+  <!-- index tabs, one colour per profession group -->
+  <g stroke="#140c06" stroke-width="3.5">
+    <rect x="312" y="50" width="68" height="34" rx="6" fill="#e05252"/>
+    <rect x="312" y="93" width="68" height="34" rx="6" fill="#f08a3c"/>
+    <rect x="312" y="136" width="68" height="34" rx="6" fill="#f2c94c"/>
+    <rect x="312" y="179" width="68" height="34" rx="6" fill="#5cc46a"/>
+    <rect x="312" y="222" width="68" height="34" rx="6" fill="#3fb8c4"/>
+    <rect x="312" y="265" width="68" height="34" rx="6" fill="#4f7fe0"/>
+    <rect x="312" y="308" width="68" height="34" rx="6" fill="#9b6ae0"/>
+  </g>
+  <g fill="#fff" opacity=".28">
+    <rect x="340" y="54" width="36" height="7" rx="3"/>
+    <rect x="340" y="97" width="36" height="7" rx="3"/>
+    <rect x="340" y="140" width="36" height="7" rx="3"/>
+    <rect x="340" y="183" width="36" height="7" rx="3"/>
+    <rect x="340" y="226" width="36" height="7" rx="3"/>
+    <rect x="340" y="269" width="36" height="7" rx="3"/>
+    <rect x="340" y="312" width="36" height="7" rx="3"/>
+  </g>
+
+  <!-- page block with visible page edges -->
+  <path d="M66,32 H326 Q340,32 340,46 V362 Q340,376 326,376 H66 Z" fill="url(#pages)"/>
+  <rect x="320" y="40" width="16" height="326" fill="url(#edgeV)"/>
+  <rect x="70" y="358" width="258" height="14" fill="url(#edgeH)"/>
+  <path d="M66,32 H326 Q340,32 340,46 V362 Q340,376 326,376 H66 Z" fill="none" stroke="#140c06" stroke-width="4"/>
+
+  <!-- bookmark ribbon -->
+  <path d="M228,352 V396 L241,383 L254,396 V352 Z" fill="#c0392b" stroke="#140c06" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M241,356 V383" stroke="#7d1f15" stroke-width="2"/>
+
+  <!-- leather cover with grain and bevelled edge -->
+  <rect x="40" y="24" width="278" height="332" rx="12" fill="url(#leather)"/>
+  <g clip-path="url(#coverClip)">
+    <rect x="40" y="24" width="278" height="332" filter="url(#grain)" opacity=".22" style="mix-blend-mode:multiply"/>
+  </g>
+  <rect x="44" y="28" width="270" height="324" rx="9" fill="none" stroke="url(#bevel)" stroke-width="6"/>
+
+  <!-- rounded spine with raised bands -->
+  <rect x="40" y="24" width="40" height="332" rx="10" fill="url(#spine)"/>
+  <g stroke="#140c06" stroke-width="2.5" fill="url(#rib)">
+    <rect x="40" y="62" width="40" height="13" rx="4"/>
+    <rect x="40" y="132" width="40" height="13" rx="4"/>
+    <rect x="40" y="235" width="40" height="13" rx="4"/>
+    <rect x="40" y="305" width="40" height="13" rx="4"/>
+  </g>
+  <path d="M81,30 V350" stroke="#140c06" stroke-width="3"/>
+  <path d="M84.5,32 V348" stroke="#ffd9a8" stroke-opacity=".3" stroke-width="2"/>
+
+  <!-- gold frame -->
+  <rect x="96" y="44" width="204" height="292" rx="8" fill="none" stroke="url(#gold)" stroke-width="5"/>
+
+  <!-- cover outline -->
+  <rect x="40" y="24" width="278" height="332" rx="12" fill="none" stroke="#140c06" stroke-width="4"/>
+
+  <!-- cross-peen hammer carved into the leather: flat face left, wedge right -->
+  <g transform="translate(199,193) scale(1.3)">
+    <g filter="url(#deboss)" fill="url(#recess)" stroke="#1e0f05" stroke-width="2.5" stroke-linejoin="round">
+      <rect x="-9" y="-50" width="18" height="140" rx="6"/>
+      <rect x="-11" y="52" width="22" height="38" rx="5"/>
+      <path d="M-62,-98 H-40 V-92 H18 L58,-75 V-63 L18,-46 H-40 V-40 H-62 Z"/>
+    </g>
+  </g>
+</svg>

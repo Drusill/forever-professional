@@ -1,0 +1,25 @@
+## Interface: 16001
+## Title: ForeverProfessional
+## Notes: Browse every profession recipe, see which ones you know and where to get the rest. Type /fp.
+## Author: forever-professional
+## Version: @project-version@
+## X-Curse-Project-ID: 1822577
+## X-License: GPL-3.0-or-later
+## IconTexture: Interface\Icons\INV_SideTab_Professions_c60
+## AddonCompartmentFunc: ForeverProfessional_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: ForeverProfessional_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: ForeverProfessional_OnAddonCompartmentLeave
+## SavedVariables: ForeverProfessionalDB [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+
+Data\Data.xml [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+
+Locale.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Core.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Characters.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Model.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+Tooltip.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+UI\Widgets.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+UI\Window.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+UI\RecipeList.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+UI\Detail.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]
+UI\Minimap.lua [AllowLoadGameType camelot][ExcludeLoadGameType classic]

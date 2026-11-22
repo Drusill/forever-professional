@@ -1,0 +1,13 @@
+# Data pipeline downloads
+tools/.cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Brainstorm mockups
+.superpowers/
+
+# gentle-ai
+.atl

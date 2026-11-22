@@ -1,0 +1,91 @@
+# Merging into main releases the version named by the first "## ForeverProfessional X.Y.Z"
+# heading in CHANGELOG.md, unless tag vX.Y.Z already exists: tests, tag on the merge commit,
+# then the BigWigs packager uploads to CurseForge and GitHub. See AGENTS.md "Releasing".
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the CHANGELOG version
+        id: check
+        run: python .github/scripts/release_version.py check --head "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version was already uploaded
+        id: go
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+        # Only "release not found" means not uploaded; any other gh error stops the run.
+        run: |
+          if out=$(gh release view "$TAG" 2>&1); then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already has a GitHub release, so it was uploaded. Nothing to release." >> "$GITHUB_STEP_SUMMARY"
+          elif grep -q "release not found" <<< "$out"; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out" >&2
+            exit 1
+          fi
+
+      - name: Nothing to release
+        if: steps.check.outputs.release != 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          echo "Nothing to release: CHANGELOG.md says $VERSION and $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test
+        if: steps.go.outputs.release == 'true'
+        run: |
+          pip install -r requirements-dev.txt
+          python -m unittest discover tests
+          python -m unittest discover tools/tests
+          python -m unittest discover .github/scripts
+
+      - name: Tag the merge commit
+        if: steps.go.outputs.release == 'true'
+        run: python .github/scripts/release_version.py tag --head "$GITHUB_SHA"
+
+      - name: Package and upload
+        if: steps.go.outputs.release == 'true'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/package.sh
+
+      # The packager uploads to CurseForge, then makes the GitHub release, so a missing release
+      # means something was skipped: fail instead of reporting success.
+      - name: Check the upload
+        if: steps.go.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null; then
+            echo "::error::The packager finished but $TAG has no GitHub release. Check the packager log above."
+            exit 1
+          fi
+          echo "Released $TAG to CurseForge and as a GitHub release." >> "$GITHUB_STEP_SUMMARY"
