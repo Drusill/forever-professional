@@ -4,6 +4,7 @@ Relevant tables (keys are strings in the JSON):
   item[id]   [name, quality, ..., class(4), subclass(5), ...]   recipes are class 9
   ieff[id]   [[spell, trigger, ...]]  trigger 6 = spell taught by using the item
   drop/odrop/idrop[item]  [[npc|object|container, chance per 10000]]  0 = unknown
+  seen["c<npc>"]  {item: [drops, kills]}  observed loot counts (creatures only)
   vend[item] [npc, ...]       rew[item] [quest, ...]
   npc[id]    [name, subname, minLevel, maxLevel, rank]     nfac[id] "A" | "H" | "AH"
   obj[id]    [name]           quest[id] [name, level, minLevel]   qg[quest] ["c123", "o45"]
@@ -16,6 +17,7 @@ import json
 
 LEARN_TRIGGER = 6
 RECIPE_ITEM_CLASS = 9
+MIN_OBSERVED_DROPS = 5  # a rate worked out from fewer observed drops is baked as unknown
 
 
 class ForeverDB:
@@ -23,6 +25,7 @@ class ForeverDB:
         self.d = data
         self.meta = data.get("meta", {})
         self._spell_items = None
+        self.small_samples = set()  # (item, npc) pairs whose rate drops() set aside
 
     @classmethod
     def load(cls, path):
@@ -63,14 +66,29 @@ class ForeverDB:
         return [int(n) for n in self._get("vend", item_id) or []]
 
     def drops(self, item_id):
-        """[(npc, chance%|None)], excluding NPCs that also sell the item (merge artifact)."""
+        """[(npc, chance%|None)], excluding NPCs that also sell the item (merge artifact).
+
+        A rate worked out from fewer than MIN_OBSERVED_DROPS observed drops is returned as
+        None (unknown), so a lucky few kills can't outrank a measured rate.
+        """
         sellers = set(self.vendors(item_id))
         out = []
         for npc, chance in self._get("drop", item_id) or []:
             if int(npc) in sellers:
                 continue
+            if chance and self._small_sample(item_id, npc, chance):
+                self.small_samples.add((int(item_id), int(npc)))
+                chance = None
             out.append((int(npc), chance / 100.0 if chance else None))
         return out
+
+    def _small_sample(self, item_id, npc, chance):
+        """True if the rate came from the observed count (to 0.01%) and that count is too small."""
+        count = self.d.get("seen", {}).get("c%d" % int(npc), {}).get(str(item_id))
+        if not count or not count[1]:
+            return False
+        dropped, kills = count[0], count[1]
+        return abs(chance - 10000.0 * dropped / kills) <= 1 and dropped < MIN_OBSERVED_DROPS
 
     def object_drops(self, item_id):
         return [(int(o), c / 100.0 if c else None) for o, c in self._get("odrop", item_id) or []]

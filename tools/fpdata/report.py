@@ -1,6 +1,7 @@
 """Coverage report (tools/REPORT.md) for each build."""
 from collections import Counter
 
+from .foreverdb import MIN_OBSERVED_DROPS
 from .merge import PROFESSIONS
 
 
@@ -60,6 +61,8 @@ def build_report(catalog, meta, fdb, list_limit=60):
     lines.append("NPCs: %d (%d on a map, %d more with only an instance). Objects: %d. Quests: %d." % (
         len(npcs), sum(1 for n in npcs if has_pos(n)), sum(1 for n in npcs if located(n) and not has_pos(n)),
         len(catalog["objects"]), len(catalog["quests"])))
+    lines.append("Drop rates set aside for a small sample (fewer than %d drops seen): %d." % (
+        MIN_OBSERVED_DROPS, len(fdb.small_samples)))
 
     def recipe_label(r):
         item = r["teach"][0] if r["teach"] else r["creates"]

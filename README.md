@@ -51,4 +51,4 @@ python -m unittest discover tools/tests
 
 ## License
 
-GNU General Public License v3.0 or later (see `LICENSE`). The data includes material from ForeverDB (GPL-3.0), WhatsTraining (MIT) and AllTheThings (MIT); see `tools/README.md`.
+GNU General Public License v3.0 or later (see `LICENSE`). The data includes material from ForeverDB (GPL-3.0, including Drop Tables loot counts under CC BY-SA 4.0), WhatsTraining (MIT) and AllTheThings (MIT); see `tools/README.md`.

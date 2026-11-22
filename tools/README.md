@@ -28,7 +28,7 @@ Use `--whatstraining "<AddOns>\WhatsTraining\Crafting\Recipes\Camelot"` to build
 | Source | What we take | Licence | Pin |
 |---|---|---|---|
 | [WhatsTraining](https://github.com/fusionpit/WhatsTraining) `Crafting/Recipes/Camelot` | Recipe list, learn skill, source types, trainer cost, vendor NPCs, quests, reputation and Merchant's Favor gates, bound flag, faction side | MIT | commit |
-| [ForeverDB](https://github.com/foreverfraddons/forever-db) `forever.json.gz` | Drop NPCs and rates, object and container drops, vendors, quest rewards, recipe item ↔ spell, NPC / object / quest names, factions, map positions, localized names | GPL-3.0 | `meta.hash` (only the rolling `latest` release carries the file) |
+| [ForeverDB](https://github.com/foreverfraddons/forever-db) `forever.json.gz` | Drop NPCs and rates, object and container drops, vendors, quest rewards, recipe item ↔ spell, NPC / object / quest names, factions, map positions, localized names | GPL-3.0; its loot counts include Drop Tables (valcheffnet/DropTables), data CC BY-SA 4.0 | `meta.hash` (only the rolling `latest` release carries the file) |
 | [AllTheThings](https://github.com/ATTWoWAddon/AllTheThings) `.contrib/.db/forever/.config/.wago/SkillLineAbility` | Skill thresholds (yellow / grey), category ID, auto-learned flag | MIT; Blizzard game data | commit + client build |
 | [wago.tools](https://wago.tools) `TradeSkillCategory` | Category names and tree | Blizzard game data | client build. Optional: if it can't be fetched, the build keeps category IDs and the addon caches names in game |
 
@@ -42,7 +42,7 @@ Open question on ForeverDB's provenance: it doesn't scrape Wowhead itself, but i
 - **Thresholds:** orange = WhatsTraining's learn skill; yellow = `TrivialSkillLineRankLow`; grey = `TrivialSkillLineRankHigh`; green = their midpoint.
 - **Recipe item:** WhatsTraining's `teach`, plus any recipe item ForeverDB's ItemEffect says teaches the spell.
 - **Vendors:** union of WhatsTraining and ForeverDB. An NPC that sells the item is never also listed as a drop (ForeverDB sometimes lists vendors as 0% drops).
-- **Drops, objects, containers:** ForeverDB. The 12 best rates are kept, plus a total. Rate `nil` means unknown; that's every new Forever drop so far.
+- **Drops, objects, containers:** ForeverDB. The 12 best rates are kept, plus a total. Rate `nil` means unknown, which is still true of most new Forever drops. A creature drop rate that ForeverDB worked out from fewer than 5 observed drops (its `seen` counts) is baked as unknown, so it can't outrank measured rates; the NPC stays listed.
 - **Quests:** union of WhatsTraining and ForeverDB, with quest givers from ForeverDB.
 - **Source types (`src`):** `auto` (learned with the profession: AcquireMethod 1), `trainer`, `vendor`, `quest`, `drop`, `object`, `container`, `crafted`, `worldObject`.
 - **`unverified`:** WhatsTraining claims a source type but no NPC or quest is known. The type is kept so the UI can say "Vendor (unknown)".

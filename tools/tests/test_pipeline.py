@@ -151,6 +151,33 @@ class MergeTests(unittest.TestCase):
         self.assertEqual(r["unverified"], [])
 
 
+def sample_fdb():
+    return ForeverDB({
+        "drop": {"500": [[1, 909], [2, 579], [3, 388], [4, 120], [5, 1000], [6, 1000], [7, 0], [8, 300]]},
+        "seen": {"c1": {"500": [1, 11]},   # rate came from 1 of 11 -> set aside
+                 "c2": {"500": [7, 121]},  # 5.785% stored as 579, 7 drops -> kept
+                 "c3": {"500": [1, 11]},   # 3.88% came from another source -> kept
+                 "c5": {"500": [4, 40]},   # 4 drops -> set aside
+                 "c6": {"500": [5, 50]},   # 5 drops -> kept
+                 "c7": {"500": [1, 5]},    # already unknown, not counted
+                 "c8": {"500": [0, 0]}},   # no kills: no usable count
+    })
+
+
+class SmallSampleTests(unittest.TestCase):
+    def test_small_sample_rates(self):
+        fdb = sample_fdb()
+        self.assertEqual(fdb.drops(500), [(1, None), (2, 5.79), (3, 3.88), (4, 1.2),
+                                          (5, None), (6, 10.0), (7, None), (8, 3.0)])
+        self.assertEqual(fdb.small_samples, {(500, 1), (500, 5)})
+
+    def test_small_samples_recorded_once(self):
+        fdb = sample_fdb()
+        fdb.drops(500)
+        fdb.drops(500)
+        self.assertEqual(len(fdb.small_samples), 2)
+
+
 class CategoryTests(unittest.TestCase):
     def test_tree_from_wago_csv(self):
         d = tempfile.mkdtemp()
