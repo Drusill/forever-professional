@@ -20,6 +20,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 | `ForeverProfessional/NOTICES.txt` | Third-party licence notices for the baked data (the MIT texts must ship) |
 | `.pkgmeta`, `.github/`, `CHANGELOG.md` | Release packaging and CI: see **Releasing** |
 | `docs/logo/` | CurseForge avatar (SVG source, 400px PNG) |
+| `docs/ideas.md` | Ideas and decisions not built yet: check it before planning a feature |
 
 ## Rules
 
