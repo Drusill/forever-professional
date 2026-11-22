@@ -37,12 +37,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.check.outputs.tag }}
+        # Only "release not found" means not uploaded; any other gh error stops the run.
         run: |
-          if gh release view "$TAG" > /dev/null 2>&1; then
+          if out=$(gh release view "$TAG" 2>&1); then
             echo "release=false" >> "$GITHUB_OUTPUT"
             echo "$TAG already has a GitHub release, so it was uploaded. Nothing to release." >> "$GITHUB_STEP_SUMMARY"
-          else
+          elif grep -q "release not found" <<< "$out"; then
             echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$out" >&2
+            exit 1
           fi
 
       - name: Nothing to release
@@ -66,15 +70,21 @@ jobs:
 
       - name: Package and upload
         if: steps.go.outputs.release == 'true'
-        uses: BigWigsMods/packager@v2
-        with:
-          args: '-n "{package-name}-{project-version}:{package-name} {project-version}"'
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/package.sh
 
-      - name: Summary
+      # The packager uploads to CurseForge, then makes the GitHub release, so a missing release
+      # means something was skipped: fail instead of reporting success.
+      - name: Check the upload
         if: steps.go.outputs.release == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.check.outputs.tag }}
-        run: echo "Released $TAG to CurseForge and as a GitHub release." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if ! gh release view "$TAG" > /dev/null; then
+            echo "::error::The packager finished but $TAG has no GitHub release. Check the packager log above."
+            exit 1
+          fi
+          echo "Released $TAG to CurseForge and as a GitHub release." >> "$GITHUB_STEP_SUMMARY"

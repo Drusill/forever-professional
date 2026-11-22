@@ -46,15 +46,15 @@ If `python` isn't on the PATH, prefix with `mise exec --`. The addon tests read 
 
 ## Releasing
 
-Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the TOC). Releases come from `main`: merging a pull request from `develop` into `main` runs `.github/workflows/release.yml`. The version is the first `## ForeverProfessional X.Y.Z` heading in `CHANGELOG.md`. If tag `vX.Y.Z` already exists, nothing is released. Otherwise the run tests, tags the merge commit and runs the [BigWigs packager](https://github.com/BigWigsMods/packager), which builds the zip by the rules in `.pkgmeta` and uploads it to CurseForge and as a GitHub release. A version like `0.2.0-beta1` or `0.2.0-alpha1` uploads a beta or alpha file instead. A version that isn't above the newest tag fails the run. The decisions live in `.github/scripts/release_version.py`. Needs the repo secret `CF_API_TOKEN` (from https://authors.curseforge.com/#/settings/api-tokens).
+Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the TOC). Releases come from `main`: merging a pull request from `develop` into `main` runs `.github/workflows/release.yml`. The version is the first `## ForeverProfessional X.Y.Z` heading in `CHANGELOG.md`. If tag `vX.Y.Z` already exists, nothing is released. Otherwise the run tests, tags the merge commit and runs the [BigWigs packager](https://github.com/BigWigsMods/packager), which builds the zip by the rules in `.pkgmeta` and uploads it to CurseForge and as a GitHub release. A version like `0.2.0-beta1` or `0.2.0-alpha1` uploads a beta or alpha file instead. A version that isn't above the newest tag fails the run. The decisions live in `.github/scripts/release_version.py`; `.github/scripts/package.sh` runs the packager, and `test.yml` runs it without uploading on every pull request. Needs the repo secret `CF_API_TOKEN` (from https://authors.curseforge.com/#/settings/api-tokens).
 
 `.github/workflows/test.yml` runs every test suite on pull requests into `main` and `develop` and on pushes to `develop`. On a pull request into `main`, its run summary says whether merging releases ("Merging releases 0.2.0" or "Merging won't release").
 
 1. On `develop`, rewrite `CHANGELOG.md` with the new version heading and this release's notes only, for players: it becomes the CurseForge changelog, and CurseForge rejects files without one.
 2. When the client's interface number changes, update `## Interface` (and the client facts below).
 3. When the user asks, push `develop` and open a pull request into `main`; check its summary says "Merging releases" with the right version.
-4. Merge with **Create a merge commit**, never squash or rebase, so tags sit on both branches' history.
-5. If the upload fails, use **Re-run failed jobs**: the tag step accepts its own tag. A run whose version already has a GitHub release uploads nothing.
+4. Merge with **Create a merge commit**, never squash or rebase: a merge commit keeps `develop`'s commits in `main`'s history, so the next pull request shows only new changes.
+5. If the run fails, use **Re-run failed jobs**: the tag step accepts its own tag, and a version that already has a GitHub release uploads nothing. The packager uploads to CurseForge first: if its log shows the CurseForge upload succeeded and only the GitHub release failed, don't re-run (that would upload the version again); create the GitHub release for the tag by hand.
 
 A merge with no version change (docs, CI) releases nothing. Once the repo is public, add a ruleset on `main` that requires a pull request and the `test` check.
 

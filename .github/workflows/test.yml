@@ -29,6 +29,14 @@ jobs:
           python -m unittest discover tools/tests
           python -m unittest discover .github/scripts
 
+      # Builds the zip without uploading. The local tag on HEAD checks that packaging doesn't
+      # skip a tagged HEAD, as release.yml needs (on pushes to develop this is the push case).
+      - name: Package (dry run, no upload)
+        run: |
+          git tag ci-dry-run
+          bash .github/scripts/package.sh -d
+          test -s .release/ForeverProfessional-ci-dry-run.zip
+
       - name: Check the CHANGELOG version
         id: preview
         if: github.event_name == 'pull_request' && github.base_ref == 'main'
