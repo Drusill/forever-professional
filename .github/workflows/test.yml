@@ -1,0 +1,48 @@
+# Runs every test suite on pull requests and on pushes to develop. On a pull request into
+# main, the run summary also says whether merging it releases. See AGENTS.md "Releasing".
+name: Test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test
+        run: |
+          pip install -r requirements-dev.txt
+          python -m unittest discover tests
+          python -m unittest discover tools/tests
+          python -m unittest discover .github/scripts
+
+      - name: Check the CHANGELOG version
+        id: preview
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: python .github/scripts/release_version.py check >> "$GITHUB_OUTPUT"
+
+      - name: Release preview
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          VERSION: ${{ steps.preview.outputs.version }}
+          TAG: ${{ steps.preview.outputs.tag }}
+          RELEASE: ${{ steps.preview.outputs.release }}
+        run: |
+          if [ "$RELEASE" = true ]; then
+            echo "Merging releases $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Merging won't release: $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -18,7 +18,7 @@ Instructions for coding agents working in this repo. Read this first, then `READ
 | `tools/overrides.json` | Hand-verified data fixes, applied last by the pipeline |
 | `tools/REPORT.md` | Generated coverage report and list of data gaps |
 | `ForeverProfessional/NOTICES.txt` | Third-party licence notices for the baked data (the MIT texts must ship) |
-| `.pkgmeta`, `.github/workflows/release.yml`, `CHANGELOG.md` | Release packaging: see **Releasing** |
+| `.pkgmeta`, `.github/`, `CHANGELOG.md` | Release packaging and CI: see **Releasing** |
 | `docs/logo/` | CurseForge avatar (SVG source, 400px PNG) |
 
 ## Rules
@@ -39,17 +39,24 @@ python tools/build_data.py            # fetch pinned sources if missing, then bu
 python tools/build_data.py update     # move the pins to the newest upstream data, then build
 python -m unittest discover tools/tests
 python -m unittest discover tests     # addon tests; need `pip install -r requirements-dev.txt` (lupa)
+python -m unittest discover .github/scripts    # release script tests
 ```
 
 If `python` isn't on the PATH, prefix with `mise exec --`. The addon tests read the TOC, so a new Lua file must be listed there (with the camelot suffix) before its tests can see it.
 
 ## Releasing
 
-Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the TOC). Pushing a `v*` tag runs `.github/workflows/release.yml`: the tests, then the [BigWigs packager](https://github.com/BigWigsMods/packager), which builds the zip by the rules in `.pkgmeta` and uploads it to CurseForge and as a GitHub release. A tag containing `beta` or `alpha` uploads that file type instead of a release. Needs the repo secret `CF_API_TOKEN` (from https://authors.curseforge.com/#/settings/api-tokens).
+Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the TOC). Releases come from `main`: merging a pull request from `develop` into `main` runs `.github/workflows/release.yml`. The version is the first `## ForeverProfessional X.Y.Z` heading in `CHANGELOG.md`. If tag `vX.Y.Z` already exists, nothing is released. Otherwise the run tests, tags the merge commit and runs the [BigWigs packager](https://github.com/BigWigsMods/packager), which builds the zip by the rules in `.pkgmeta` and uploads it to CurseForge and as a GitHub release. A version like `0.2.0-beta1` or `0.2.0-alpha1` uploads a beta or alpha file instead. A version that isn't above the newest tag fails the run. The decisions live in `.github/scripts/release_version.py`. Needs the repo secret `CF_API_TOKEN` (from https://authors.curseforge.com/#/settings/api-tokens).
 
-1. Rewrite `CHANGELOG.md` with this release's notes only, for players: it becomes the CurseForge changelog, and CurseForge rejects files without one.
+`.github/workflows/test.yml` runs every test suite on pull requests into `main` and `develop` and on pushes to `develop`. On a pull request into `main`, its run summary says whether merging releases ("Merging releases 0.2.0" or "Merging won't release").
+
+1. On `develop`, rewrite `CHANGELOG.md` with the new version heading and this release's notes only, for players: it becomes the CurseForge changelog, and CurseForge rejects files without one.
 2. When the client's interface number changes, update `## Interface` (and the client facts below).
-3. Tag and push only when the user asks: `git tag v0.2.0 && git push origin v0.2.0`.
+3. When the user asks, push `develop` and open a pull request into `main`; check its summary says "Merging releases" with the right version.
+4. Merge with **Create a merge commit**, never squash or rebase, so tags sit on both branches' history.
+5. If the upload fails, use **Re-run failed jobs**: the tag step accepts its own tag. A run whose version already has a GitHub release uploads nothing.
+
+A merge with no version change (docs, CI) releases nothing. Once the repo is public, add a ruleset on `main` that requires a pull request and the `test` check.
 
 The packager replaces `@project-version@` in the TOC with the tag, so a linked dev copy shows the raw token in game; that's expected. The zip holds `ForeverProfessional/` (addon files, `NOTICES.txt`, and `LICENSE` from the repo root); everything else is in `.pkgmeta`'s `ignore`. A new top-level file or folder must be added there, or it ships.
 

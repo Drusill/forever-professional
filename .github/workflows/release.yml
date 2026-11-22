@@ -1,35 +1,80 @@
-# Pushing a tag like v0.1.0 runs the tests, then packages the addon and uploads it to
-# CurseForge (and as a GitHub release). A tag containing "beta" or "alpha" uploads a beta
-# or alpha file instead of a release. Packaging rules: .pkgmeta.
+# Merging into main releases the version named by the first "## ForeverProfessional X.Y.Z"
+# heading in CHANGELOG.md, unless tag vX.Y.Z already exists: tests, tag on the merge commit,
+# then the BigWigs packager uploads to CurseForge and GitHub. See AGENTS.md "Releasing".
 name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements-dev.txt
-      - run: python -m unittest discover tests
-      - run: python -m unittest discover tools/tests
-
   release:
-    needs: test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-      GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: BigWigsMods/packager@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the CHANGELOG version
+        id: check
+        run: python .github/scripts/release_version.py check --head "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this version was already uploaded
+        id: go
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already has a GitHub release, so it was uploaded. Nothing to release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Nothing to release
+        if: steps.check.outputs.release != 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: echo "Nothing to release: CHANGELOG.md says $VERSION and $TAG already exists." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test
+        if: steps.go.outputs.release == 'true'
+        run: |
+          pip install -r requirements-dev.txt
+          python -m unittest discover tests
+          python -m unittest discover tools/tests
+          python -m unittest discover .github/scripts
+
+      - name: Tag the merge commit
+        if: steps.go.outputs.release == 'true'
+        run: python .github/scripts/release_version.py tag --head "$GITHUB_SHA"
+
+      - name: Package and upload
+        if: steps.go.outputs.release == 'true'
+        uses: BigWigsMods/packager@v2
+        with:
+          args: '-n "{package-name}-{project-version}:{package-name} {project-version}"'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: steps.go.outputs.release == 'true'
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
+        run: echo "Released $TAG to CurseForge and as a GitHub release." >> "$GITHUB_STEP_SUMMARY"
