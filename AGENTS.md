@@ -56,14 +56,14 @@ Published on CurseForge as project **1822577** (`## X-Curse-Project-ID` in the T
 4. Merge with **Create a merge commit**, never squash or rebase: a merge commit keeps `develop`'s commits in `main`'s history, so the next pull request shows only new changes.
 5. If the run fails, use **Re-run failed jobs**: the tag step accepts its own tag, and a version that already has a GitHub release uploads nothing. The packager uploads to CurseForge first: if its log shows the CurseForge upload succeeded and only the GitHub release failed, don't re-run (that would upload the version again); create the GitHub release for the tag by hand.
 
-A merge with no version change (docs, CI) releases nothing. Once the repo is public, add a ruleset on `main` that requires a pull request and the `test` check.
+A merge with no version change (docs, CI) releases nothing. A ruleset on `main` enforces this: changes arrive only through a pull request that passes the `test` check, merged with a merge commit; force pushes and deleting `main` are blocked. It doesn't require the branch to be up to date, since `develop` never contains `main`'s merge commits.
 
 The packager replaces `@project-version@` in the TOC with the tag, so a linked dev copy shows the raw token in game; that's expected. The zip holds `ForeverProfessional/` (addon files, `NOTICES.txt`, and `LICENSE` from the repo root); everything else is in `.pkgmeta`'s `ignore`. A new top-level file or folder must be added there, or it ships.
 
 In-game testing: link the addon folder into the game once:
 
 ```
-mklink /J "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverProfessional" "C:\Users\cabez\Projectos\forever-professional\ForeverProfessional"
+mklink /J "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverProfessional" "<repo>\ForeverProfessional"
 ```
 
 TOC changes need a full client restart; `/reload` doesn't pick them up. Errors come back from the user via BugGrabber/BugSack.
