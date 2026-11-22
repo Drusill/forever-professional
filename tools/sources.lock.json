@@ -22,9 +22,9 @@
   "allthethings": {
     "repo": "ATTWoWAddon/AllTheThings",
     "licence": "MIT (client tables: Blizzard Entertainment's game data)",
-    "ref": "6276795630de0e3a10d618fe49532a1642ac5fd4",
+    "ref": "5db93e927f35604f68b8a298125457189f871c53",
     "path": ".contrib/.db/forever/.config/.wago",
-    "build": "1.60.1.70959",
+    "build": "1.60.1.71037",
     "tables": [
       "SkillLineAbility"
     ]
@@ -33,12 +33,12 @@
     "repo": "foreverfraddons/forever-db",
     "licence": "GPL-3.0",
     "asset": "forever.json.gz",
-    "hash": "6a438cfc00b3980c",
-    "build": "2026-11-20"
+    "hash": "1ad079482d0b3599",
+    "build": "2026-11-21"
   },
   "wago": {
     "licence": "Blizzard Entertainment's game data",
-    "build": "1.60.1.70959",
+    "build": "1.60.1.71037",
     "tables": [
       "TradeSkillCategory"
     ]

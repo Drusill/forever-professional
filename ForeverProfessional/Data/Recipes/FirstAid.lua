@@ -1,4 +1,4 @@
--- GENERATED FILE, DO NOT EDIT. Built by tools/build_data.py (ForeverDB 2026-11-20, client 1.60.1.70959).
+-- GENERATED FILE, DO NOT EDIT. Built by tools/build_data.py (ForeverDB 2026-11-21, client 1.60.1.71037).
 -- Data: WhatsTraining (MIT), ForeverDB (GPL-3.0), AllTheThings (MIT), Blizzard client tables.
 -- Part of ForeverProfessional, licensed under the GNU GPL v3 or later.
 local _, ns = ...
@@ -17,7 +17,7 @@ ns.Data.Recipes[129] = {
     [1244433] = { learn = 110, yellow = 135, green = 155, grey = 175, cat = 2531, creates = 929, src = { "trainer" }, trainer = 800, new = true },
     [3278] = { learn = 115, yellow = 115, green = 150, grey = 185, cat = 2530, creates = 3531, src = { "trainer" }, trainer = 1000 },
     [1259347] = { learn = 120, yellow = 120, green = 155, grey = 190, cat = 2533, creates = 255720, src = { "trainer" }, trainer = 1200, new = true },
-    [7935] = { learn = 130, yellow = 130, green = 165, grey = 200, cat = 2533, creates = 6453, count = 3, teach = 6454, bound = false, src = { "drop", "object", "container" }, drops = { { 1160, 0.8 }, { 6209, 0.32 }, { 14357, 0.1 }, { 4821, 0.08 }, { 7053, 0.08 }, { 11683, 0.08 }, { 1716, 0.06 }, { 3833, 0.06 }, { 4437, 0.06 }, { 4440, 0.06 }, { 4512, 0.06 }, { 8518, 0.06 } }, dropTotal = 421, objects = { { 2849, 0.5 }, { 2850, 0.5 }, { 2851, 0.5 }, { 2852, 0.5 }, { 2853, 0.5 }, { 2854, 0.5 }, { 2855, 0.5 }, { 3714, 0.5 }, { 3715, 0.5 }, { 4095, 0.5 }, { 4096, 0.5 }, { 74447, 0.5 } }, objectTotal = 28, containers = { { 4633, 0.61 } } },
+    [7935] = { learn = 130, yellow = 130, green = 165, grey = 200, cat = 2533, creates = 6453, count = 3, teach = 6454, bound = false, src = { "drop", "object", "container" }, drops = { { 2261, 1.32 }, { 1160, 0.8 }, { 6209, 0.32 }, { 14357, 0.1 }, { 4821, 0.08 }, { 7053, 0.08 }, { 11683, 0.08 }, { 1716, 0.06 }, { 3833, 0.06 }, { 4437, 0.06 }, { 4440, 0.06 }, { 4512, 0.06 } }, dropTotal = 421, objects = { { 2849, 0.5 }, { 2850, 0.5 }, { 2851, 0.5 }, { 2852, 0.5 }, { 2853, 0.5 }, { 2854, 0.5 }, { 2855, 0.5 }, { 3714, 0.5 }, { 3715, 0.5 }, { 4095, 0.5 }, { 4096, 0.5 }, { 74447, 0.5 } }, objectTotal = 28, containers = { { 4633, 0.61 } } },
     [1259343] = { learn = 140, yellow = 160, green = 190, grey = 220, cat = 2533, creates = 255717, count = 3, teach = 255724, bound = false, src = { "drop" }, drops = { { 910 } }, new = true },
     [1262996] = { learn = 140, yellow = 140, green = 140, grey = 140, cat = 2535, creates = 279940, teach = 273105, bound = false, src = { "drop" }, drops = { { 4278 } }, new = true },
     [7928] = { learn = 150, yellow = 150, green = 180, grey = 210, cat = 2530, creates = 6450, src = { "trainer" }, trainer = 5000 },

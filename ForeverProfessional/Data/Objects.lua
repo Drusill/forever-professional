@@ -1,4 +1,4 @@
--- GENERATED FILE, DO NOT EDIT. Built by tools/build_data.py (ForeverDB 2026-11-20, client 1.60.1.70959).
+-- GENERATED FILE, DO NOT EDIT. Built by tools/build_data.py (ForeverDB 2026-11-21, client 1.60.1.71037).
 -- Data: WhatsTraining (MIT), ForeverDB (GPL-3.0), AllTheThings (MIT), Blizzard client tables.
 -- Part of ForeverProfessional, licensed under the GNU GPL v3 or later.
 local _, ns = ...
@@ -81,5 +81,5 @@ ns.Data.Objects = {
     [300402] = { name = "Gordok Tribute" },
     [300403] = { name = "Gordok Tribute" },
     [506307] = { name = "Legashi Cauldron", map = 1447, x = 57.7, y = 21 },
-    [694054] = { name = "Recipe: Raw Plated Armorfish", map = 1430, x = 52.4, y = 34.5 },
+    [694054] = { name = "Recipe: Raw Plated Armorfish", map = 1430, x = 52.4, y = 34.4 },
 }

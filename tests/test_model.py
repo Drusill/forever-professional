@@ -176,7 +176,7 @@ class PrimarySourceTest(unittest.TestCase):
         self.assertEqual(self.ps(171, 1251753, "Alliance"), ("vendor", "Vendor · Algernon (Map 1421) · Horde", 2))
 
     def test_drop_counts_totals(self):
-        self.assertEqual(self.ps(171, 3230), ("drop", "Drop · Councilman Hartin (Map 1421)", 546 + 14))
+        self.assertEqual(self.ps(171, 3230), ("drop", "Drop · Councilman Hartin (Map 1421)", 547 + 14))
 
     def test_drop_in_dungeon(self):
         self.assertEqual(self.ps(185, 1262978), ("drop", "Drop · Cookie (Instance 36)", 0))
@@ -252,7 +252,7 @@ class SourceCardsTest(unittest.TestCase):
     def test_cards_drops_rates_more_and_objects(self):
         cards = self.cards(171, 3230)
         self.assertIn("0.5%", cards[0].detail)
-        self.assertIn(("more", "+535 more"), [(c.type, c.title) for c in cards])
+        self.assertIn(("more", "+536 more"), [(c.type, c.title) for c in cards])
         self.assertTrue(any(c.type == "object" for c in cards))
         self.assertEqual(lua_list(self.M.SourceCards(self.R[171][3230], "Horde").teach), [2553])
 

@@ -7,9 +7,9 @@
 | Source | Pin |
 |---|---|
 | WhatsTraining | fusionpit/WhatsTraining@0de3283e9242 |
-| AllTheThings client tables | ATTWoWAddon/AllTheThings@6276795630de (1.60.1.70959) |
-| ForeverDB | foreverfraddons/forever-db build 2026-11-20, hash 6a438cfc00b3980c |
-| wago.tools TradeSkillCategory | 1.60.1.70959 |
+| AllTheThings client tables | ATTWoWAddon/AllTheThings@5db93e927f35 (1.60.1.71037) |
+| ForeverDB | foreverfraddons/forever-db build 2026-11-21, hash 1ad079482d0b3599 |
+| wago.tools TradeSkillCategory | 1.60.1.71037 |
 
 ## Totals
 
@@ -17,17 +17,17 @@
 |---|---|---|---|---|
 | Alchemy | 179 | 72 | 8 | 1 |
 | Blacksmithing | 419 | 185 | 8 | 3 |
-| Cooking | 129 | 48 | 8 | 1 |
+| Cooking | 129 | 48 | 8 | 0 |
 | Enchanting | 227 | 75 | 12 | 1 |
-| Engineering | 251 | 86 | 33 | 4 |
+| Engineering | 251 | 86 | 32 | 4 |
 | First Aid | 30 | 17 | 3 | 0 |
 | Fishing | 3 | 3 | 0 | 0 |
 | Herbalism | 3 | 3 | 0 | 0 |
-| Leatherworking | 493 | 252 | 13 | 26 |
+| Leatherworking | 493 | 252 | 12 | 23 |
 | Mining | 17 | 5 | 2 | 0 |
 | Skinning | 3 | 3 | 0 | 0 |
-| Tailoring | 405 | 172 | 13 | 7 |
-| **All** | **2159** | **921** | **100** | **43** |
+| Tailoring | 405 | 172 | 11 | 7 |
+| **All** | **2159** | **921** | **96** | **39** |
 
 Profession rank spells (not recipes): 36.
 
@@ -39,14 +39,15 @@ Profession rank spells (not recipes): 36.
 | Category ID | 920 / 921 (100%) | 1238 / 1238 (100%) |
 | Recipe item known (`teach`) | 858 / 859 (100%) | 764 / 778 (98%) |
 | Vendor recipes: all vendors placed on a map | 434 / 436 (100%) | 271 / 313 (87%) |
-| Drop recipes: a drop NPC on a map or in a known instance | 297 / 331 (90%) | 398 / 407 (98%) |
-| Drop recipes: a drop rate is known | 0 / 331 (0%) | 391 / 407 (96%) |
+| Drop recipes: a drop NPC on a map or in a known instance | 329 / 363 (91%) | 402 / 411 (98%) |
+| Drop recipes: a drop rate is known | 3 / 363 (1%) | 392 / 411 (95%) |
 | Quest recipes: quest giver known | 42 / 42 (100%) | 87 / 93 (94%) |
 
 Categories: 159 categories with names (TradeSkillCategory).
-NPCs: 1972 (1477 on a map, 378 more with only an instance). Objects: 77. Quests: 190.
+NPCs: 1992 (1490 on a map, 384 more with only an instance). Objects: 77. Quests: 190.
+Drop rates set aside for a small sample (fewer than 5 drops seen): 59.
 
-## Claimed by WhatsTraining but no NPC / quest found (43)
+## Claimed by WhatsTraining but no NPC / quest found (39)
 
 Fill these in `tools/overrides.json`, or harvest them in game.
 
@@ -68,19 +69,15 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Leatherworking `3778` Pattern: Gem-studded Leather Belt: drop
 - Leatherworking `4096` Pattern: Raptor Hide Harness: drop
 - Leatherworking `4097` Pattern: Raptor Hide Belt: drop
-- Leatherworking `9070` Pattern: Black Whelp Cloak: drop
 - Leatherworking `9072` Pattern: Red Whelp Gloves: drop
 - Leatherworking `9146` Pattern: Herbalist's Gloves: drop
-- Leatherworking `10550` Pattern: Nightscape Cloak: drop
 - Leatherworking `19050` Pattern: Green Dragonscale Breastplate: drop
 - Leatherworking `19062` Pattern: Ironfeather Shoulders: drop
-- Leatherworking `19084` Pattern: Devilsaur Gauntlets: drop
 - Leatherworking `22711` Pattern: Shadowskin Gloves: drop
 - Leatherworking `22922` Pattern: Mongoose Boots: drop
 - Leatherworking `23399` Pattern: Barbaric Bracers: drop
 - Leatherworking `44953` Pattern: Winter Boots: vendor
 - Alchemy `17557` Recipe: Elixir of Brute Force: drop
-- Cooking `15906` Recipe: Dragonbreath Chili: drop
 - Tailoring `3862` Pattern: Icy Cloak: drop
 - Tailoring `12081` Pattern: Admiral's Hat: drop
 - Tailoring `21945` Pattern: Green Holiday Shirt: drop
@@ -94,7 +91,7 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `23079` Schematic: Major Recombobulator: drop
 - Enchanting `21931` Formula: Enchant Weapon - Winter's Might: drop
 
-## No known source (100)
+## No known source (96)
 
 - Blacksmithing `1252347` Plans: Champion's Legplates
 - Blacksmithing `1306533` Plans: Ironwood Blade
@@ -106,7 +103,6 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Blacksmithing `1306539` Plans: Azerothium Legplates
 - Leatherworking `1226689` Pattern: Scarlet Quiver
 - Leatherworking `1226690` Pattern: Scarlet Ammo Pouch
-- Leatherworking `1255015` Pattern: Dawn Armor
 - Leatherworking `1255020` Pattern: Tooled Leather Epaulets
 - Leatherworking `1306526` Pattern: Elderwild Waistcord
 - Leatherworking `1306527` Pattern: Outlaw's Collar
@@ -130,9 +126,7 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Cooking `1270632` ?
 - Tailoring `1227723` Pattern: Crusader's Knapsack
 - Tailoring `1227724` Pattern: Crimson Dawnwoven Bag
-- Tailoring `1257489` Pattern: Ghostweave Mantle
 - Tailoring `1257490` Pattern: Ghostweave Boots
-- Tailoring `1257493` Pattern: Ghostweave Hood
 - Tailoring `1306540` Pattern: Robes of Fiery Devastation
 - Tailoring `1306541` Pattern: Mana-infused Cord
 - Tailoring `1306542` Pattern: Rime-encrusted Boots
@@ -148,7 +142,6 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1226212` Schematic: Tinker: Magnetic Displacement
 - Engineering `1226213` Schematic: Semisafe Transporter: New Avalon
 - Engineering `1228088` Schematic: Pop-Up Shrub
-- Engineering `1266930` Schematic: EZ-Thro Dark Bomb
 - Engineering `1266939` Schematic: Gnomish Weather Machine
 - Engineering `1266941` Schematic: SAF-T Nitro Boosts
 - Engineering `1266942` Schematic: EZ-Thro Magnetic Displacer
@@ -156,10 +149,14 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1293849` Schematic: Swiftfeather Arrow
 - Engineering `1293850` Schematic: Swiftstrike Shot
 - Engineering `1306546` Schematic: SAF-T Ultra Precision Scope
-- ... and 40 more
+- Engineering `1306547` Schematic: Hyper Deluxe Sniper Rifle Mk XVII
+- Engineering `1308182` Schematic: Serrated Strap
+- Engineering `1319154` Schematic: Small Purple Rocket
+- Engineering `1319155` Schematic: Small White Rocket
+- ... and 36 more
 
-## In the client's SkillLineAbility with a recipe category, but not in WhatsTraining (381)
+## In the client's SkillLineAbility with a recipe category, but not in WhatsTraining (382)
 
 Usually ranks, removed or test spells. Review before adding any to overrides.
 
-Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Aid 2, Herbalism 1, Leatherworking 111, Skinning 1, Tailoring 73
+Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Aid 2, Herbalism 1, Leatherworking 112, Skinning 1, Tailoring 73
