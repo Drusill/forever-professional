@@ -139,5 +139,50 @@ class CheckCommandTest(unittest.TestCase):
         self.assertIn("error: version 0.0.9 is not above the newest tag v0.1.0", err)
 
 
+class TagCommandTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(tmp.cleanup)
+        work = Path(tmp.name) / "work"
+        remote = Path(tmp.name) / "remote.git"
+        work.mkdir()
+        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+        self.tmp = str(work)
+        self.repo = make_repo(work)
+        self.repo.git("remote", "add", "origin", str(remote))
+
+    def remote_tag(self, tag: str) -> str:
+        return self.repo.git("ls-remote", "--tags", "origin", tag)
+
+    def test_creates_and_pushes(self):
+        head = self.repo.commit("0.2.0")
+        code, out, _ = run_main("tag", "--repo", self.tmp, "--head", head)
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "tag=v0.2.0\n")
+        self.assertTrue(self.remote_tag("v0.2.0").startswith(head))
+
+    def test_retry_is_fine(self):
+        head = self.repo.commit("0.2.0")
+        self.assertEqual(run_main("tag", "--repo", self.tmp, "--head", head)[0], 0)
+        self.assertEqual(run_main("tag", "--repo", self.tmp, "--head", head)[0], 0)
+        self.assertTrue(self.remote_tag("v0.2.0").startswith(head))
+
+    def test_tag_on_other_commit_fails(self):
+        first = self.repo.commit("0.2.0")
+        self.repo.git("tag", "v0.2.0", first)
+        head = self.repo.commit("0.2.0")
+        code, _, err = run_main("tag", "--repo", self.tmp, "--head", head)
+        self.assertEqual(code, 1)
+        self.assertIn("error: tag v0.2.0 is on", err)
+        self.assertEqual(self.remote_tag("v0.2.0"), "")
+
+    def test_push_failure_shows_git_error(self):
+        head = self.repo.commit("0.2.0")
+        code, _, err = run_main("tag", "--repo", self.tmp, "--head", head, "--remote", "nowhere")
+        self.assertEqual(code, 1)
+        self.assertIn("error: git push -q nowhere refs/tags/v0.2.0 failed", err)
+        self.assertIn("fatal:", err)  # git's own message reaches the log
+
+
 if __name__ == "__main__":
     unittest.main()

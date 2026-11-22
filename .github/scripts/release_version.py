@@ -4,6 +4,7 @@ The version is the first "## ForeverProfessional <version>" heading: X.Y.Z, opti
 followed by -alpha<N> or -beta<N>. Used by .github/workflows/release.yml and test.yml.
 
     check [--head SHA]   print version=, tag= and release=true|false
+    tag --head SHA       put tag v<version> on SHA and push it (safe to run again)
 """
 
 import argparse
@@ -59,9 +60,9 @@ def decide(version: str, tags: list[str], tag_on_head: bool) -> bool:
 
 
 def git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    result = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise ReleaseError(f"git {' '.join(args)} failed:\n{result.stderr.strip()}")
     return result.stdout.strip()
 
 
@@ -83,19 +84,40 @@ def check(repo: Path, changelog: Path, head: str | None) -> None:
     print(f"release={'true' if release else 'false'}")
 
 
+def tag(repo: Path, changelog: Path, head: str, remote: str) -> None:
+    """Put v<version> on `head` and push it. A tag already on `head` is fine (a retry)."""
+    name = "v" + parse_version(changelog.read_text(encoding="utf-8"))
+    head_sha = git(repo, "rev-parse", head)
+    if git(repo, "tag", "--list", name):
+        tagged = tag_commit(repo, name)
+        if tagged != head_sha:
+            raise ReleaseError(f"tag {name} is on {tagged[:7]}, not on {head_sha[:7]}")
+    else:
+        git(repo, "tag", name, head_sha)
+    git(repo, "push", "-q", remote, f"refs/tags/{name}")
+    print(f"tag={name}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest="command", required=True)
     check_parser = commands.add_parser("check", help="should this commit release?")
-    check_parser.add_argument("--repo", type=Path, default=Path("."))
-    check_parser.add_argument("--changelog", type=Path)
     check_parser.add_argument(
         "--head", help="the commit being released; a tag already on it counts as a retry"
     )
+    tag_parser = commands.add_parser("tag", help="tag the commit and push the tag")
+    tag_parser.add_argument("--head", required=True, help="the commit to tag")
+    tag_parser.add_argument("--remote", default="origin")
+    for sub in (check_parser, tag_parser):
+        sub.add_argument("--repo", type=Path, default=Path("."))
+        sub.add_argument("--changelog", type=Path)
     args = parser.parse_args(argv)
     changelog = args.changelog or args.repo / "CHANGELOG.md"
     try:
-        check(args.repo, changelog, args.head)
+        if args.command == "check":
+            check(args.repo, changelog, args.head)
+        else:
+            tag(args.repo, changelog, args.head, args.remote)
     except ReleaseError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
