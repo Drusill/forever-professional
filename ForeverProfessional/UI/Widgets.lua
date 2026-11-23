@@ -216,6 +216,40 @@ function UI.CreateSegmented(parent, items, onSelect)
     return c
 end
 
+-- Toggle button: flat text button like a segment; gold while active ---------------------------------
+
+function UI.CreateToggleButton(parent, label, onClick)
+    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    FlatBackdrop(b, UI.COLORS.field, UI.COLORS.line2)
+    b:SetHeight(22)
+    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.label:SetPoint("CENTER")
+    b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    b:SetScript("OnClick", function(self) if onClick then onClick(self) end end)
+
+    function b:SetText(text)
+        self.label:SetText(text)
+        self:SetWidth(2 * SEGMENT_PAD + self.label:GetStringWidth())
+    end
+
+    function b:SetActive(v)
+        self.active = v and true or false
+        if self.active then
+            self:SetBackdropColor(Hex("3a2b10"))
+            self:SetBackdropBorderColor(Hex(UI.COLORS.bronze))
+            self.label:SetTextColor(Hex(UI.COLORS.gold))
+        else
+            self:SetBackdropColor(Hex(UI.COLORS.field))
+            self:SetBackdropBorderColor(Hex(UI.COLORS.line2))
+            self.label:SetTextColor(Hex(UI.COLORS.muted))
+        end
+    end
+
+    b:SetText(label or "")
+    b:SetActive(false)
+    return b
+end
+
 -- Icon button ----------------------------------------------------------------------------------------
 
 function UI.CreateIconButton(parent, texture, tooltip, onClick)

@@ -577,6 +577,7 @@ function UI.Create()
     if UI.frame then return UI.frame end
     if not ns.db then ns.InitDB() end
     UI.state.filter = ns.db.filter or "all"
+    UI.state.filters = ns.db.filters
 
     local f = CreateFrame("Frame", "ForeverProfessionalFrame", UIParent, "BackdropTemplate")
     UI.frame = f
@@ -733,6 +734,45 @@ function UI.SetFilter(key)
     UI.RefreshList(true)
 end
 
+-- Filter menu ---------------------------------------------------------------------------------
+-- The checked items live in ns.db.filters (UI.state.filters), one set for every profession and
+-- character. Status items only apply while the shown character has the profession.
+
+local function FilterContext()
+    local s = UI.state
+    local skill = s.line and ns.CharSkill(s.line, s.char)
+    return { skill = skill, faction = ns.CharFaction(s.char) }
+end
+
+-- Predicates for the filter menu's checked items, for the shown character and profession.
+function UI.MenuPredicates()
+    return ns.Model.FilterPredicates(UI.state.filters, FilterContext())
+end
+
+-- Checked items in effect for the shown character and profession.
+function UI.ActiveFilterCount()
+    return ns.Model.ActiveFilterCount(UI.state.filters, FilterContext().skill ~= nil)
+end
+
+local function FiltersChanged()
+    UI.RefreshFilterButtons()
+    if UI.RefreshFilterMenu then UI.RefreshFilterMenu() end
+    UI.RefreshList(true)
+end
+
+function UI.SetFilterOption(key, on)
+    if not UI.state.filters then return end
+    UI.state.filters[key] = on and true or nil
+    FiltersChanged()
+end
+
+-- Uncheck every filter menu item. The All / Learned / Missing choice stays.
+function UI.ClearFilters()
+    if not UI.state.filters then return end
+    wipe(UI.state.filters)
+    FiltersChanged()
+end
+
 function UI.SetSearch(text)
     if UI.searchBox then
         UI.searchBox:SetText(text or "")
@@ -785,7 +825,8 @@ function UI.RefreshFilterButtons()
     if not c then return end
     c:SetSelected(UI.state.filter)
     if UI.state.line then
-        local total, learned = ns.Model.FilterCounts(UI.state.line, function(id) return ns.IsLearned(id, UI.state.char) end)
+        local total, learned = ns.Model.FilterCounts(UI.state.line,
+            function(id) return ns.IsLearned(id, UI.state.char) end, UI.MenuPredicates())
         c:SetCount("all", total)
         c:SetCount("learned", learned)
         c:SetCount("missing", total - learned)

@@ -55,6 +55,22 @@ class WidgetsTest(unittest.TestCase):
         Addon.call(bar, "SetProgress", 0, 0)   # no error, empty
         self.assertLess(bar.clip.width, 1)
 
+    def test_toggle_button(self):
+        clicks = []
+        b = self.UI.CreateToggleButton(self.parent, "Filters", lambda btn: clicks.append(1))
+        self.assertEqual(b.label.text, "Filters")
+        self.assertFalse(b.active)
+        muted = lua_list(b.label.color)
+        Addon.call(b, "SetActive", True)
+        self.assertTrue(b.active)
+        self.assertEqual(lua_list(b.label.color), list(self.UI.HexColor(self.UI.COLORS.gold)))
+        Addon.call(b, "SetActive", False)
+        self.assertEqual(lua_list(b.label.color), muted)
+        Addon.call(b, "SetText", "Filters (2)")
+        self.assertEqual(b.width, 16 + 6 * len("Filters (2)"))
+        Addon.call(b, "Click")
+        self.assertEqual(clicks, [1])
+
     def test_segmented(self):
         picked, sel, count = self.a.run('''
             local picked

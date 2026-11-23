@@ -4,7 +4,7 @@ import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon, lua_list  # noqa: E402
+from harness import ALTS, Addon, lua_list  # noqa: E402
 
 LEARNED = "mock.learned = { [2329] = true, [3170] = true, [7183] = true }"
 
@@ -220,6 +220,109 @@ class MenuModelTest(unittest.TestCase):
             local four = { skillups = true, vendor = true, drop = true, new = true }
             return f(four, true), f(four, false), f({ bogus = true }, true), f({}, true), f(nil, true)""")
         self.assertEqual(count, (4, 3, 0, 0, 0))
+
+
+class WindowFilterTest(unittest.TestCase):
+    def setUp(self):
+        self.a = open_addon(FILTERS)
+        self.UI = self.a.ns.UI
+        self.L = self.a.ns.L
+        self.recs = dict(self.a.ns.Data.Recipes[171].items())
+
+    def ids(self):
+        return set(recipe_ids(self.UI.entries))
+
+    def vendor_ids(self):
+        return {i for i, r in self.recs.items() if "vendor" in source_keys(r)}
+
+    def segment_counts(self):
+        b = {x.key: x for x in lua_list(self.UI.filterButtons)}
+        return tuple(int(b[k].count.text) for k in ("all", "learned", "missing"))
+
+    def test_set_option_filters_list(self):
+        self.UI.SetFilterOption("skillups", True)
+        self.assertEqual(self.ids(), {3171, 6617})
+        self.assertTrue(self.a.g.ForeverProfessionalDB.filters.skillups)
+        self.UI.SetFilterOption("skillups", False)
+        self.assertEqual(self.ids(), set(self.recs))
+        self.assertIsNone(self.a.g.ForeverProfessionalDB.filters.skillups)
+
+    def test_saved_across_reload(self):
+        a = open_addon('ForeverProfessionalDB = { version = 2, filters = { vendor = true } }; ' + FILTERS)
+        self.assertEqual(set(recipe_ids(a.ns.UI.entries)), self.vendor_ids())
+
+    def test_unknown_saved_keys_ignored(self):
+        a = open_addon('ForeverProfessionalDB = { version = 2, filters = { bogus = true, vendor = true } }; '
+                       + FILTERS)
+        self.assertEqual(set(recipe_ids(a.ns.UI.entries)), self.vendor_ids())
+
+    def test_segmented_counts_follow_menu_not_search(self):
+        total = len(self.recs)
+        self.assertEqual(self.segment_counts(), (total, 3, total - 3))
+        self.UI.SetFilterOption("vendor", True)
+        vendors = len(self.vendor_ids())
+        self.assertEqual(self.segment_counts(), (vendors, 1, vendors - 1))
+        self.UI.SetSearch("Spell 6617")
+        self.assertEqual(self.segment_counts(), (vendors, 1, vendors - 1))
+        self.assertEqual(self.ids(), {6617})
+
+    def test_header_stat_unchanged(self):
+        self.UI.SetFilterOption("vendor", True)
+        self.assertEqual(self.UI.header.recipesText.text, f"3 / {len(self.recs)}")
+
+    def test_category_counts_follow_filters(self):
+        self.UI.SetFilterOption("vendor", True)
+        top = [e for e in lua_list(self.UI.entries) if e.kind == "header" and e.depth == 0]
+        self.assertEqual(sum(e.count for e in top), len(self.vendor_ids()))
+        self.assertEqual(self.UI.matchCount, len(self.vendor_ids()))
+
+    def test_status_ignored_without_profession(self):
+        self.UI.SetFilterOption("skillups", True)
+        self.UI.SelectProfession(185)   # Tester has no Cooking
+        self.assertEqual(self.ids(), set(self.a.ns.Data.Recipes[185].keys()))
+        self.assertTrue(self.a.g.ForeverProfessionalDB.filters.skillups)
+        self.UI.SelectProfession(171)
+        self.assertEqual(self.ids(), {3171, 6617})
+
+    def test_faction_rule_with_alts(self):
+        a = open_addon(ALTS + "; " + FILTERS)
+        UI = a.ns.UI
+        UI.SetFilterOption("learnable", True)
+        UI.SelectProfession(185)
+        UI.SetChar("Player-1-0000000D")   # Paly, Alliance, Cooking 30
+        self.assertIn(2795, recipe_ids(UI.entries))
+        UI.SetChar("Player-1-0000000C")   # Dru (Druid), Horde, Cooking 50
+        ids = recipe_ids(UI.entries)
+        self.assertTrue(ids)
+        self.assertNotIn(2795, ids)
+
+    def test_filters_keep_collapsed(self):
+        self.UI.ToggleCategory(2449)
+        self.UI.SetFilterOption("vendor", True)
+        header = next(e for e in lua_list(self.UI.entries) if e.kind == "header" and e.cat == 2449)
+        self.assertTrue(header.collapsed)
+
+    def test_empty_state_filtered(self):
+        self.UI.SetFilter("missing")
+        self.UI.SetFilterOption("skillups", True)
+        self.assertEqual(self.ids(), set())
+        empty = self.UI.list.empty
+        self.assertTrue(empty.shown)
+        self.assertEqual(empty.text, self.L.NO_RESULTS_FILTERED)
+        clear = self.UI.list.clearButton
+        self.assertTrue(clear.shown)
+        Addon.call(clear, "Click")
+        self.assertEqual(list(self.a.g.ForeverProfessionalDB.filters.keys()), [])
+        self.assertEqual(self.UI.state.filter, "missing")
+        self.assertEqual(len(self.ids()), len(self.recs) - 3)
+        self.assertFalse(empty.shown)
+        self.assertFalse(clear.shown)
+
+    def test_empty_state_plain(self):
+        self.UI.SetSearch("zzzz")
+        self.assertTrue(self.UI.list.empty.shown)
+        self.assertEqual(self.UI.list.empty.text, self.L.NO_RESULTS)
+        self.assertFalse(self.UI.list.clearButton.shown)
 
 
 if __name__ == "__main__":

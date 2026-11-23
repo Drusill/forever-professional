@@ -129,6 +129,9 @@ function UI.CreateList(parent)
     list.empty:SetPoint("TOP", 0, -30)
     list.empty:SetText(L.NO_RESULTS)
     list.empty:Hide()
+    list.clearButton = UI.CreateToggleButton(parent, L.CLEAR_FILTERS, function() UI.ClearFilters() end)
+    list.clearButton:SetPoint("TOP", list.empty, "BOTTOM", 0, -10)
+    list.clearButton:Hide()
     return list
 end
 
@@ -149,8 +152,11 @@ function UI.RefreshList(resetScroll)
     local s = UI.state
     if not (UI.list and s.line) then return end
     local tree = M.BuildTree(s.line)
+    local predicates = UI.MenuPredicates()
+    local learned = M.LearnedPredicate(s.filter)
+    if learned then table.insert(predicates, 1, learned) end
     UI.entries, UI.matchCount = M.Flatten(tree, {
-        predicates = { M.LearnedPredicate(s.filter) },
+        predicates = predicates,
         search = s.search,
         collapsed = ns.db.collapsed,
         isLearned = function(id) return ns.IsLearned(id, s.char) end,
@@ -170,7 +176,10 @@ function UI.RefreshList(resetScroll)
     if resetScroll or list.scroll:GetVerticalScroll() > maxScroll then
         list.scroll:SetVerticalScroll(resetScroll and 0 or maxScroll)
     end
-    list.empty:SetShown(#UI.entries == 0)
+    local empty, filtered = #UI.entries == 0, UI.ActiveFilterCount() > 0
+    list.empty:SetText(filtered and L.NO_RESULTS_FILTERED or L.NO_RESULTS)
+    list.empty:SetShown(empty)
+    list.clearButton:SetShown(empty and filtered)
     UI.RenderList()
 end
 

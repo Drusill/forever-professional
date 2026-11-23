@@ -45,6 +45,7 @@ local DEFAULTS = {
     collapsed = {},   -- [categoryID or "other"] = true
     chars = {},       -- [GUID] = character record (Characters.lua)
     filter = "all",
+    filters = {},     -- filter menu: [item key from Model.FILTER_GROUPS] = true
     minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
     minimapHidden = false,
 }
