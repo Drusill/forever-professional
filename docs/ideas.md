@@ -15,8 +15,9 @@ Tracked as GitHub issues, in priority order. Start at the pinned roadmap issue #
 3. #4 Tracked recipes and shopping list (needs #3)
 4. #5 Skill-up planner (needs #2, #3)
 5. #6 "Used in" reagent tooltip (shares reagent reading with #3)
-6. #7 In-game data harvest, vendors and drops (replaces the "harvest vendor data" idea)
+6. #7 In-game data harvest, vendors, drops and trainers (replaces the "harvest vendor data" idea)
 7. #12 Localization: UI strings, category and profession names (replaces the "translate the addon UI" idea; the spike read the full localized category tree in game for Blacksmithing, Tailoring, Cooking and Enchanting)
+8. #17 Trainer locations and waypoints (player feedback; #7 can later confirm its data)
 
 ## Open questions
 
