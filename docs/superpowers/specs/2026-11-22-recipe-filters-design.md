@@ -1,6 +1,6 @@
 # Recipe list filters: design
 
-Date: 2026-11-22. Issue: #2. Status: awaiting approval.
+Date: 2026-11-22. Issue: #2. Status: approved 2026-11-22.
 
 ## Intent
 
