@@ -64,11 +64,11 @@ function M.Difficulty(rec, skill, learned)
 
 **Files:** `tools/fpdata/report.py`, `tools/tests/test_pipeline.py`, `tools/REPORT.md` (regenerated)
 
-- [ ] **RED.** In `tools/tests/test_pipeline.py`, build a report over a catalog with one recipe `learn 245 / yellow 240` and one `learn 240 / yellow 240`; assert a section `## Learn level above the yellow threshold (1)` and a line with the first recipe's spell and `learn 245, yellow 240`, and no line for the second.
-- [ ] Run `mise exec -- python -m unittest discover tools/tests`: the new test fails.
-- [ ] **GREEN.** In `build_report`, after "No known source", add the section using `recipe_label`, sorted like the others (`not new`, skill line, spell) and capped at `list_limit`, with the line "Learned recipes ignore the learn level in game; check the recipe item's tooltip and fix confirmed values in `tools/overrides.json`."
-- [ ] Run `python tools/build_data.py` (pinned sources, no `update`): `ForeverProfessional/Data/` has no diff, `tools/REPORT.md` gains the section with 30 entries.
-- [ ] Commit: `feat(tools): report learn levels above the yellow threshold`.
+- [x] **RED.** In `tools/tests/test_pipeline.py`, build a report over a catalog with one recipe `learn 245 / yellow 240` and one `learn 240 / yellow 240`; assert a section `## Learn level above the yellow threshold (1)` and a line with the first recipe's spell and `learn 245, yellow 240`, and no line for the second.
+- [x] Run `mise exec -- python -m unittest discover tools/tests`: the new test fails.
+- [x] **GREEN.** In `build_report`, after "No known source", add the section using `recipe_label`, sorted like the others (`not new`, skill line, spell) and capped at `list_limit`, with the line "Learned recipes ignore the learn level in game; check the recipe item's tooltip and fix confirmed values in `tools/overrides.json`."
+- [x] Run `python tools/build_data.py` (pinned sources, no `update`): `ForeverProfessional/Data/` has no diff, `tools/REPORT.md` gains the section with 30 entries.
+- [x] Commit: `feat(tools): report learn levels above the yellow threshold`.
 
 ## Task 3: fix confirmed learn levels (needs the in-game check)
 

@@ -155,6 +155,41 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1319155` Schematic: Small White Rocket
 - ... and 36 more
 
+## Learn level above the yellow threshold (30)
+
+The learn level is probably stale. Check "Requires <Profession> (N)" on the recipe item's tooltip in game and fix confirmed values in `tools/overrides.json`.
+
+- Leatherworking `1255000` Pattern: Mender's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255001` Pattern: Skirmisher's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255002` Pattern: Skycaller's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255003` Pattern: Stalker's Mail Bracers: learn 225, yellow 220
+- Cooking `1229737` Basic Campfire Kit: learn 20, yellow 1
+- Tailoring `1257426` Pattern: Gilded Slippers: learn 150, yellow 145
+- Tailoring `1257427` Pattern: Frothing Slippers: learn 150, yellow 145
+- Tailoring `1257428` Pattern: Fiery Slippers: learn 150, yellow 145
+- Tailoring `1257429` Pattern: Black Slippers: learn 150, yellow 145
+- Tailoring `1257430` Pattern: Golden Slippers: learn 150, yellow 145
+- Tailoring `1257431` Pattern: Radiant Slippers: learn 150, yellow 145
+- Blacksmithing `9957` Plans: Orcish War Leggings: learn 230, yellow 225
+- Blacksmithing `9972` Plans: Ornate Mithril Breastplate: learn 240, yellow 235
+- Blacksmithing `9979` Plans: Ornate Mithril Boots: learn 245, yellow 240
+- Blacksmithing `9980` Plans: Ornate Mithril Helm: learn 245, yellow 240
+- Blacksmithing `16991` Plans: Annihilator: learn 300, yellow 295
+- Blacksmithing `22757` Plans: Elemental Sharpening Stone: learn 300, yellow 275
+- Blacksmithing `23650` Plans: Ebon Hand: learn 300, yellow 295
+- Blacksmithing `23652` Plans: Blackguard: learn 300, yellow 295
+- Blacksmithing `23653` Plans: Nightfall: learn 300, yellow 295
+- Leatherworking `10619` Dragonscale Gauntlets: learn 225, yellow 220
+- Leatherworking `10630` Gauntlets of the Sea: learn 230, yellow 225
+- Leatherworking `10632` Helm of Fire: learn 250, yellow 245
+- Leatherworking `10650` Dragonscale Breastplate: learn 255, yellow 250
+- Leatherworking `19048` Pattern: Heavy Scorpid Bracers: learn 255, yellow 250
+- Leatherworking `24655` Green Dragonscale Gauntlets: learn 280, yellow 275
+- Mining `3304` Tin Bar: learn 65, yellow 50
+- Tailoring `19435` Mooncloth Boots: learn 290, yellow 285
+- Tailoring `26086` Pattern: Felcloth Bag: learn 285, yellow 260
+- Engineering `9273` Schematic: Goblin Jumper Cables: learn 165, yellow 160
+
 ## In the client's SkillLineAbility with a recipe category, but not in WhatsTraining (382)
 
 Usually ranks, removed or test spells. Review before adding any to overrides.
