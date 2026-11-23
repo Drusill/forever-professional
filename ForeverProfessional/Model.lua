@@ -312,7 +312,7 @@ local SKILLUP_COLORS = { orange = true, yellow = true, green = true }
 
 -- One test per menu item: fn(rec, learned, ctx) -> bool.
 local ITEM_TESTS = {
-    skillups = function(rec, learned, ctx) return learned and SKILLUP_COLORS[M.Difficulty(rec, ctx.skill)] or false end,
+    skillups = function(rec, learned, ctx) return learned and SKILLUP_COLORS[M.Difficulty(rec, ctx.skill, learned)] or false end,
     learnable = function(rec, learned, ctx) return not learned and ns.CanLearnNow(rec, ctx.skill, ctx.faction) end,
     new = function(rec) return rec.new and true or false end,
 }
@@ -364,10 +364,11 @@ M.COLORS = {
     neutral = "ffffff",
 }
 
--- Colour of a recipe for the given skill; "neutral" when the skill is unknown.
-function M.Difficulty(rec, skill)
+-- Colour of a recipe for the given skill; "neutral" when the skill is unknown. A learned recipe is
+-- always craftable, so the learn level only makes an unlearned recipe red.
+function M.Difficulty(rec, skill, learned)
     if not skill then return "neutral" end
-    if rec.learn and skill < rec.learn then return "red" end
+    if not learned and rec.learn and skill < rec.learn then return "red" end
     if not rec.grey then return "orange" end
     if rec.yellow and skill < rec.yellow then return "orange" end
     if rec.green and skill < rec.green then return "yellow" end
@@ -380,11 +381,12 @@ local function Colored(color, text)
 end
 M.Colored = Colored
 
--- "learn yellow green grey", each in its colour. The learn value is red when it's out of reach.
-function M.RangeText(rec, skill)
+-- "learn yellow green grey", each in its colour. The learn value is red when the recipe isn't learned
+-- and it's out of reach.
+function M.RangeText(rec, skill, learned)
     local parts = {}
     if rec.learn then
-        parts[#parts + 1] = Colored((skill and skill < rec.learn) and "red" or "orange", rec.learn)
+        parts[#parts + 1] = Colored((not learned and skill and skill < rec.learn) and "red" or "orange", rec.learn)
     end
     if rec.grey then
         if rec.yellow then parts[#parts + 1] = Colored("yellow", rec.yellow) end
@@ -703,7 +705,7 @@ end
 -- Second line of a recipe row. Learned: the four thresholds. Missing: "Learn N · <source> · +N more",
 -- with the learn level in red when the character's skill is known and too low.
 function M.RowSubtitle(rec, skill, learned, faction)
-    if learned then return M.RangeText(rec, skill) end
+    if learned then return M.RangeText(rec, skill, true) end
     local parts = {}
     if rec.learn and rec.learn > 0 then
         local text = L.LEARN:format(rec.learn)

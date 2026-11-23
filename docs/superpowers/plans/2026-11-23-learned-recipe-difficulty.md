@@ -23,7 +23,7 @@
 
 **Files:** `ForeverProfessional/Model.lua`, `ForeverProfessional/UI/RecipeList.lua`, `ForeverProfessional/UI/Detail.lua`, `tests/test_model.py`, `tests/test_filters.py`, `tests/test_ui.py`
 
-- [ ] **RED, model.** In `tests/test_model.py` add:
+- [x] **RED, model.** In `tests/test_model.py` add:
 
 ```python
     def test_difficulty_learned_ignores_learn_level(self):
@@ -42,10 +42,10 @@
         self.assertTrue(self.M.RangeText(rec, 10).startswith("|cffff202050|r"))
 ```
 
-- [ ] **RED, filter.** In `tests/test_filters.py` add a case: pick from `self.recs` the first recipe with `learn > 120` and `grey > 120` (computed in Python, so it survives rebuilds), add it to `mock.learned`, and assert `self.ids(["skillups"])` contains it, while `{3171, 6617}` stay in and 2329 stays out.
-- [ ] **RED, UI.** In `tests/test_ui.py` add a case: with that same recipe learned, its list row label does not start with `|cffff2020`, and its sub text equals `RangeText(rec, 120, True)`. After selecting it, the detail header title does not start with `|cffff2020`.
-- [ ] Run `mise exec -- python -m unittest discover tests`: the new tests fail.
-- [ ] **GREEN.** In `Model.lua`:
+- [x] **RED, filter.** In `tests/test_filters.py` add a case: pick from `self.recs` the first recipe with `learn > 120` and `grey > 120` (computed in Python, so it survives rebuilds), add it to `mock.learned`, and assert `self.ids(["skillups"])` contains it, while `{3171, 6617}` stay in and 2329 stays out.
+- [x] **RED, UI.** In `tests/test_ui.py` add a case: with that same recipe learned, its list row label does not start with `|cffff2020`, and its sub text equals `RangeText(rec, 120, True)`. After selecting it, the detail header title does not start with `|cffff2020`.
+- [x] Run `mise exec -- python -m unittest discover tests`: the new tests fail.
+- [x] **GREEN.** In `Model.lua`:
 
 ```lua
 -- Colour of a recipe for the given skill; "neutral" when the skill is unknown. A learned recipe is
@@ -57,8 +57,8 @@ function M.Difficulty(rec, skill, learned)
 ```
 
   `RangeText(rec, skill, learned)` colours the learn value red only when `not learned and skill and skill < rec.learn`. `RowSubtitle` calls `M.RangeText(rec, skill, true)` on its learned branch. The Skill-ups predicate calls `M.Difficulty(rec, ctx.skill, learned)`. `UI/RecipeList.lua:251` and `UI/Detail.lua:293` pass `learned`.
-- [ ] Run the addon suite: all green.
-- [ ] Commit: `fix(ui): never show a learned recipe as red`.
+- [x] Run the addon suite: all green.
+- [x] Commit: `fix(ui): never show a learned recipe as red`.
 
 ## Task 2: report recipes whose learn level is above yellow
 
