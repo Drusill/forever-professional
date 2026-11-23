@@ -15,7 +15,7 @@
 
 | Profession | Recipes | New in Forever | Unknown source | Unverified claim |
 |---|---|---|---|---|
-| Alchemy | 179 | 72 | 8 | 1 |
+| Alchemy | 178 | 71 | 8 | 1 |
 | Blacksmithing | 419 | 185 | 8 | 3 |
 | Cooking | 129 | 48 | 8 | 0 |
 | Enchanting | 227 | 75 | 12 | 1 |
@@ -27,7 +27,7 @@
 | Mining | 17 | 5 | 2 | 0 |
 | Skinning | 3 | 3 | 0 | 0 |
 | Tailoring | 405 | 172 | 11 | 7 |
-| **All** | **2159** | **921** | **96** | **39** |
+| **All** | **2158** | **920** | **96** | **39** |
 
 Profession rank spells (not recipes): 36.
 
@@ -35,10 +35,10 @@ Profession rank spells (not recipes): 36.
 
 | Check | New | Classic |
 |---|---|---|
-| Skill thresholds (yellow/grey) | 920 / 921 (100%) | 1236 / 1238 (100%) |
-| Category ID | 920 / 921 (100%) | 1238 / 1238 (100%) |
-| Recipe item known (`teach`) | 858 / 859 (100%) | 761 / 778 (98%) |
-| Vendor recipes: all vendors placed on a map | 434 / 436 (100%) | 271 / 313 (87%) |
+| Skill thresholds (yellow/grey) | 920 / 920 (100%) | 1236 / 1238 (100%) |
+| Category ID | 920 / 920 (100%) | 1238 / 1238 (100%) |
+| Recipe item known (`teach`) | 857 / 858 (100%) | 761 / 778 (98%) |
+| Vendor recipes: all vendors placed on a map | 433 / 435 (100%) | 271 / 313 (87%) |
 | Drop recipes: a drop NPC on a map or in a known instance | 329 / 363 (91%) | 402 / 411 (98%) |
 | Drop recipes: a drop rate is known | 3 / 363 (1%) | 392 / 411 (95%) |
 | Quest recipes: quest giver known | 42 / 42 (100%) | 87 / 93 (94%) |
@@ -194,6 +194,7 @@ Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Ai
 - `10632`: learn
 - `10650`: learn
 - `19435`: learn
+- `1251750`: removed
 - `9957`: learn
 - `9972`: learn, teach
 - `9979`: learn, teach

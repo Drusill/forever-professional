@@ -7,7 +7,7 @@ ns.Data.Professions = {
     [129] = { name = "First Aid", file = "FirstAid", recipes = 30, new = 17 },
     [164] = { name = "Blacksmithing", file = "Blacksmithing", recipes = 419, new = 185 },
     [165] = { name = "Leatherworking", file = "Leatherworking", recipes = 493, new = 252 },
-    [171] = { name = "Alchemy", file = "Alchemy", recipes = 179, new = 72 },
+    [171] = { name = "Alchemy", file = "Alchemy", recipes = 178, new = 71 },
     [182] = { name = "Herbalism", file = "Herbalism", recipes = 3, new = 3 },
     [185] = { name = "Cooking", file = "Cooking", recipes = 129, new = 48 },
     [186] = { name = "Mining", file = "Mining", recipes = 17, new = 5 },

@@ -1,5 +1,5 @@
 {
-  "_readme": "Hand-verified fixes, applied last. Key recipes by spell ID. Any recipe field can be replaced: vendors, drops ([[npc, chance%]] or [[npc]]), quests, sources, learn, merchantFavor, reputation ({faction, standing}), side. Keys starting with _ are ignored; use _note / _evidence for where the fix came from.",
+  "_readme": "Hand-verified fixes, applied last. Key recipes by spell ID. Any recipe field can be replaced: vendors, drops ([[npc, chance%]] or [[npc]]), quests, sources, learn, merchantFavor, reputation ({faction, standing}), side. \"remove\": true drops a recipe that was never released. Keys starting with _ are ignored; use _note / _evidence for where the fix came from.",
   "recipes": {
     "_example_1255143": {
       "vendors": [258306],
@@ -15,6 +15,11 @@
     "10632": { "learn": 225, "_note": "Helm of Fire, issue #15. Baked learn was 250 from WhatsTraining.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Leatherworking (225), thresholds 225/245/255/265 matching the client's yellow/green/grey." },
     "10650": { "learn": 225, "_note": "Dragonscale Breastplate, issue #15. Baked learn was 255 from WhatsTraining.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Leatherworking (225)." },
     "19435": { "learn": 285, "_note": "Mooncloth Boots, issue #15. Baked learn was 290 from WhatsTraining. Taught by quest 6032 Sacred Cloth.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Tailoring (285)." },
+    "1251750": {
+      "remove": true,
+      "_note": "Alchemy recipe for Disorienting Smog Potion (250952), issue #15. Never released.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: recipe item 250996 doesn't load. Not in the client's SkillLineAbility (no thresholds, no category). Wowhead (Forever) marks item 250952 'This item is not available to players.'"
+    },
     "9957": {
       "learn": 205,
       "_note": "Orcish War Leggings, issue #15. Baked learn was 230 from WhatsTraining.",
