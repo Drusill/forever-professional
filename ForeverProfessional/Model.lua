@@ -715,3 +715,33 @@ function M.RowSubtitle(rec, skill, learned, faction)
     if p.more > 0 then parts[#parts + 1] = L.MORE:format(p.more) end
     return table.concat(parts, M.SEP)
 end
+
+-- Reagents -------------------------------------------------------------------------------------------
+-- Read live: GetRecipeSchematic works with the profession window closed, for unlearned recipes and for
+-- other professions. Cached per spell (false when there's no schematic).
+
+M.schematics = {}
+
+function M.Schematic(spellID)
+    local cached = M.schematics[spellID]
+    if cached ~= nil then return cached or nil end
+    local s
+    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic then
+        local ok, res = pcall(C_TradeSkillUI.GetRecipeSchematic, spellID, false)
+        if ok then s = res end
+    end
+    M.schematics[spellID] = s or false
+    return s
+end
+
+-- { {item, count}... }, one per reagent slot (its first reagent); nil without a schematic.
+function M.Reagents(spellID)
+    local s = M.Schematic(spellID)
+    if not s then return nil end
+    local out = {}
+    for _, slot in ipairs(s.reagentSlotSchematics or {}) do
+        local r = slot.reagents and slot.reagents[1]
+        if r and r.itemID then out[#out + 1] = { item = r.itemID, count = slot.quantityRequired or 1 } end
+    end
+    return out
+end

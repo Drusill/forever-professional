@@ -18,7 +18,6 @@ local OWNER_DOTS = { known = "40c040", learnable = "ffd100", low = "909090", non
 
 local detail = {}
 UI.detail = detail
-UI.schematics = {}
 local requested = {}   -- [itemID] = true once a load was asked for
 
 local function ContentWidth()
@@ -79,18 +78,6 @@ local function ItemText(itemID, pending)
     local name, cached = ItemName(itemID)
     if not cached and not requested[itemID] then pending[#pending + 1] = itemID end
     return ItemColor(itemID) .. name .. "|r"
-end
-
-function UI.GetSchematic(spellID)
-    local cached = UI.schematics[spellID]
-    if cached ~= nil then return cached or nil end
-    local s
-    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic then
-        local ok, res = pcall(C_TradeSkillUI.GetRecipeSchematic, spellID, false)
-        if ok then s = res end
-    end
-    UI.schematics[spellID] = s or false
-    return s
 end
 
 local function ShowItemTooltip(self)
@@ -295,7 +282,7 @@ end
 
 -- "Creates [count×] <item> · <subtype>", with the item name queued for loading when uncached.
 local function CreatesText(spellID, rec, pending)
-    local s = UI.GetSchematic(spellID)
+    local s = M.Schematic(spellID)
     local output = (s and s.outputItemID) or rec.creates
     if not output then return nil end
     local count
@@ -360,12 +347,7 @@ function UI.DetailBlocks(spellID, rec)
 
     for _, part in ipairs(M.DetailOrder(learned)) do
         if part == "reagents" then
-            local s = UI.GetSchematic(spellID)
-            local items = {}
-            for _, slot in ipairs(s and s.reagentSlotSchematics or {}) do
-                local r = slot.reagents and slot.reagents[1]
-                if r and r.itemID then items[#items + 1] = { item = r.itemID, count = slot.quantityRequired or 1 } end
-            end
+            local items = M.Reagents(spellID) or {}
             if #items > 0 then
                 Add({ kind = "section", text = L.REAGENTS })
                 Add({ kind = "reagents", items = items })
