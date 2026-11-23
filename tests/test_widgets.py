@@ -82,8 +82,10 @@ class WidgetsTest(unittest.TestCase):
         clicks = []
         r = self.UI.CreateCheckRow(self.parent, lambda row: clicks.append(row))
         r.disabledTooltip = "Needs the profession"
+        self.assertEqual(r.highlight.alpha or 1, 1)
         Addon.call(r, "SetEnabled", False)
         self.assertFalse(r.enabled)
+        self.assertEqual(r.highlight.alpha, 0)
         Addon.call(r, "Click")
         self.assertEqual(clicks, [])
         self.a.g.GameTooltip.lines = self.a.lua.table()
@@ -91,6 +93,7 @@ class WidgetsTest(unittest.TestCase):
         self.assertEqual(lua_list(self.a.g.GameTooltip.lines), ["Needs the profession"])
         self.a.g.leave(r)
         Addon.call(r, "SetEnabled", True)
+        self.assertEqual(r.highlight.alpha, 1)
         self.a.g.GameTooltip.lines = self.a.lua.table()
         self.a.g.enter(r)
         self.assertEqual(lua_list(self.a.g.GameTooltip.lines), [])

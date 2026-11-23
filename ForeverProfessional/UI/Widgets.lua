@@ -242,7 +242,11 @@ local CHECK_MARK = "Interface\\Buttons\\UI-CheckBox-Check"
 function UI.CreateCheckRow(parent, onClick)
     local r = CreateFrame("Button", nil, parent)
     r:SetHeight(20)
-    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    -- Own texture, so a disabled row can hide it: a lit row looks clickable.
+    r.highlight = r:CreateTexture(nil, "HIGHLIGHT")
+    r.highlight:SetAllPoints()
+    r.highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    r.highlight:SetBlendMode("ADD")
     r.box = r:CreateTexture(nil, "ARTWORK")
     r.box:SetSize(18, 18)
     r.box:SetPoint("LEFT", 2, 0)
@@ -267,6 +271,7 @@ function UI.CreateCheckRow(parent, onClick)
         local alpha = self.enabled and 1 or 0.4
         self.box:SetAlpha(alpha)
         self.check:SetAlpha(alpha)
+        self.highlight:SetAlpha(self.enabled and 1 or 0)
         self.label:SetTextColor(Hex(self.enabled and "ffffff" or UI.COLORS.dim))
     end
 
