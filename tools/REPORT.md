@@ -155,7 +155,7 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1319155` Schematic: Small White Rocket
 - ... and 36 more
 
-## Learn level above the yellow threshold (27)
+## Learn level above the yellow threshold (26)
 
 The learn level is probably stale. Check "Requires <Profession> (N)" on the recipe item's tooltip in game and fix confirmed values in `tools/overrides.json`.
 
@@ -170,7 +170,6 @@ The learn level is probably stale. Check "Requires <Profession> (N)" on the reci
 - Tailoring `1257429` Pattern: Black Slippers: learn 150, yellow 145
 - Tailoring `1257430` Pattern: Golden Slippers: learn 150, yellow 145
 - Tailoring `1257431` Pattern: Radiant Slippers: learn 150, yellow 145
-- Blacksmithing `9957` Plans: Orcish War Leggings: learn 230, yellow 225
 - Blacksmithing `16991` Plans: Annihilator: learn 300, yellow 295
 - Blacksmithing `22757` Plans: Elemental Sharpening Stone: learn 300, yellow 275
 - Blacksmithing `23650` Plans: Ebon Hand: learn 300, yellow 295
@@ -195,6 +194,7 @@ Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Ai
 
 ## Overrides applied
 
+- `9957`: learn
 - `9972`: learn, teach
 - `9979`: learn, teach
 - `9980`: learn, teach

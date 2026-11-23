@@ -5,6 +5,11 @@
       "vendors": [258306],
       "_evidence": "In-game vendor check, 2026-11-20"
     },
+    "9957": {
+      "learn": 205,
+      "_note": "Orcish War Leggings, issue #15. Baked learn was 230 from WhatsTraining.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: Plans 7994 tooltip says 'Requires Blacksmithing (205)'."
+    },
     "9972": {
       "learn": 210,
       "teach": [],
