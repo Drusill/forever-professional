@@ -782,3 +782,175 @@ function M.CraftsFor(rec, items)
     if not items or items <= 0 then return 0 end
     return math.ceil(items / M.Yield(rec))
 end
+
+-- Material plans -------------------------------------------------------------------------------------
+-- M.PlanMaterials(roots, ctx) turns recipes and craft counts into totals across crafted intermediates.
+--   roots = { {spellID, line, crafts}... }
+--   ctx   = { reagents = fn(spellID) -> {{item, count}...}|nil, have = fn(itemID) -> n (optional),
+--             knownBy = fn(line, spellID) -> {me, alts = {key...}}, mode = fn(itemID) -> "craft"|"buy"|nil }
+-- Pass 1 decides each item once, depth first: raw (nothing creates it), craft (with which recipe) or buy.
+-- A maker is usable when its reagents can be read and none of them is on the current path (the items being
+-- crafted above it, and the root's output), so no item is ever crafted inside its own subtree. Crafting is
+-- the default when someone knows a usable maker; ctx.mode overrides it. Makers rank: known by me, by an alt,
+-- lowest learn skill, spell ID.
+-- Then every item gets a level, its longest distance from a root, so it sits deeper than all its users.
+-- Pass 2 sums needs level by level, subtracts what's in the bags once per item and rounds to whole crafts
+-- on the total.
+
+local NOBODY = { me = false, alts = {} }
+
+local function KnownRank(known)
+    if known.me then return 1 end
+    if known.alts and #known.alts > 0 then return 2 end
+    return 3
+end
+
+local function BetterMaker(a, b)
+    local ra, rb = KnownRank(a.known), KnownRank(b.known)
+    if ra ~= rb then return ra < rb end
+    local la, lb = a.rec and a.rec.learn or 0, b.rec and b.rec.learn or 0
+    if la ~= lb then return la < lb end
+    return a.spellID < b.spellID
+end
+
+function M.PlanMaterials(roots, ctx)
+    local items = {}
+    local plan = { roots = {}, items = items }
+    local read = {}   -- reagents per spell for this plan (false: unreadable)
+    local function Reagents(spellID)
+        local r = read[spellID]
+        if r == nil then
+            r = ctx.reagents(spellID) or false
+            read[spellID] = r
+        end
+        return r or nil
+    end
+    local function Known(line, spellID)
+        return (ctx.knownBy and ctx.knownBy(line, spellID)) or NOBODY
+    end
+    local function Mode(itemID)
+        local m = ctx.mode and ctx.mode(itemID)
+        if m == "craft" or m == "buy" then return m end
+        return nil
+    end
+    local onPath = {}
+
+    -- Usable makers of an item, best first, and whether any maker was dropped for closing a cycle.
+    local function Makers(itemID)
+        local usable, cycled = {}, false
+        for _, m in ipairs(M.RecipesCreating(itemID) or {}) do
+            local reagents = Reagents(m.spellID)
+            local ok = reagents ~= nil
+            for _, r in ipairs(reagents or {}) do
+                if onPath[r.item] then ok, cycled = false, true end
+            end
+            if ok then
+                local rec = ns.Data.Recipes[m.line] and ns.Data.Recipes[m.line][m.spellID]
+                usable[#usable + 1] = { line = m.line, spellID = m.spellID, rec = rec, reagents = reagents,
+                    known = Known(m.line, m.spellID) }
+            end
+        end
+        table.sort(usable, BetterMaker)
+        return usable, cycled
+    end
+
+    local function Decide(itemID)
+        if items[itemID] then return end
+        local node = { item = itemID, need = 0 }
+        items[itemID] = node
+        if onPath[itemID] then   -- a root's own output among its reagents
+            node.kind, node.cycle, node.switchable = "buy", true, false
+            return
+        end
+        if not M.RecipesCreating(itemID) then
+            node.kind, node.switchable = "raw", false
+            return
+        end
+        node.switchable = true
+        node.mode = Mode(itemID)
+        local usable, cycled = Makers(itemID)
+        local best = usable[1]
+        node.known = best and best.known or NOBODY
+        local want = node.mode or ((best and KnownRank(best.known) < 3) and "craft" or "buy")
+        if want == "craft" and best then
+            node.kind, node.spellID, node.line = "craft", best.spellID, best.line
+            node.yield, node.reagents = M.Yield(best.rec), best.reagents
+            onPath[itemID] = true
+            for _, r in ipairs(best.reagents) do Decide(r.item) end
+            onPath[itemID] = nil
+        else
+            node.kind = "buy"
+            if want == "craft" and cycled then node.cycle = true end
+        end
+    end
+
+    for i, r in ipairs(roots) do
+        local rec = ns.Data.Recipes[r.line] and ns.Data.Recipes[r.line][r.spellID]
+        local root = { spellID = r.spellID, line = r.line, crafts = r.crafts or 1, yield = M.Yield(rec),
+            item = rec and rec.creates, known = Known(r.line, r.spellID), reagents = Reagents(r.spellID) }
+        root.makes = root.crafts * root.yield
+        plan.roots[i] = root
+        if root.item then onPath[root.item] = true end
+        for _, x in ipairs(root.reagents or {}) do Decide(x.item) end
+        if root.item then onPath[root.item] = nil end
+    end
+
+    -- Levels: reverse post-order is a topological order (users before what they use).
+    local post, seen = {}, {}
+    local function Post(itemID)
+        if seen[itemID] then return end
+        seen[itemID] = true
+        local n = items[itemID]
+        if n.kind == "craft" then
+            for _, x in ipairs(n.reagents) do Post(x.item) end
+        end
+        post[#post + 1] = itemID
+    end
+    for _, root in ipairs(plan.roots) do
+        for _, x in ipairs(root.reagents or {}) do
+            Post(x.item)
+            items[x.item].level = 1
+        end
+    end
+    for i = #post, 1, -1 do
+        local n = items[post[i]]
+        if n.kind == "craft" then
+            for _, x in ipairs(n.reagents) do
+                local child = items[x.item]
+                child.level = math.max(child.level or 0, n.level + 1)
+            end
+        end
+    end
+
+    -- Totals, shallow levels first.
+    local order = {}
+    for id in pairs(items) do order[#order + 1] = id end
+    table.sort(order, function(a, b)
+        local la, lb = items[a].level, items[b].level
+        if la ~= lb then return la < lb end
+        return a < b
+    end)
+    plan.order = order
+    for _, root in ipairs(plan.roots) do
+        for _, x in ipairs(root.reagents or {}) do
+            local n = items[x.item]
+            n.need = n.need + root.crafts * x.count
+        end
+    end
+    for _, id in ipairs(order) do
+        local n = items[id]
+        n.have = (ctx.have and ctx.have(id)) or 0
+        n.net = math.max(0, n.need - n.have)
+        if n.kind == "craft" then
+            n.crafts = math.ceil(n.net / n.yield)
+            n.surplus = n.crafts * n.yield - n.net
+            for _, x in ipairs(n.reagents) do
+                local child = items[x.item]
+                child.need = child.need + n.crafts * x.count
+            end
+        else
+            n.buy = n.net
+        end
+    end
+    return plan
+end

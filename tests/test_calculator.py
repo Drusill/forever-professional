@@ -123,5 +123,193 @@ class IndexTest(unittest.TestCase):
         self.assertEqual(self.M.CraftsFor(self.R[202][3932], 0), 0)
 
 
+LINES = {3932: 202, 3926: 202, 3922: 202, 3938: 202, 3931: 202, 3929: 202, 12584: 202, 13240: 202,
+         12716: 202, 2657: 186, 3304: 186, 2659: 186, 3308: 186, 3307: 186, 11479: 171, 2329: 171,
+         **{s: 171 for s in TRANSMUTES}}
+# Who knows what in the hand-built context: "me" is the logged-in character.
+KNOWN = {3922: ["me"], 3926: ["me"], 3932: ["me"],
+         2657: [MINA], 2659: [MINA], 3304: [MINA], 3307: [MINA], 3308: [MINA]}
+
+
+def lua_ctx(a, known=None, have=None, modes=None):
+    """A plan context built by hand: reagents from the mock, the rest from Python dicts."""
+    known = KNOWN if known is None else known
+    known_src = ", ".join("[%d] = { %s }" % (s, ", ".join('"%s"' % k for k in ks)) for s, ks in known.items())
+    have_src = ", ".join("[%d] = %d" % kv for kv in (have or {}).items())
+    modes_src = ", ".join('[%d] = "%s"' % kv for kv in (modes or {}).items())
+    return a.run("""
+        local known, have, modes = { %s }, { %s }, { %s }
+        return {
+            reagents = _ns.Model.Reagents,
+            have = function(id) return have[id] or 0 end,
+            knownBy = function(line, id)
+                local out = { me = false, alts = {} }
+                for _, k in ipairs(known[id] or {}) do
+                    if k == "me" then out.me = true else out.alts[#out.alts + 1] = k end
+                end
+                return out
+            end,
+            mode = function(id) return modes[id] end,
+        }""" % (known_src, have_src, modes_src))
+
+
+def run_plan(a, roots, ctx):
+    """roots: [(spellID, crafts)...]."""
+    a.g._ctx = ctx
+    src = ", ".join("{ spellID = %d, line = %d, crafts = %d }" % (s, LINES.get(s, 0), n) for s, n in roots)
+    return a.run("return _ns.Model.PlanMaterials({ %s }, _ctx)" % src)
+
+
+class PlanBase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a = Addon(setup=CALC)
+        cls.a.login()
+        cls.a.g._ns = cls.a.ns
+        cls.M = cls.a.ns.Model
+
+    def setUp(self):
+        self.a.run("_ns.Model.schematics = {}")
+        seed(self.a)
+
+    def plan(self, roots, **ctx):
+        return run_plan(self.a, roots, lua_ctx(self.a, **ctx))
+
+    @staticmethod
+    def crafted(p):
+        return {k: v for k, v in p["items"].items() if v.kind == "craft"}
+
+
+class PlanTest(PlanBase):
+    def test_one_level(self):
+        p = self.plan([(2329, 1)])
+        self.assertEqual(sorted(p["items"].keys()), [765, 2449, 3371])
+        for n in p["items"].values():
+            self.assertEqual((n.kind, n.need, n.switchable), ("raw", 1, False))
+
+    def test_nested(self):
+        p = self.plan([(3932, 1)])
+        expected = {  # item: (kind, spellID, need, crafts, level)
+            4363: ("craft", 3926, 1, 1, 1), 4359: ("craft", 3922, 4, 4, 2), 2841: ("craft", 2659, 1, 1, 1),
+            2840: ("craft", 2657, 6, 6, 3), 3576: ("craft", 3304, 1, 1, 2),
+            2589: ("raw", None, 2, None, 2), 2592: ("raw", None, 1, None, 1),
+            2770: ("raw", None, 6, None, 4), 2771: ("raw", None, 1, None, 3),
+        }
+        self.assertEqual(sorted(p["items"].keys()), sorted(expected))
+        for item, want in expected.items():
+            n = p["items"][item]
+            self.assertEqual((n.kind, n.spellID, n.need, n.crafts, n.level), want, item)
+        self.assertEqual(p["items"][2841].surplus, 1)
+        root = p.roots[1]
+        self.assertEqual((root.spellID, root.crafts, root.makes, root.item, root.known.me), (3932, 1, 1, 4366, True))
+
+    def test_shared_summed(self):
+        self.assertEqual(self.plan([(3932, 1)])["items"][2840].need, 6)
+
+    def test_scales(self):
+        p = self.plan([(3932, 10)])
+        self.assertEqual(p["items"][4359].need, 40)
+        self.assertEqual((p["items"][2841].need, p["items"][2841].crafts, p["items"][2841].surplus), (10, 5, 0))
+        self.assertEqual(p["items"][2840].need, 55)
+
+    def test_multi_output_rounded_on_total(self):
+        p = self.plan([(3932, 1), (3932, 1)])
+        self.assertEqual((p["items"][2841].need, p["items"][2841].crafts, p["items"][2841].surplus), (2, 1, 0))
+        p = self.plan([(3932, 1), (3938, 1)])
+        self.assertEqual((p["items"][2841].need, p["items"][2841].crafts, p["items"][2841].surplus), (3, 2, 1))
+
+    def test_known_by_alt_and_nobody(self):
+        p = self.plan([(3932, 1)])
+        self.assertFalse(p["items"][2840].known.me)
+        self.assertEqual(lua_list(p["items"][2840].known.alts), [MINA])
+        known = {k: v for k, v in KNOWN.items() if v != [MINA]}
+        p = self.plan([(3932, 1)], known=known)
+        for item in (2840, 2841):
+            self.assertEqual((p["items"][item].kind, p["items"][item].switchable), ("buy", True), item)
+        for item in (2770, 2771, 3576):   # below the bought bars
+            self.assertNotIn(item, p["items"].keys())
+
+    def test_several_makers_alt(self):
+        n = self.plan([(12584, 1)])["items"][3577]
+        self.assertEqual((n.kind, n.spellID, n.line), ("craft", 3308, 186))
+
+    def test_several_makers_me_first(self):
+        p = self.plan([(12584, 1)], known={**KNOWN, 11479: ["me"]})
+        self.assertEqual((p["items"][3577].kind, p["items"][3577].spellID), ("craft", 11479))
+        self.assertEqual((p["items"][3575].kind, p["items"][3575].spellID), ("craft", 3307))
+        self.assertEqual(p["items"][2772].kind, "raw")
+        self.assertNotIn(2776, p["items"].keys())
+
+    def test_several_makers_lowest_skill(self):
+        n = self.plan([(12584, 1)], known={}, modes={3577: "craft"})["items"][3577]
+        self.assertEqual((n.kind, n.spellID), ("craft", 3308))
+
+    def test_several_makers_tie_spell_id(self):
+        n = self.plan([(17562, 1)], known={}, modes={7080: "craft"})["items"][7080]
+        self.assertEqual((n.kind, n.spellID), ("craft", 17561))
+
+    def test_default_buy_when_nobody_knows(self):
+        n = self.plan([(12584, 1)], known={})["items"][3577]
+        self.assertEqual((n.kind, n.switchable, bool(n.cycle)), ("buy", True, False))
+
+    def test_switch_buy(self):
+        p = self.plan([(3932, 1)], modes={2840: "buy"})
+        n = p["items"][2840]
+        self.assertEqual((n.kind, n.need, n.buy, n.mode), ("buy", 6, 6, "buy"))
+        self.assertNotIn(2770, p["items"].keys())
+
+    def test_switch_craft_on_raw_ignored(self):
+        self.assertEqual(self.plan([(3932, 1)], modes={2592: "craft"})["items"][2592].kind, "raw")
+
+    def test_bad_mode_ignored(self):
+        n = self.plan([(3932, 1)], modes={2840: "bogus"})["items"][2840]
+        self.assertEqual((n.kind, n.mode), ("craft", None))
+
+    def test_cycle_two_step(self):
+        known = {s: ["me"] for s in TRANSMUTES}
+        n = self.plan([(17563, 1)], known=known, modes={12808: "craft"})["items"][12808]
+        self.assertEqual((n.kind, n.cycle), ("buy", True))
+
+    def assert_no_item_in_own_subtree(self, p, root_item):
+        def walk(item, path):
+            n = p["items"][item]
+            if n.kind != "craft":
+                return
+            for r in lua_list(n.reagents):
+                self.assertNotIn(r.item, path | {item}, "cycle through %d" % r.item)
+                walk(r.item, path | {item})
+        for r in lua_list(p.roots[1].reagents):
+            walk(r.item, {root_item})
+
+    def test_cycle_ring_all_craft(self):
+        known = {s: ["me"] for s in TRANSMUTES}
+        modes = {i: "craft" for i in (7076, 7078, 7080, 7082, 12803, 12808)}
+        p = self.plan([(17562, 1)], known=known, modes=modes)
+        self.assertEqual((p["items"][7080].kind, p["items"][7080].spellID), ("craft", 17561))
+        self.assertEqual((p["items"][7076].kind, p["items"][7076].spellID), ("craft", 17560))
+        self.assertEqual((p["items"][7078].kind, p["items"][7078].cycle), ("buy", True))
+        self.assert_no_item_in_own_subtree(p, 7082)
+
+    def test_root_output_as_reagent(self):
+        n = self.plan([(13240, 1)])["items"][10577]
+        self.assertEqual((n.kind, n.cycle, n.switchable), ("buy", True, False))
+
+    def test_unreadable_root(self):
+        p = self.plan([(999999, 1)])
+        self.assertIsNone(p.roots[1].reagents)
+        self.assertEqual(len(p["items"]), 0)
+
+    def test_unreadable_maker_is_unusable(self):
+        self.a.run("_ns.Model.schematics = {}")
+        seed(self.a, {k: v for k, v in REAGENTS.items() if k != 2657})
+        n = self.plan([(3932, 1)])["items"][2840]
+        self.assertEqual((n.kind, bool(n.cycle)), ("buy", False))
+
+    def test_schematic_read_once(self):
+        before = self.a.mock.schematicCalls or 0
+        self.plan([(3932, 1)])
+        self.assertEqual(self.a.mock.schematicCalls - before, 6)   # 3932, 3926, 3922, 2659, 2657, 3304
+
+
 if __name__ == "__main__":
     unittest.main()
