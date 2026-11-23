@@ -74,10 +74,11 @@ function M.Difficulty(rec, skill, learned)
 
 **Files:** `tools/overrides.json`, `ForeverProfessional/Data/Recipes/*.lua` (regenerated), `tools/REPORT.md` (regenerated)
 
-- [ ] In game: for each listed recipe you can reach (start with the Blacksmithing plans), read "Requires <Profession> (N)" on the recipe item's tooltip. 9980 is already known to be at most 241.
-- [ ] For each confirmed value, add to `tools/overrides.json` under `recipes`: `"9980": { "learn": N, "_evidence": "Plans: Ornate Mithril Helm tooltip, <date>, client 1.60.1" }`. Leave unconfirmed recipes alone.
-- [ ] Run `python tools/build_data.py` and both suites. Check the diff in `Data/` touches only the overridden `learn` values, and the report section shrinks by the same number.
-- [ ] Commit: `fix(data): correct learn levels confirmed in game`.
+- [x] In game: for each listed recipe you can reach (start with the Blacksmithing plans), read "Requires <Profession> (N)" on the recipe item's tooltip. 9980 is already known to be at most 241.
+- [x] For each confirmed value, add to `tools/overrides.json` under `recipes`: `"9980": { "learn": N, "_evidence": "Plans: Ornate Mithril Helm tooltip, <date>, client 1.60.1" }`. Leave unconfirmed recipes alone.
+- [x] Run `python tools/build_data.py` and both suites. Check the diff in `Data/` touches only the overridden `learn` values, and the report section shrinks by the same number.
+- [x] Commit: `fix(data): correct learn levels confirmed in game`.
+- Finding (2026-11-23): the Ornate Mithril quests 2771, 2772 and 2773 teach the recipe directly. They reward money only, their plans (7986-7988) don't load in the client, and taking them needs Blacksmithing 210 (ForeverDB). Plans that do drop from a quest match the baked learn level (Ornate Mithril Pants: tooltip and data both 195). 9972, 9979 and 9980 now have learn 210 and no `teach`; the other 27 stay listed in the report until checked.
 
 ## Task 4: in-game check and wrap-up
 

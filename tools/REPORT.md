@@ -37,7 +37,7 @@ Profession rank spells (not recipes): 36.
 |---|---|---|
 | Skill thresholds (yellow/grey) | 920 / 921 (100%) | 1236 / 1238 (100%) |
 | Category ID | 920 / 921 (100%) | 1238 / 1238 (100%) |
-| Recipe item known (`teach`) | 858 / 859 (100%) | 764 / 778 (98%) |
+| Recipe item known (`teach`) | 858 / 859 (100%) | 761 / 778 (98%) |
 | Vendor recipes: all vendors placed on a map | 434 / 436 (100%) | 271 / 313 (87%) |
 | Drop recipes: a drop NPC on a map or in a known instance | 329 / 363 (91%) | 402 / 411 (98%) |
 | Drop recipes: a drop rate is known | 3 / 363 (1%) | 392 / 411 (95%) |
@@ -155,7 +155,7 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1319155` Schematic: Small White Rocket
 - ... and 36 more
 
-## Learn level above the yellow threshold (30)
+## Learn level above the yellow threshold (27)
 
 The learn level is probably stale. Check "Requires <Profession> (N)" on the recipe item's tooltip in game and fix confirmed values in `tools/overrides.json`.
 
@@ -171,9 +171,6 @@ The learn level is probably stale. Check "Requires <Profession> (N)" on the reci
 - Tailoring `1257430` Pattern: Golden Slippers: learn 150, yellow 145
 - Tailoring `1257431` Pattern: Radiant Slippers: learn 150, yellow 145
 - Blacksmithing `9957` Plans: Orcish War Leggings: learn 230, yellow 225
-- Blacksmithing `9972` Plans: Ornate Mithril Breastplate: learn 240, yellow 235
-- Blacksmithing `9979` Plans: Ornate Mithril Boots: learn 245, yellow 240
-- Blacksmithing `9980` Plans: Ornate Mithril Helm: learn 245, yellow 240
 - Blacksmithing `16991` Plans: Annihilator: learn 300, yellow 295
 - Blacksmithing `22757` Plans: Elemental Sharpening Stone: learn 300, yellow 275
 - Blacksmithing `23650` Plans: Ebon Hand: learn 300, yellow 295
@@ -195,3 +192,9 @@ The learn level is probably stale. Check "Requires <Profession> (N)" on the reci
 Usually ranks, removed or test spells. Review before adding any to overrides.
 
 Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Aid 2, Herbalism 1, Leatherworking 112, Skinning 1, Tailoring 73
+
+## Overrides applied
+
+- `9972`: learn, teach
+- `9979`: learn, teach
+- `9980`: learn, teach
