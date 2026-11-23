@@ -15,7 +15,7 @@
 
 | Profession | Recipes | New in Forever | Unknown source | Unverified claim |
 |---|---|---|---|---|
-| Alchemy | 179 | 72 | 8 | 1 |
+| Alchemy | 178 | 71 | 8 | 1 |
 | Blacksmithing | 419 | 185 | 8 | 3 |
 | Cooking | 129 | 48 | 8 | 0 |
 | Enchanting | 227 | 75 | 12 | 1 |
@@ -27,7 +27,7 @@
 | Mining | 17 | 5 | 2 | 0 |
 | Skinning | 3 | 3 | 0 | 0 |
 | Tailoring | 405 | 172 | 11 | 7 |
-| **All** | **2159** | **921** | **96** | **39** |
+| **All** | **2158** | **920** | **96** | **39** |
 
 Profession rank spells (not recipes): 36.
 
@@ -35,10 +35,10 @@ Profession rank spells (not recipes): 36.
 
 | Check | New | Classic |
 |---|---|---|
-| Skill thresholds (yellow/grey) | 920 / 921 (100%) | 1236 / 1238 (100%) |
-| Category ID | 920 / 921 (100%) | 1238 / 1238 (100%) |
-| Recipe item known (`teach`) | 858 / 859 (100%) | 764 / 778 (98%) |
-| Vendor recipes: all vendors placed on a map | 434 / 436 (100%) | 271 / 313 (87%) |
+| Skill thresholds (yellow/grey) | 920 / 920 (100%) | 1236 / 1238 (100%) |
+| Category ID | 920 / 920 (100%) | 1238 / 1238 (100%) |
+| Recipe item known (`teach`) | 857 / 858 (100%) | 761 / 778 (98%) |
+| Vendor recipes: all vendors placed on a map | 433 / 435 (100%) | 271 / 313 (87%) |
 | Drop recipes: a drop NPC on a map or in a known instance | 329 / 363 (91%) | 402 / 411 (98%) |
 | Drop recipes: a drop rate is known | 3 / 363 (1%) | 392 / 411 (95%) |
 | Quest recipes: quest giver known | 42 / 42 (100%) | 87 / 93 (94%) |
@@ -155,8 +155,47 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1319155` Schematic: Small White Rocket
 - ... and 36 more
 
+## Learn level above the yellow threshold (16)
+
+The learn level is probably stale. Check "Requires <Profession> (N)" on the recipe item's tooltip in game and fix confirmed values in `tools/overrides.json`.
+
+- Leatherworking `1255000` Pattern: Mender's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255001` Pattern: Skirmisher's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255002` Pattern: Skycaller's Mail Bracers: learn 225, yellow 220
+- Leatherworking `1255003` Pattern: Stalker's Mail Bracers: learn 225, yellow 220
+- Cooking `1229737` Basic Campfire Kit: learn 20, yellow 1
+- Blacksmithing `16991` Plans: Annihilator: learn 300, yellow 295
+- Blacksmithing `22757` Plans: Elemental Sharpening Stone: learn 300, yellow 275
+- Blacksmithing `23650` Plans: Ebon Hand: learn 300, yellow 295
+- Blacksmithing `23652` Plans: Blackguard: learn 300, yellow 295
+- Blacksmithing `23653` Plans: Nightfall: learn 300, yellow 295
+- Leatherworking `10619` Dragonscale Gauntlets: learn 225, yellow 220
+- Leatherworking `19048` Pattern: Heavy Scorpid Bracers: learn 255, yellow 250
+- Leatherworking `24655` Green Dragonscale Gauntlets: learn 280, yellow 275
+- Mining `3304` Tin Bar: learn 65, yellow 50
+- Tailoring `26086` Pattern: Felcloth Bag: learn 285, yellow 260
+- Engineering `9273` Schematic: Goblin Jumper Cables: learn 165, yellow 160
+
 ## In the client's SkillLineAbility with a recipe category, but not in WhatsTraining (382)
 
 Usually ranks, removed or test spells. Review before adding any to overrides.
 
 Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Aid 2, Herbalism 1, Leatherworking 112, Skinning 1, Tailoring 73
+
+## Overrides applied
+
+- `1257426`: learn
+- `1257427`: learn
+- `1257428`: learn
+- `1257429`: learn
+- `1257430`: learn
+- `1257431`: learn
+- `10630`: learn
+- `10632`: learn
+- `10650`: learn
+- `19435`: learn
+- `1251750`: removed
+- `9957`: learn
+- `9972`: learn, teach
+- `9979`: learn, teach
+- `9980`: learn, teach

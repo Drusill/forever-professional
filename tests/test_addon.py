@@ -47,6 +47,8 @@ class LoadTest(unittest.TestCase):
         db = a.g.ForeverProfessionalDB
         self.assertEqual(db.version, 2)
         self.assertEqual(db.filter, "all")
+        self.assertEqual(list(db.filters.keys()), [])
+        self.assertEqual(list(db.craftModes.keys()), [])
 
     def test_db_keeps_existing_values(self):
         a = Addon(setup='ForeverProfessionalDB = { filter = "missing", collapsed = { [2449] = true } }')

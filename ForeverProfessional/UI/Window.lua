@@ -11,7 +11,7 @@ UI.MIN_W, UI.MIN_H = 900, 540   -- 540: the rail fits five known professions plu
 UI.RAIL_W = 64
 UI.HEADER_H = 54
 UI.GAP = 8
-UI.BAR_H = 34      -- toolbar row at the top of the list panel
+UI.BAR_H = 62      -- toolbar at the top of the list panel: two rows of 22px controls
 local LIST_SHARE, LIST_MIN, LIST_MAX = 0.44, 380, 520
 
 -- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
@@ -434,13 +434,8 @@ function UI.CreateCharButton(parent)
 end
 
 local function CreateCharMenu(parent, anchor)
-    local m = UI.Panel(parent, 0.97)
-    m:SetFrameStrata("DIALOG")
+    local m = UI.CreatePopup(parent, MENU_W)
     m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
-    m:SetWidth(MENU_W)
-    m:EnableMouse(true)
-    m.rows = {}
-    m:Hide()
     return m
 end
 
@@ -474,6 +469,7 @@ end
 function UI.OpenCharMenu()
     local m = UI.charMenu
     if not m then return end
+    if UI.CloseFilterMenu then UI.CloseFilterMenu() end
     local me, list = ns.CharKey(), ns.ListChars()
     for i, e in ipairs(list) do
         local r = MenuRow(m, i)
@@ -486,7 +482,7 @@ function UI.OpenCharMenu()
         r:Show()
     end
     for i = #list + 1, #m.rows do m.rows[i]:Hide() end
-    m:SetHeight(12 + #list * MENU_ROW_H)
+    m:Fit(#list, MENU_ROW_H)
     m:Show()
 end
 
@@ -512,32 +508,130 @@ end
 local SEARCH_ICON = "Interface\\Common\\UI-Searchbox-Icon"
 local CHEVRON = "Interface\\ChatFrame\\ChatFrameExpandArrow"   -- same as the group headers
 
+-- Filter menu: one heading per group that has one, a check row per item (Model.FILTER_GROUPS),
+-- separators before a group without a heading and before Clear filters.
+local FILTER_MENU_W, FILTER_ROW_H, HEADING_H, SEPARATOR_H = 190, 20, 18, 9
+local FILTER_HEADINGS = { status = L.FILTER_STATUS, source = L.FILTER_SOURCE }
+
+local function CreateFilterMenu(parent, anchor)
+    local m = UI.CreatePopup(parent, FILTER_MENU_W)
+    m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
+    m.headings = {}
+    local y, rowCount, extra = -6, 0, 0
+
+    local function Separator()
+        local line = m:CreateTexture(nil, "ARTWORK")
+        line:SetHeight(1)
+        line:SetPoint("TOPLEFT", 10, y - (SEPARATOR_H - 1) / 2)
+        line:SetPoint("RIGHT", -10, 0)
+        line:SetColorTexture(Hex(UI.COLORS.line2))
+        y, extra = y - SEPARATOR_H, extra + SEPARATOR_H
+    end
+
+    local function Place(row)
+        row:SetPoint("TOPLEFT", 6, y)
+        row:SetPoint("RIGHT", -6, 0)
+        y, rowCount = y - FILTER_ROW_H, rowCount + 1
+    end
+
+    for _, group in ipairs(ns.Model.FILTER_GROUPS) do
+        local heading = FILTER_HEADINGS[group.key]
+        if heading then
+            local h = m:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            h:SetPoint("TOPLEFT", 10, y - 4)
+            h:SetText(heading)
+            h:SetTextColor(Hex(UI.COLORS.gold))
+            m.headings[#m.headings + 1] = h
+            y, extra = y - HEADING_H, extra + HEADING_H
+        else
+            Separator()
+        end
+        for _, key in ipairs(group.items) do
+            local row = UI.CreateCheckRow(m, function(self) UI.SetFilterOption(self.key, not self.checked) end)
+            row.key, row.needsProfession = key, group.needsProfession
+            row:SetText(L["FILTER_" .. key:upper()])
+            Place(row)
+            m.rows[key] = row
+        end
+    end
+
+    Separator()
+    local clear = CreateFrame("Button", nil, m)
+    clear:SetHeight(FILTER_ROW_H)
+    clear:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    clear.label = clear:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    clear.label:SetPoint("CENTER")
+    clear.label:SetText(L.CLEAR_FILTERS)
+    clear:SetScript("OnClick", function() UI.ClearFilters() end)
+    Place(clear)
+    m.clearRow = clear
+
+    m:Fit(rowCount, FILTER_ROW_H, extra)
+    return m
+end
+
+-- Checks, enabled status rows and the button's count, from the saved filters.
+function UI.RefreshFilterMenu()
+    local m, b = UI.filterMenu, UI.filterButton
+    if not (m and b) then return end
+    local filters = UI.state.filters or {}
+    local hasProfession = UI.state.line and ns.CharSkill(UI.state.line, UI.state.char) ~= nil
+    for key, row in pairs(m.rows) do
+        row:SetChecked(filters[key])
+        row.disabledTooltip = row.needsProfession and L.FILTER_NEEDS_PROFESSION or nil
+        row:SetEnabled(hasProfession or not row.needsProfession)
+    end
+    local n = UI.ActiveFilterCount()
+    b:SetText(n > 0 and L.FILTERS_COUNT:format(n) or L.FILTERS)
+    b:SetActive(n > 0)
+end
+
+function UI.OpenFilterMenu()
+    if not UI.filterMenu then return end
+    UI.CloseCharMenu()
+    UI.RefreshFilterMenu()
+    UI.filterMenu:Show()
+end
+
+function UI.CloseFilterMenu()
+    if UI.filterMenu then UI.filterMenu:Hide() end
+end
+
+function UI.ToggleFilterMenu()
+    if UI.filterMenu and UI.filterMenu:IsShown() then UI.CloseFilterMenu() else UI.OpenFilterMenu() end
+end
+
 local function CreateToolbar(panel)
     local bar = CreateFrame("Frame", nil, panel)
     bar:SetPoint("TOPLEFT", 6, -6)
     bar:SetPoint("TOPRIGHT", -6, -6)
     bar:SetHeight(UI.BAR_H - 12)
 
-    -- Right to left: expand all, collapse all, the filter toggle; the search box takes the rest.
-    -- Chevrons as on the headers: pointing right = collapsed, down = expanded.
-    UI.expandAllButton = UI.CreateIconButton(bar, CHEVRON, L.EXPAND_ALL, function() UI.ExpandAll() end)
-    UI.expandAllButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
-    UI.expandAllButton.icon:SetRotation(-math.pi / 2)
-    UI.collapseAllButton = UI.CreateIconButton(bar, CHEVRON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
-    UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
-    UI.collapseAllButton.icon:SetRotation(0)
+    -- Two rows. Top: the search box takes the width, the Filters button at its right.
+    -- Bottom: All / Learned / Missing at the left, collapse all and expand all at the right.
+    UI.filterButton = UI.CreateToggleButton(bar, L.FILTERS, function() UI.ToggleFilterMenu() end)
+    UI.filterButton:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
+    UI.filterMenu = CreateFilterMenu(UI.frame, UI.filterButton)
 
     UI.filterControl = UI.CreateSegmented(bar, {
         { key = "all", label = L.FILTER_ALL },
         { key = "learned", label = L.FILTER_LEARNED },
         { key = "missing", label = L.FILTER_MISSING },
     }, function(key) UI.SetFilter(key) end)
-    UI.filterControl:SetPoint("RIGHT", UI.collapseAllButton, "LEFT", -6, 0)
+    UI.filterControl:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
     UI.filterButtons = UI.filterControl.order
 
+    -- Chevrons as on the headers: pointing right = collapsed, down = expanded.
+    UI.expandAllButton = UI.CreateIconButton(bar, CHEVRON, L.EXPAND_ALL, function() UI.ExpandAll() end)
+    UI.expandAllButton:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
+    UI.expandAllButton.icon:SetRotation(-math.pi / 2)
+    UI.collapseAllButton = UI.CreateIconButton(bar, CHEVRON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
+    UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
+    UI.collapseAllButton.icon:SetRotation(0)
+
     local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "BackdropTemplate")
-    search:SetPoint("LEFT", bar, "LEFT", 0, 0)
-    search:SetPoint("RIGHT", UI.filterControl, "LEFT", -6, 0)
+    search:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+    search:SetPoint("RIGHT", UI.filterButton, "LEFT", -6, 0)
     search:SetHeight(22)
     search:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
     search:SetBackdropColor(Hex("090807"))
@@ -552,6 +646,9 @@ local function CreateToolbar(panel)
     search.icon:SetTexture(SEARCH_ICON)
     search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     search.placeholder:SetPoint("LEFT", 20, 0)
+    search.placeholder:SetPoint("RIGHT", -6, 0)
+    search.placeholder:SetJustifyH("LEFT")
+    search.placeholder:SetWordWrap(false)
     search.placeholder:SetText(L.SEARCH_RECIPES)
     search:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
@@ -577,6 +674,7 @@ function UI.Create()
     if UI.frame then return UI.frame end
     if not ns.db then ns.InitDB() end
     UI.state.filter = ns.db.filter or "all"
+    UI.state.filters = ns.db.filters
 
     local f = CreateFrame("Frame", "ForeverProfessionalFrame", UIParent, "BackdropTemplate")
     UI.frame = f
@@ -624,6 +722,7 @@ function UI.Create()
     f.detailPanel = detail
     UI.PlaceDetailPanel()
     if UI.CreateDetail then UI.CreateDetail(detail) end
+    if UI.CreateCalculator then UI.CreateCalculator(detail) end
 
     -- Resizing from the bottom-right corner.
     f:SetResizable(true)
@@ -658,7 +757,11 @@ function UI.Create()
     f:SetScript("OnSizeChanged", function() UI.Layout() end)
 
     f:SetScript("OnShow", function() UI.Refresh() end)
-    f:SetScript("OnHide", function() UI.CloseCharMenu() end)
+    f:SetScript("OnHide", function()
+        UI.CloseCharMenu()
+        UI.CloseFilterMenu()
+        if UI.CloseCalculator then UI.CloseCalculator() end
+    end)
     UI.Layout()
     return f
 end
@@ -709,6 +812,7 @@ function UI.Layout()
     UI.PlaceDetailPanel()
     if UI.RelayoutList then UI.RelayoutList() end
     if UI.LayoutDetail then UI.LayoutDetail() end
+    if UI.LayoutCalculator then UI.LayoutCalculator() end
 end
 
 -- State changes ------------------------------------------------------------------------------
@@ -719,6 +823,7 @@ function UI.SelectProfession(line)
     if s.line ~= line then
         s.line = line
         s.selected = nil
+        if UI.CloseCalculator then UI.CloseCalculator() end
         -- Scroll back to the top only once the new profession's entries exist: setting the scroll
         -- now would redraw the old entries against the new profession's recipes.
         UI.resetListScroll = true
@@ -731,6 +836,45 @@ function UI.SetFilter(key)
     if ns.db then ns.db.filter = key end
     if UI.filterButtons then UI.RefreshFilterButtons() end
     UI.RefreshList(true)
+end
+
+-- Filter menu ---------------------------------------------------------------------------------
+-- The checked items live in ns.db.filters (UI.state.filters), one set for every profession and
+-- character. Status items only apply while the shown character has the profession.
+
+local function FilterContext()
+    local s = UI.state
+    local skill = s.line and ns.CharSkill(s.line, s.char)
+    return { skill = skill, faction = ns.CharFaction(s.char) }
+end
+
+-- Predicates for the filter menu's checked items, for the shown character and profession.
+function UI.MenuPredicates()
+    return ns.Model.FilterPredicates(UI.state.filters, FilterContext())
+end
+
+-- Checked items in effect for the shown character and profession.
+function UI.ActiveFilterCount()
+    return ns.Model.ActiveFilterCount(UI.state.filters, FilterContext().skill ~= nil)
+end
+
+local function FiltersChanged()
+    UI.RefreshFilterButtons()
+    if UI.RefreshFilterMenu then UI.RefreshFilterMenu() end
+    UI.RefreshList(true)
+end
+
+function UI.SetFilterOption(key, on)
+    if not UI.state.filters then return end
+    UI.state.filters[key] = on and true or nil
+    FiltersChanged()
+end
+
+-- Uncheck every filter menu item. The All / Learned / Missing choice stays.
+function UI.ClearFilters()
+    if not UI.state.filters then return end
+    wipe(UI.state.filters)
+    FiltersChanged()
 end
 
 function UI.SetSearch(text)
@@ -751,6 +895,7 @@ end
 
 function UI.SelectRecipe(spellID)
     UI.state.selected = spellID
+    if UI.CloseCalculator then UI.CloseCalculator() end
     UI.RenderList()
     if UI.RefreshDetail then UI.RefreshDetail() end
 end
@@ -785,7 +930,8 @@ function UI.RefreshFilterButtons()
     if not c then return end
     c:SetSelected(UI.state.filter)
     if UI.state.line then
-        local total, learned = ns.Model.FilterCounts(UI.state.line, function(id) return ns.IsLearned(id, UI.state.char) end)
+        local total, learned = ns.Model.FilterCounts(UI.state.line,
+            function(id) return ns.IsLearned(id, UI.state.char) end, UI.MenuPredicates())
         c:SetCount("all", total)
         c:SetCount("learned", learned)
         c:SetCount("missing", total - learned)
@@ -801,9 +947,11 @@ function UI.Refresh()
     UI.RefreshRail()
     UI.RefreshHeader()
     UI.RefreshFilterButtons()
+    UI.RefreshFilterMenu()
     UI.RefreshList(UI.resetListScroll)
     UI.resetListScroll = nil
     if UI.RefreshDetail then UI.RefreshDetail() end
+    if UI.RefreshCalculator then UI.RefreshCalculator() end
 end
 
 function UI.Show(line)

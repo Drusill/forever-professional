@@ -1,6 +1,7 @@
 -- ForeverProfessional. Licensed under the GNU GPL v3 or later.
--- Shared widgets in the flat Professions style: panel, filter toggle, icon button, chip, item slot,
--- progress bar and the profession skill bar, plus the per-profession theme and the source icons.
+-- Shared widgets in the flat Professions style: panel, filter toggle, popup, check row, toggle button,
+-- icon button, chip, item slot, progress bar and the profession skill bar, plus the per-profession
+-- theme and the source icons.
 -- Widgets don't read addon state.
 local _, ns = ...
 local M = ns.Model
@@ -117,6 +118,41 @@ function UI.SetIcon(tex, value)
     tex:SetTexCoord(0, 1, 0, 1)   -- an atlas shown before leaves its sub-rectangle behind
 end
 
+-- Item names -----------------------------------------------------------------------------------------
+-- Names are read live; an uncached item shows "Item #id" until it loads.
+
+local requested = {}   -- [itemID] = true once a load was asked for, for the session
+
+-- Quality-coloured item name; an uncached item not asked for yet is queued in `pending`.
+function UI.ItemText(itemID, pending)
+    local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
+    if not name then
+        name = ("Item #%d"):format(itemID)
+        if not requested[itemID] then pending[#pending + 1] = itemID end
+    end
+    local q = C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
+    local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+    return (c and c.hex or "|cffffffff") .. name .. "|r"
+end
+
+-- Load the queued items, then redraw while `stillCurrent()` holds. Cached items call back synchronously:
+-- those only mark the view dirty and it's redrawn once after the loop.
+function UI.LoadItems(pending, stillCurrent, redraw)
+    if #pending == 0 or not (Item and Item.CreateFromItemID) then return end
+    local loading, dirty = true, false
+    for _, itemID in ipairs(pending) do
+        if not requested[itemID] then
+            requested[itemID] = true
+            Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
+                if not stillCurrent() then return end
+                if loading then dirty = true else redraw() end
+            end)
+        end
+    end
+    loading = false
+    if dirty then redraw() end
+end
+
 -- Horizontal gradient between two hex colours; a flat colour when gradients aren't available.
 local function Gradient(tex, from, to)
     tex:SetTexture(WHITE)
@@ -214,6 +250,111 @@ function UI.CreateSegmented(parent, items, onSelect)
     c:SetSelected(items[1] and items[1].key)
     c:Layout()
     return c
+end
+
+-- Popup: a panel above everything, for menus. Its owner fills `rows` and calls Fit ------------------
+
+function UI.CreatePopup(parent, width)
+    local p = UI.Panel(parent, 0.97)
+    p:SetFrameStrata("DIALOG")
+    p:SetWidth(width)
+    p:EnableMouse(true)
+    p.rows = {}
+    p:Hide()
+
+    -- Height for rowCount rows of rowH, plus extra (separators, headings), plus the 6px insets.
+    function p:Fit(rowCount, rowH, extra)
+        self:SetHeight(12 + rowCount * rowH + (extra or 0))
+    end
+    return p
+end
+
+-- Check row: a menu row with a checkbox. While disabled it ignores clicks and shows disabledTooltip ---
+
+local CHECK_BOX = "Interface\\Buttons\\UI-CheckBox-Up"
+local CHECK_MARK = "Interface\\Buttons\\UI-CheckBox-Check"
+
+function UI.CreateCheckRow(parent, onClick)
+    local r = CreateFrame("Button", nil, parent)
+    r:SetHeight(20)
+    -- Own texture, so a disabled row can hide it: a lit row looks clickable.
+    r.highlight = r:CreateTexture(nil, "HIGHLIGHT")
+    r.highlight:SetAllPoints()
+    r.highlight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    r.highlight:SetBlendMode("ADD")
+    r.box = r:CreateTexture(nil, "ARTWORK")
+    r.box:SetSize(18, 18)
+    r.box:SetPoint("LEFT", 2, 0)
+    r.box:SetTexture(CHECK_BOX)
+    r.check = r:CreateTexture(nil, "OVERLAY")
+    r.check:SetAllPoints(r.box)
+    r.check:SetTexture(CHECK_MARK)
+    r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.label:SetPoint("LEFT", r.box, "RIGHT", 4, 0)
+    r.label:SetPoint("RIGHT", -4, 0)
+    r.label:SetJustifyH("LEFT")
+
+    function r:SetText(text) self.label:SetText(text) end
+
+    function r:SetChecked(v)
+        self.checked = v and true or false
+        self.check:SetShown(self.checked)
+    end
+
+    function r:SetEnabled(v)
+        self.enabled = v and true or false
+        local alpha = self.enabled and 1 or 0.4
+        self.box:SetAlpha(alpha)
+        self.check:SetAlpha(alpha)
+        self.highlight:SetAlpha(self.enabled and 1 or 0)
+        self.label:SetTextColor(Hex(self.enabled and "ffffff" or UI.COLORS.dim))
+    end
+
+    r:SetScript("OnClick", function(self) if self.enabled and onClick then onClick(self) end end)
+    r:SetScript("OnEnter", function(self)
+        if self.enabled or not (GameTooltip and self.disabledTooltip) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.disabledTooltip)
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    r:SetChecked(false)
+    r:SetEnabled(true)
+    return r
+end
+
+-- Toggle button: flat text button like a segment; gold while active ---------------------------------
+
+function UI.CreateToggleButton(parent, label, onClick)
+    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    FlatBackdrop(b, UI.COLORS.field, UI.COLORS.line2)
+    b:SetHeight(22)
+    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.label:SetPoint("CENTER")
+    b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    b:SetScript("OnClick", function(self) if onClick then onClick(self) end end)
+
+    function b:SetText(text)
+        self.label:SetText(text)
+        self:SetWidth(2 * SEGMENT_PAD + self.label:GetStringWidth())
+    end
+
+    function b:SetActive(v)
+        self.active = v and true or false
+        if self.active then
+            self:SetBackdropColor(Hex("3a2b10"))
+            self:SetBackdropBorderColor(Hex(UI.COLORS.bronze))
+            self.label:SetTextColor(Hex(UI.COLORS.gold))
+        else
+            self:SetBackdropColor(Hex(UI.COLORS.field))
+            self:SetBackdropBorderColor(Hex(UI.COLORS.line2))
+            self.label:SetTextColor(Hex(UI.COLORS.muted))
+        end
+    end
+
+    b:SetText(label or "")
+    b:SetActive(false)
+    return b
 end
 
 -- Icon button ----------------------------------------------------------------------------------------

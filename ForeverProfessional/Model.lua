@@ -190,20 +190,24 @@ end
 -- Flatten the tree into display entries:
 --   { kind = "header", cat, name, depth, count, learned, collapsed }
 --   { kind = "recipe", id, depth }
--- opts: filter ("all" | "learned" | "missing"), search (text), collapsed ({[cat]=true}), isLearned (fn).
+-- opts: predicates (list of fn(id, rec, learned) -> bool, all must pass), search (text),
+-- collapsed ({[cat]=true}), isLearned (fn).
 -- Returns entries, matching recipe count, matching learned count.
 function M.Flatten(tree, opts)
     opts = opts or {}
-    local filter = opts.filter or "all"
+    local predicates = opts.predicates or {}
     local isLearned = opts.isLearned or function() return false end
     local search = opts.search and strtrim(opts.search):lower() or ""
     if search == "" then search = nil end
     local collapsed = opts.collapsed or {}
+    local recipes = ns.Data.Recipes and ns.Data.Recipes[tree.line] or {}
 
     local function Match(id)
         local learned = isLearned(id) and true or false
-        if filter == "learned" and not learned then return false end
-        if filter == "missing" and learned then return false end
+        local rec = recipes[id] or {}
+        for _, pass in ipairs(predicates) do
+            if not pass(id, rec, learned) then return false end
+        end
         if search then
             local name = M.RecipeName(id)
             if not name or not name:lower():find(search, 1, true) then return false end
@@ -252,14 +256,105 @@ function M.CategoryIDs(tree)
     return out
 end
 
--- Recipe count of a profession and how many isLearned(id) says are learned.
-function M.FilterCounts(line, isLearned)
+-- Recipe count of a profession and how many isLearned(id) says are learned, counting only the
+-- recipes every predicate passes (nil or empty: all).
+function M.FilterCounts(line, isLearned, predicates)
     local total, learned = 0, 0
-    for id in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
-        total = total + 1
-        if isLearned(id) then learned = learned + 1 end
+    for id, rec in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
+        local isIt = isLearned(id) and true or false
+        local ok = true
+        for _, pass in ipairs(predicates or {}) do
+            if not pass(id, rec, isIt) then ok = false break end
+        end
+        if ok then
+            total = total + 1
+            if isIt then learned = learned + 1 end
+        end
     end
     return total, learned
+end
+
+-- Filters ---------------------------------------------------------------------------------------
+-- A predicate is fn(id, rec, learned) -> bool. Flatten and FilterCounts keep the recipes every
+-- predicate passes: the All / Learned / Missing choice is one, each filter menu group another.
+
+-- Predicate for the All / Learned / Missing choice; nil for "all".
+function M.LearnedPredicate(filter)
+    if filter == "learned" then return function(_, _, learned) return learned end end
+    if filter == "missing" then return function(_, _, learned) return not learned end end
+    return nil
+end
+
+-- The filter menu: groups in menu order. Items of a group combine with OR, groups with AND.
+-- Status items need the shown character to have the profession.
+M.FILTER_GROUPS = {
+    { key = "status", items = { "skillups", "learnable" }, needsProfession = true },
+    { key = "source", items = { "trainer", "vendor", "drop", "quest", "other", "unknown" } },
+    { key = "new", items = { "new" } },
+}
+
+-- Source type -> filter menu key. Types not listed here (container, object, crafted,
+-- worldObject, and any future one) are "other".
+local SOURCE_KEY = { trainer = "trainer", auto = "trainer", vendor = "vendor", drop = "drop", quest = "quest" }
+
+-- Filter menu source keys of a recipe, as a set. A recipe with no source type is "unknown".
+function M.SourceKeys(rec)
+    local keys, any = {}, false
+    for _, t in ipairs(rec.src or {}) do
+        keys[SOURCE_KEY[t] or "other"] = true
+        any = true
+    end
+    if not any then keys.unknown = true end
+    return keys
+end
+
+local SKILLUP_COLORS = { orange = true, yellow = true, green = true }
+
+-- One test per menu item: fn(rec, learned, ctx) -> bool.
+local ITEM_TESTS = {
+    skillups = function(rec, learned, ctx) return learned and SKILLUP_COLORS[M.Difficulty(rec, ctx.skill, learned)] or false end,
+    learnable = function(rec, learned, ctx) return not learned and ns.CanLearnNow(rec, ctx.skill, ctx.faction) end,
+    new = function(rec) return rec.new and true or false end,
+}
+for _, key in ipairs(M.FILTER_GROUPS[2].items) do
+    ITEM_TESTS[key] = function(rec) return M.SourceKeys(rec)[key] or false end
+end
+
+-- Predicates for the checked menu items (filters = {[item]=true}), one per group with a checked
+-- item. ctx = { skill, faction } of the shown character; without a skill the status group is left out.
+function M.FilterPredicates(filters, ctx)
+    filters, ctx = filters or {}, ctx or {}
+    local out = {}
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if ctx.skill or not group.needsProfession then
+            local tests = {}
+            for _, key in ipairs(group.items) do
+                if filters[key] then tests[#tests + 1] = ITEM_TESTS[key] end
+            end
+            if #tests > 0 then
+                out[#out + 1] = function(_, rec, learned)
+                    for _, test in ipairs(tests) do
+                        if test(rec, learned, ctx) then return true end
+                    end
+                    return false
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Checked menu items that are in effect: status items don't count without the profession.
+function M.ActiveFilterCount(filters, hasProfession)
+    local n = 0
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if hasProfession or not group.needsProfession then
+            for _, key in ipairs(group.items) do
+                if filters and filters[key] then n = n + 1 end
+            end
+        end
+    end
+    return n
 end
 
 -- Difficulty ------------------------------------------------------------------------------
@@ -269,10 +364,11 @@ M.COLORS = {
     neutral = "ffffff",
 }
 
--- Colour of a recipe for the given skill; "neutral" when the skill is unknown.
-function M.Difficulty(rec, skill)
+-- Colour of a recipe for the given skill; "neutral" when the skill is unknown. A learned recipe is
+-- always craftable, so the learn level only makes an unlearned recipe red.
+function M.Difficulty(rec, skill, learned)
     if not skill then return "neutral" end
-    if rec.learn and skill < rec.learn then return "red" end
+    if not learned and rec.learn and skill < rec.learn then return "red" end
     if not rec.grey then return "orange" end
     if rec.yellow and skill < rec.yellow then return "orange" end
     if rec.green and skill < rec.green then return "yellow" end
@@ -285,11 +381,12 @@ local function Colored(color, text)
 end
 M.Colored = Colored
 
--- "learn yellow green grey", each in its colour. The learn value is red when it's out of reach.
-function M.RangeText(rec, skill)
+-- "learn yellow green grey", each in its colour. The learn value is red when the recipe isn't learned
+-- and it's out of reach.
+function M.RangeText(rec, skill, learned)
     local parts = {}
     if rec.learn then
-        parts[#parts + 1] = Colored((skill and skill < rec.learn) and "red" or "orange", rec.learn)
+        parts[#parts + 1] = Colored((not learned and skill and skill < rec.learn) and "red" or "orange", rec.learn)
     end
     if rec.grey then
         if rec.yellow then parts[#parts + 1] = Colored("yellow", rec.yellow) end
@@ -608,7 +705,7 @@ end
 -- Second line of a recipe row. Learned: the four thresholds. Missing: "Learn N · <source> · +N more",
 -- with the learn level in red when the character's skill is known and too low.
 function M.RowSubtitle(rec, skill, learned, faction)
-    if learned then return M.RangeText(rec, skill) end
+    if learned then return M.RangeText(rec, skill, true) end
     local parts = {}
     if rec.learn and rec.learn > 0 then
         local text = L.LEARN:format(rec.learn)
@@ -619,4 +716,310 @@ function M.RowSubtitle(rec, skill, learned, faction)
     parts[#parts + 1] = p.text
     if p.more > 0 then parts[#parts + 1] = L.MORE:format(p.more) end
     return table.concat(parts, M.SEP)
+end
+
+-- Reagents -------------------------------------------------------------------------------------------
+-- Read live: GetRecipeSchematic works with the profession window closed, for unlearned recipes and for
+-- other professions. Cached per spell (false when there's no schematic).
+
+M.schematics = {}
+
+function M.Schematic(spellID)
+    local cached = M.schematics[spellID]
+    if cached ~= nil then return cached or nil end
+    local s
+    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic then
+        local ok, res = pcall(C_TradeSkillUI.GetRecipeSchematic, spellID, false)
+        if ok then s = res end
+    end
+    M.schematics[spellID] = s or false
+    return s
+end
+
+-- { {item, count}... }, one per reagent slot (its first reagent); nil without a schematic.
+function M.Reagents(spellID)
+    local s = M.Schematic(spellID)
+    if not s then return nil end
+    local out = {}
+    for _, slot in ipairs(s.reagentSlotSchematics or {}) do
+        local r = slot.reagents and slot.reagents[1]
+        if r and r.itemID then out[#out + 1] = { item = r.itemID, count = slot.quantityRequired or 1 } end
+    end
+    return out
+end
+
+-- Reverse index: item -> the recipes that create it, across every profession ------------------------
+
+local creating   -- [itemID] = { {line, spellID}... }, each sorted by spell ID; built on first use
+
+function M.RecipesCreating(itemID)
+    if not creating then
+        creating = {}
+        for line, recipes in pairs(ns.Data.Recipes or {}) do
+            for spellID, rec in pairs(recipes) do
+                if rec.creates then
+                    local list = creating[rec.creates] or {}
+                    list[#list + 1] = { line = line, spellID = spellID }
+                    creating[rec.creates] = list
+                end
+            end
+        end
+        for _, list in pairs(creating) do
+            table.sort(list, function(a, b) return a.spellID < b.spellID end)
+        end
+    end
+    return creating[itemID]
+end
+
+-- Items one craft makes: `count`, the minimum of a {min, max} range, else 1.
+function M.Yield(rec)
+    local c = rec and rec.count
+    if type(c) == "number" then return c end
+    if type(c) == "table" then return c[1] or 1 end
+    return 1
+end
+
+-- Whole crafts needed for `items` of the output.
+function M.CraftsFor(rec, items)
+    if not items or items <= 0 then return 0 end
+    return math.ceil(items / M.Yield(rec))
+end
+
+-- Material plans -------------------------------------------------------------------------------------
+-- M.PlanMaterials(roots, ctx) turns recipes and craft counts into totals across crafted intermediates.
+--   roots = { {spellID, line, crafts}... }
+--   ctx   = { reagents = fn(spellID) -> {{item, count}...}|nil, have = fn(itemID) -> n (optional),
+--             knownBy = fn(line, spellID) -> {me, alts = {key...}}, mode = fn(itemID) -> "craft"|"buy"|nil }
+-- Pass 1 decides each item once, depth first: raw (nothing creates it), craft (with which recipe) or buy.
+-- A maker is usable when its reagents can be read and none of them is on the current path (the items being
+-- crafted above it, and the root's output), so no item is ever crafted inside its own subtree. Crafting is
+-- the default when someone knows a usable maker; ctx.mode overrides it. Makers rank: known by me, by an alt,
+-- lowest learn skill, spell ID.
+-- Then every item gets a level, its longest distance from a root, so it sits deeper than all its users.
+-- Pass 2 sums needs level by level, subtracts what's in the bags once per item and rounds to whole crafts
+-- on the total.
+
+local NOBODY = { me = false, alts = {} }
+
+local function KnownRank(known)
+    if known.me then return 1 end
+    if known.alts and #known.alts > 0 then return 2 end
+    return 3
+end
+
+local function BetterMaker(a, b)
+    local ra, rb = KnownRank(a.known), KnownRank(b.known)
+    if ra ~= rb then return ra < rb end
+    local la, lb = a.rec and a.rec.learn or 0, b.rec and b.rec.learn or 0
+    if la ~= lb then return la < lb end
+    return a.spellID < b.spellID
+end
+
+function M.PlanMaterials(roots, ctx)
+    local items = {}
+    local plan = { roots = {}, items = items }
+    local read = {}   -- reagents per spell for this plan (false: unreadable)
+    local function Reagents(spellID)
+        local r = read[spellID]
+        if r == nil then
+            r = ctx.reagents(spellID) or false
+            read[spellID] = r
+        end
+        return r or nil
+    end
+    local function Known(line, spellID)
+        return (ctx.knownBy and ctx.knownBy(line, spellID)) or NOBODY
+    end
+    local function Mode(itemID)
+        local m = ctx.mode and ctx.mode(itemID)
+        if m == "craft" or m == "buy" then return m end
+        return nil
+    end
+    local onPath = {}
+
+    -- Usable makers of an item, best first, and whether any maker was dropped for closing a cycle.
+    local function Makers(itemID)
+        local usable, cycled = {}, false
+        for _, m in ipairs(M.RecipesCreating(itemID) or {}) do
+            local reagents = Reagents(m.spellID)
+            local ok = reagents ~= nil
+            for _, r in ipairs(reagents or {}) do
+                if onPath[r.item] then ok, cycled = false, true end
+            end
+            if ok then
+                local rec = ns.Data.Recipes[m.line] and ns.Data.Recipes[m.line][m.spellID]
+                usable[#usable + 1] = { line = m.line, spellID = m.spellID, rec = rec, reagents = reagents,
+                    known = Known(m.line, m.spellID) }
+            end
+        end
+        table.sort(usable, BetterMaker)
+        return usable, cycled
+    end
+
+    local function Decide(itemID)
+        if items[itemID] then return end
+        local node = { item = itemID, need = 0 }
+        items[itemID] = node
+        if onPath[itemID] then   -- a root's own output among its reagents
+            node.kind, node.cycle, node.switchable = "buy", true, false
+            return
+        end
+        if not M.RecipesCreating(itemID) then
+            node.kind, node.switchable = "raw", false
+            return
+        end
+        node.switchable = true
+        node.mode = Mode(itemID)
+        local usable, cycled = Makers(itemID)
+        local best = usable[1]
+        node.known = best and best.known or NOBODY
+        local want = node.mode or ((best and KnownRank(best.known) < 3) and "craft" or "buy")
+        if want == "craft" and best then
+            node.kind, node.spellID, node.line = "craft", best.spellID, best.line
+            node.yield, node.reagents = M.Yield(best.rec), best.reagents
+            onPath[itemID] = true
+            for _, r in ipairs(best.reagents) do Decide(r.item) end
+            onPath[itemID] = nil
+        else
+            node.kind = "buy"
+            if want == "craft" and cycled then node.cycle = true end
+        end
+    end
+
+    for i, r in ipairs(roots) do
+        local rec = ns.Data.Recipes[r.line] and ns.Data.Recipes[r.line][r.spellID]
+        local root = { spellID = r.spellID, line = r.line, crafts = r.crafts or 1, yield = M.Yield(rec),
+            item = rec and rec.creates, known = Known(r.line, r.spellID), reagents = Reagents(r.spellID) }
+        root.makes = root.crafts * root.yield
+        plan.roots[i] = root
+        if root.item then onPath[root.item] = true end
+        for _, x in ipairs(root.reagents or {}) do Decide(x.item) end
+        if root.item then onPath[root.item] = nil end
+    end
+
+    -- Levels: reverse post-order is a topological order (users before what they use).
+    local post, seen = {}, {}
+    local function Post(itemID)
+        if seen[itemID] then return end
+        seen[itemID] = true
+        local n = items[itemID]
+        if n.kind == "craft" then
+            for _, x in ipairs(n.reagents) do Post(x.item) end
+        end
+        post[#post + 1] = itemID
+    end
+    for _, root in ipairs(plan.roots) do
+        for _, x in ipairs(root.reagents or {}) do
+            Post(x.item)
+            items[x.item].level = 1
+        end
+    end
+    for i = #post, 1, -1 do
+        local n = items[post[i]]
+        if n.kind == "craft" then
+            for _, x in ipairs(n.reagents) do
+                local child = items[x.item]
+                child.level = math.max(child.level or 0, n.level + 1)
+            end
+        end
+    end
+
+    -- Totals, shallow levels first.
+    local order = {}
+    for id in pairs(items) do order[#order + 1] = id end
+    table.sort(order, function(a, b)
+        local la, lb = items[a].level, items[b].level
+        if la ~= lb then return la < lb end
+        return a < b
+    end)
+    plan.order = order
+    for _, root in ipairs(plan.roots) do
+        for _, x in ipairs(root.reagents or {}) do
+            local n = items[x.item]
+            n.need = n.need + root.crafts * x.count
+        end
+    end
+    for _, id in ipairs(order) do
+        local n = items[id]
+        n.have = (ctx.have and ctx.have(id)) or 0
+        n.net = math.max(0, n.need - n.have)
+        if n.kind == "craft" then
+            n.crafts = math.ceil(n.net / n.yield)
+            n.surplus = n.crafts * n.yield - n.net
+            for _, x in ipairs(n.reagents) do
+                local child = items[x.item]
+                child.need = child.need + n.crafts * x.count
+            end
+        else
+            n.buy = n.net
+        end
+    end
+
+    -- Shopping list: bought and raw items still needed, by item ID.
+    local shopping = {}
+    for _, id in ipairs(order) do
+        local n = items[id]
+        if n.kind ~= "craft" and n.need > 0 then
+            shopping[#shopping + 1] = { item = id, need = n.need, have = n.have, buy = n.buy }
+        end
+    end
+    table.sort(shopping, function(a, b) return a.item < b.item end)
+    plan.shopping = shopping
+
+    -- Craft steps: deepest level first (everything an item needs is made before it), then the roots.
+    local steps = {}
+    for _, id in ipairs(order) do
+        local n = items[id]
+        if n.kind == "craft" and n.crafts > 0 then
+            steps[#steps + 1] = { item = n.item, spellID = n.spellID, line = n.line, crafts = n.crafts, known = n.known }
+        end
+    end
+    table.sort(steps, function(a, b)
+        local la, lb = items[a.item].level, items[b.item].level
+        if la ~= lb then return la > lb end
+        return a.item < b.item
+    end)
+    for _, root in ipairs(plan.roots) do
+        steps[#steps + 1] = { item = root.item, spellID = root.spellID, line = root.line, crafts = root.crafts,
+            known = root.known, root = true }
+    end
+    plan.steps = steps
+
+    plan.tree = M.PlanTree(plan)
+    return plan
+end
+
+-- The reagent tree for display: per root, each branch's own amounts before inventory. Stops after
+-- M.PLAN_TREE_MAX nodes, ending the list where it stopped with { more = true }.
+M.PLAN_TREE_MAX = 400
+
+function M.PlanTree(plan)
+    local count, capped = 0, false
+    local function Children(reagents, crafts)
+        local out = {}
+        for _, x in ipairs(reagents or {}) do
+            if count >= M.PLAN_TREE_MAX then
+                if not capped then
+                    capped = true
+                    out[#out + 1] = { more = true }
+                end
+                return out
+            end
+            count = count + 1
+            local n = plan.items[x.item]
+            local node = { item = x.item, count = crafts * x.count }
+            if n.kind == "craft" then
+                node.children = Children(n.reagents, math.ceil(node.count / n.yield))
+            end
+            out[#out + 1] = node
+        end
+        return out
+    end
+    local trees = {}
+    for i, root in ipairs(plan.roots) do
+        count = count + 1
+        trees[i] = { item = root.item, spellID = root.spellID, count = root.crafts,
+            children = Children(root.reagents, root.crafts) }
+    end
+    return trees
 end

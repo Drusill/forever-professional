@@ -1,9 +1,47 @@
 {
-  "_readme": "Hand-verified fixes, applied last. Key recipes by spell ID. Any recipe field can be replaced: vendors, drops ([[npc, chance%]] or [[npc]]), quests, sources, learn, merchantFavor, reputation ({faction, standing}), side. Keys starting with _ are ignored; use _note / _evidence for where the fix came from.",
+  "_readme": "Hand-verified fixes, applied last. Key recipes by spell ID. Any recipe field can be replaced: vendors, drops ([[npc, chance%]] or [[npc]]), quests, sources, learn, merchantFavor, reputation ({faction, standing}), side. \"remove\": true drops a recipe that was never released. Keys starting with _ are ignored; use _note / _evidence for where the fix came from.",
   "recipes": {
     "_example_1255143": {
       "vendors": [258306],
       "_evidence": "In-game vendor check, 2026-11-20"
+    },
+    "1257426": { "learn": 140, "_note": "Gilded Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254002 tooltip says 'Requires Tailoring (140)'." },
+    "1257427": { "learn": 140, "_note": "Frothing Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254004 tooltip says 'Requires Tailoring (140)'." },
+    "1257428": { "learn": 140, "_note": "Fiery Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254006 tooltip says 'Requires Tailoring (140)'." },
+    "1257429": { "learn": 140, "_note": "Black Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254008 tooltip says 'Requires Tailoring (140)'." },
+    "1257430": { "learn": 140, "_note": "Golden Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254010 tooltip says 'Requires Tailoring (140)'." },
+    "1257431": { "learn": 140, "_note": "Radiant Slippers, issue #15. Baked learn was 150.", "_evidence": "In game 2026-11-23: Pattern 254012 tooltip says 'Requires Tailoring (140)'." },
+    "10630": { "learn": 205, "_note": "Gauntlets of the Sea, issue #15. Baked learn was 230 from WhatsTraining. The Master Elemental Leatherworker requirement is a separate gate.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Leatherworking (205), thresholds 205/225/235/245 matching the client's yellow/green/grey." },
+    "10632": { "learn": 225, "_note": "Helm of Fire, issue #15. Baked learn was 250 from WhatsTraining.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Leatherworking (225), thresholds 225/245/255/265 matching the client's yellow/green/grey." },
+    "10650": { "learn": 225, "_note": "Dragonscale Breastplate, issue #15. Baked learn was 255 from WhatsTraining.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Leatherworking (225)." },
+    "19435": { "learn": 285, "_note": "Mooncloth Boots, issue #15. Baked learn was 290 from WhatsTraining. Taught by quest 6032 Sacred Cloth.", "_evidence": "Wowhead (Forever), checked by hand 2026-11-23: Tailoring (285)." },
+    "1251750": {
+      "remove": true,
+      "_note": "Alchemy recipe for Disorienting Smog Potion (250952), issue #15. Never released.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: recipe item 250996 doesn't load. Not in the client's SkillLineAbility (no thresholds, no category). Wowhead (Forever) marks item 250952 'This item is not available to players.'"
+    },
+    "9957": {
+      "learn": 205,
+      "_note": "Orcish War Leggings, issue #15. Baked learn was 230 from WhatsTraining.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: Plans 7994 tooltip says 'Requires Blacksmithing (205)'."
+    },
+    "9972": {
+      "learn": 210,
+      "teach": [],
+      "_note": "Ornate Mithril Breastplate, issue #11. Quest 2773 teaches the recipe directly; Plans 7986 isn't rewarded and doesn't load in the client.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: recipe learned straight from the quest at Blacksmithing <=241 (baked learn was 240 from WhatsTraining); item 7986 stays 'Retrieving item information'. ForeverDB: quest 2773 rewards money only, requires Blacksmithing 210."
+    },
+    "9979": {
+      "learn": 210,
+      "teach": [],
+      "_note": "Ornate Mithril Boots, issue #11. Quest 2772 teaches the recipe directly, like 9972 and 9980.",
+      "_evidence": "ForeverDB: quest 2772 rewards money only, requires Blacksmithing 210. Same quest chain as 9972 and 9980, checked in game 2026-11-23."
+    },
+    "9980": {
+      "learn": 210,
+      "teach": [],
+      "_note": "Ornate Mithril Helm, issue #11. Quest 2771 teaches the recipe directly.",
+      "_evidence": "In game 2026-11-23, client 1.60.1: learned at Blacksmithing 241, below the baked learn 245 from WhatsTraining. ForeverDB: quest 2771 rewards money only, requires Blacksmithing 210."
     }
   }
 }

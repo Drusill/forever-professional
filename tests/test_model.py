@@ -23,12 +23,14 @@ class ModelTest(unittest.TestCase):
 
     def flat(self, line=171, filter="all", search=None, collapsed=None):
         a = self.a
-        a.g._opts = a.lua.table_from({"filter": filter, "search": search or "",
+        a.g._opts = a.lua.table_from({"search": search or "",
                                       "collapsed": a.lua.table_from(collapsed or {})})
         a.g._line = line
         a.g._ns = a.ns
+        a.g._filter = filter
         entries, count, learned = a.run(
             "_opts.isLearned = function(id) return _ns.IsLearned(id) end; "
+            "_opts.predicates = { _ns.Model.LearnedPredicate(_filter) }; "
             "return _ns.Model.Flatten(_ns.Model.BuildTree(_line), _opts)")
         return lua_list(entries), count, learned
 
@@ -127,6 +129,28 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(D(rec, 100), "green")
         self.assertEqual(D(rec, 120), "grey")
         self.assertEqual(D(self.recipes171[1251750], 200), "orange")  # only a learn skill
+
+    def test_difficulty_learned_ignores_learn_level(self):
+        # A known recipe is always craftable: the learn level only makes an unlearned recipe red (#11).
+        D = self.M.Difficulty
+        rec = self.recipes171[3230]  # 50 / 80 / 100 / 120
+        self.assertEqual(D(rec, 40), "red")
+        self.assertEqual(D(rec, 40, False), "red")
+        self.assertEqual(D(rec, 40, True), "orange")
+        self.assertEqual(D(rec, 120, True), "grey")
+        self.assertEqual(D(rec, None, True), "neutral")
+        helm = self.a.ns.Data.Recipes[164][9980]  # Ornate Mithril Helm: thresholds 240 / 250 / 260
+        self.assertEqual(D(helm, 241, True), "yellow")
+
+    def test_range_text_learned_learn_value_not_red(self):
+        rec = self.recipes171[3230]
+        self.assertEqual(self.M.RangeText(rec, 10, True),
+                         "|cffff804050|r |cffffff0080|r |cff40c040100|r |cff808080120|r")
+        self.assertTrue(self.M.RangeText(rec, 10, False).startswith("|cffff202050|r"))
+
+    def test_row_subtitle_learned_learn_value_not_red(self):
+        rec = self.recipes171[3230]
+        self.assertEqual(self.M.RowSubtitle(rec, 10, True, "Horde"), self.M.RangeText(rec, 10, True))
 
     def test_range_text(self):
         rec = self.recipes171[3230]

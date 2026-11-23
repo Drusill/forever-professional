@@ -12,6 +12,17 @@ ADDON_DIR = ROOT / "ForeverProfessional"
 ADDON_NAME = "ForeverProfessional"
 TOC = ADDON_DIR / f"{ADDON_NAME}_Camelot.toc"
 MOCK = pathlib.Path(__file__).resolve().parent / "wow_mock.lua"
+DATA_DIR = ADDON_DIR / "Data"
+
+# Loaded right after the baked data. 1251750 was removed from the data as never released (issue #15);
+# the tests keep it as their Alchemy recipe with no thresholds and no category, sold for Merchant's Favor.
+DATA_FIXTURES = """
+local _, ns = ...
+ns.Data.Recipes[171][1251750] = { learn = 180, creates = 250952, teach = 250996, bound = true, src = { "vendor" },
+    rep = { 2586, 5 }, favor = 120, vendors = { 248196, 256729 }, new = true }
+local alchemy = ns.Data.Professions[171]
+alchemy.recipes, alchemy.new = alchemy.recipes + 1, alchemy.new + 1
+"""
 
 _SUFFIX = re.compile(r"\s*\[[^\]]*\]")
 
@@ -62,7 +73,11 @@ class Addon:
             self.run(setup)
         self.ns = self.lua.table()
         loader = self.lua.eval("function(src, name) return assert(loadstring(src, name)) end")
+        fixtures_added = False
         for path in addon_files():
+            if not fixtures_added and DATA_DIR not in path.parents:
+                loader(DATA_FIXTURES, "@fixtures")(ADDON_NAME, self.ns)
+                fixtures_added = True
             chunk = loader(path.read_text(encoding="utf-8"), "@" + str(path.relative_to(ADDON_DIR)))
             chunk(ADDON_NAME, self.ns)
         self._run = self.lua.eval("function(code) return assert(loadstring(code))() end")
