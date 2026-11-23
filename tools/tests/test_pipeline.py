@@ -101,6 +101,7 @@ class MergeTests(unittest.TestCase):
         d = tempfile.mkdtemp()
         with open(os.path.join(d, "Leatherworking.lua"), "w", encoding="utf-8") as f:
             f.write(WT_SAMPLE)
+        self.wt_dir = d
         recipes, ranks = whatstraining.load(d)
         recipes.append({"spell": 1263031, "skillLine": 165, "learn": 125, "creates": 279941, "count": None,
                         "teach": None, "sources": ["drop"], "trainerCost": None, "bound": False, "side": None,
@@ -149,6 +150,14 @@ class MergeTests(unittest.TestCase):
         r = self.r[1297126]
         self.assertEqual(r["vendors"], [123])
         self.assertEqual(r["unverified"], [])
+
+    def test_override_removes_recipe(self):
+        recipes, ranks = whatstraining.load(self.wt_dir)
+        cat = merge.build(recipes, ranks, fake_fdb(), sla_rows(), {},
+                          {"recipes": {"1255143": {"remove": True, "_note": "never released"}}})
+        self.assertNotIn(1255143, [r["spell"] for r in cat["recipes"]])
+        self.assertNotIn(258306, cat["npcs"])  # its vendor isn't used by any other recipe
+        self.assertIn((1255143, "removed"), cat["overridesApplied"])
 
 
 def sample_fdb():

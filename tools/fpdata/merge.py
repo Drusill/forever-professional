@@ -143,6 +143,10 @@ def apply_overrides(recipes, overrides):
         if not r:
             applied.append((int(key), "unknown recipe, skipped"))
             continue
+        if patch.get("remove"):  # never released: drop it from the catalog
+            recipes.remove(r)
+            applied.append((int(key), "removed"))
+            continue
         for field, value in patch.items():
             if field.startswith("_"):
                 continue
