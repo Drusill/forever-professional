@@ -82,7 +82,8 @@ function M.Difficulty(rec, skill, learned)
 
 ## Task 4: in-game check and wrap-up
 
-- [ ] In game, as the Blacksmith at 241: Ornate Mithril Helm row and detail title are yellow, the learn value in the range text is not red, and Skill-ups shows the helm.
-- [ ] An unlearned recipe above your skill is still red.
+- [x] In game, as the Blacksmith at 241: Ornate Mithril Helm row and detail title are yellow, the learn value in the range text is not red, and Skill-ups shows the helm.
+- [x] An unlearned recipe above your skill is still red.
 - [ ] Add a line for the fix to `CHANGELOG.md` only when the next release's notes are written (Releasing, step 1).
 - [ ] Open the pull request into `develop` with `Closes #11` when the user asks.
+- Checked in game 2026-11-23 (Salvador, Blacksmithing 241): Ornate Mithril Helm, Breastplate and Boots show learn 210 in orange, yellow names, and only their quest under "Where to get it"; the unlearned Ornate Thorium Handaxe (learn 275) stays red with "Skill too low".
