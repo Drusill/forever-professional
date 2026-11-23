@@ -155,7 +155,7 @@ Fill these in `tools/overrides.json`, or harvest them in game.
 - Engineering `1319155` Schematic: Small White Rocket
 - ... and 36 more
 
-## Learn level above the yellow threshold (26)
+## Learn level above the yellow threshold (16)
 
 The learn level is probably stale. Check "Requires <Profession> (N)" on the recipe item's tooltip in game and fix confirmed values in `tools/overrides.json`.
 
@@ -164,25 +164,15 @@ The learn level is probably stale. Check "Requires <Profession> (N)" on the reci
 - Leatherworking `1255002` Pattern: Skycaller's Mail Bracers: learn 225, yellow 220
 - Leatherworking `1255003` Pattern: Stalker's Mail Bracers: learn 225, yellow 220
 - Cooking `1229737` Basic Campfire Kit: learn 20, yellow 1
-- Tailoring `1257426` Pattern: Gilded Slippers: learn 150, yellow 145
-- Tailoring `1257427` Pattern: Frothing Slippers: learn 150, yellow 145
-- Tailoring `1257428` Pattern: Fiery Slippers: learn 150, yellow 145
-- Tailoring `1257429` Pattern: Black Slippers: learn 150, yellow 145
-- Tailoring `1257430` Pattern: Golden Slippers: learn 150, yellow 145
-- Tailoring `1257431` Pattern: Radiant Slippers: learn 150, yellow 145
 - Blacksmithing `16991` Plans: Annihilator: learn 300, yellow 295
 - Blacksmithing `22757` Plans: Elemental Sharpening Stone: learn 300, yellow 275
 - Blacksmithing `23650` Plans: Ebon Hand: learn 300, yellow 295
 - Blacksmithing `23652` Plans: Blackguard: learn 300, yellow 295
 - Blacksmithing `23653` Plans: Nightfall: learn 300, yellow 295
 - Leatherworking `10619` Dragonscale Gauntlets: learn 225, yellow 220
-- Leatherworking `10630` Gauntlets of the Sea: learn 230, yellow 225
-- Leatherworking `10632` Helm of Fire: learn 250, yellow 245
-- Leatherworking `10650` Dragonscale Breastplate: learn 255, yellow 250
 - Leatherworking `19048` Pattern: Heavy Scorpid Bracers: learn 255, yellow 250
 - Leatherworking `24655` Green Dragonscale Gauntlets: learn 280, yellow 275
 - Mining `3304` Tin Bar: learn 65, yellow 50
-- Tailoring `19435` Mooncloth Boots: learn 290, yellow 285
 - Tailoring `26086` Pattern: Felcloth Bag: learn 285, yellow 260
 - Engineering `9273` Schematic: Goblin Jumper Cables: learn 165, yellow 160
 
@@ -194,6 +184,16 @@ Alchemy 26, Blacksmithing 94, Cooking 3, Enchanting 37, Engineering 33, First Ai
 
 ## Overrides applied
 
+- `1257426`: learn
+- `1257427`: learn
+- `1257428`: learn
+- `1257429`: learn
+- `1257430`: learn
+- `1257431`: learn
+- `10630`: learn
+- `10632`: learn
+- `10650`: learn
+- `19435`: learn
 - `9957`: learn
 - `9972`: learn, teach
 - `9979`: learn, teach
