@@ -182,6 +182,51 @@ function ns.OwnerLines(line, spellID)
     return out
 end
 
+-- Materials calculator --------------------------------------------------------------------------
+
+-- Live context for Model.PlanMaterials. "Me" is always the logged-in character, whichever character the
+-- window shows: inventory comes from its bags and bank (C_Item.GetItemCount counts the bank away from it).
+function ns.PlanContext()
+    local me = ns.CharKey()
+    return {
+        reagents = ns.Model.Reagents,
+        have = function(itemID)
+            return (C_Item and C_Item.GetItemCount and C_Item.GetItemCount(itemID, true)) or 0
+        end,
+        knownBy = function(line, spellID)
+            local out = { me = false, alts = {} }
+            for _, key in ipairs(ns.RecipeOwners(line, spellID).known) do
+                if key == me then out.me = true else out.alts[#out.alts + 1] = key end
+            end
+            return out
+        end,
+        mode = function(itemID) return ns.db and ns.db.craftModes[itemID] end,
+    }
+end
+
+-- Save "craft" or "buy" for an item in every plan; nil goes back to the default.
+function ns.SetCraftMode(itemID, mode)
+    if mode ~= "craft" and mode ~= "buy" then mode = nil end
+    ns.db.craftModes[itemID] = mode
+end
+
+function ns.ResetCraftModes()
+    wipe(ns.db.craftModes)
+end
+
+-- Who crafts something: "You", the first alt's name (" +N" for more), or "Nobody"; and that kind.
+function ns.CrafterText(known)
+    local L = ns.L
+    if known and known.me then return L.CALC_YOU, "me" end
+    local alts = known and known.alts or {}
+    if #alts > 0 then
+        local text = ns.CharLabel(alts[1])
+        if #alts > 1 then text = text .. " +" .. (#alts - 1) end
+        return text, "alt"
+    end
+    return L.CALC_NOBODY, "nobody"
+end
+
 -- /fp chars and /fp forget ------------------------------------------------------------------------
 
 local function ProfessionSummary(c)

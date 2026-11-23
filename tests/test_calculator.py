@@ -5,7 +5,7 @@ import pathlib
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from harness import Addon, lua_list  # noqa: E402
+from harness import Addon, lua_list, plain  # noqa: E402
 
 # {spellID: [(itemID, count), ...]}: real reagents from the client's SpellReagents table (build 1.60.1.71037).
 REAGENTS = {
@@ -395,6 +395,74 @@ class OutputTest(PlanBase):
         self.assertLessEqual(nodes, 5)
         self.assertEqual(more, 1)
         self.assertEqual(p["items"][2770].need, 6)   # totals still complete
+
+
+class ContextTest(unittest.TestCase):
+    def setUp(self, setup=CALC):
+        self.a = Addon(setup=setup)
+        self.a.login()
+        self.a.g._ns = self.a.ns
+        self.ns = self.a.ns
+        seed(self.a)
+
+    def plan(self, roots=((3932, 1),)):
+        return run_plan(self.a, roots, self.ns.PlanContext())
+
+    def test_context_plan_matches_fixture(self):
+        p = self.plan()
+        kinds = {i: (n.kind, n.need) for i, n in p["items"].items()}
+        self.assertEqual(kinds, {4363: ("craft", 1), 4359: ("craft", 4), 2841: ("craft", 1), 2840: ("craft", 6),
+                                 3576: ("craft", 1), 2589: ("raw", 2), 2592: ("raw", 1), 2770: ("raw", 6),
+                                 2771: ("raw", 1)})
+        self.assertTrue(p["items"][4363].known.me)
+        self.assertEqual(lua_list(p["items"][2840].known.alts), [MINA])
+        self.assertTrue(p.roots[1].known.me)
+
+    def test_context_have_counts_bank(self):
+        self.a.run("mock.bags[4359] = 1; mock.bank[4359] = 2")
+        n = self.plan()["items"][4359]
+        self.assertEqual((n.have, n.crafts), (3, 1))
+
+    def test_set_craft_mode(self):
+        self.ns.SetCraftMode(2840, "buy")
+        self.assertEqual(self.ns.db.craftModes[2840], "buy")
+        self.assertEqual(self.plan()["items"][2840].kind, "buy")
+        self.ns.SetCraftMode(2840, None)
+        self.assertIsNone(self.ns.db.craftModes[2840])
+        self.assertEqual(self.plan()["items"][2840].kind, "craft")
+
+    def test_reset_craft_modes(self):
+        modes = self.ns.db.craftModes
+        self.ns.SetCraftMode(2840, "buy")
+        self.ns.SetCraftMode(2592, "craft")
+        self.ns.ResetCraftModes()
+        self.assertEqual(list(self.ns.db.craftModes.keys()), [])
+        self.assertTrue(self.a.lua.eval("rawequal")(modes, self.ns.db.craftModes))
+
+    def test_saved_across_reload(self):
+        self.setUp(CALC + "ForeverProfessionalDB.craftModes = { [2840] = 'buy' }")
+        self.assertEqual(self.plan()["items"][2840].kind, "buy")
+
+    def test_bad_saved_modes_ignored(self):
+        self.setUp(CALC + "ForeverProfessionalDB.craftModes = { [2840] = 'bogus', [4359] = 5 }")
+        p = self.plan()
+        self.assertEqual((p["items"][2840].kind, p["items"][4359].kind), ("craft", "craft"))
+
+    def test_crafter_text(self):
+        text = self.ns.CrafterText
+        known = self.a.lua.eval("function(me, ...) return { me = me, alts = { ... } } end")
+        self.assertEqual(text(known(True)), ("You", "me"))
+        t, kind = text(known(False, MINA))
+        self.assertEqual((plain(t), kind), ("Mina", "alt"))
+        t, kind = text(known(False, MINA, "Player-1-0000000E"))
+        self.assertEqual((plain(t), kind), ("Mina +1", "alt"))
+        self.assertEqual(text(known(False)), ("Nobody", "nobody"))
+
+    def test_logged_in_is_me_even_when_alt_shown(self):
+        self.a.slash("")
+        self.ns.UI.SetChar(MINA)
+        known = self.ns.PlanContext().knownBy(202, 3926)
+        self.assertTrue(known.me)
 
 if __name__ == "__main__":
     unittest.main()

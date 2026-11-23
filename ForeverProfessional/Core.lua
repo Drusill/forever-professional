@@ -46,6 +46,7 @@ local DEFAULTS = {
     chars = {},       -- [GUID] = character record (Characters.lua)
     filter = "all",
     filters = {},     -- filter menu: [item key from Model.FILTER_GROUPS] = true
+    craftModes = {},  -- materials calculator: [itemID] = "craft" | "buy", overriding the default
     minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
     minimapHidden = false,
 }

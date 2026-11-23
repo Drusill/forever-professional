@@ -109,3 +109,6 @@ L.DUNGEON = "Dungeon"
 L.WAYPOINT = "Waypoint"
 L.WAYPOINT_SET = "Waypoint set: %s (%s %.1f, %.1f)."
 L.WAYPOINT_FAILED = "Can't set a waypoint on that map."
+
+L.CALC_YOU = "You"
+L.CALC_NOBODY = "Nobody"
