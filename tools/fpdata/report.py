@@ -84,6 +84,16 @@ def build_report(catalog, meta, fdb, list_limit=60):
     if len(unknown) > list_limit:
         lines.append("- ... and %d more" % (len(unknown) - list_limit))
 
+    # The learn level comes from WhatsTraining (Classic values), the thresholds from Forever's client.
+    above = [r for r in rs if r["learn"] and r["yellow"] and r["learn"] > r["yellow"]]
+    lines += ["", "## Learn level above the yellow threshold (%d)" % len(above), "",
+              "The learn level is probably stale. Check \"Requires <Profession> (N)\" on the recipe item's tooltip "
+              "in game and fix confirmed values in `tools/overrides.json`.", ""]
+    for r in sorted(above, key=lambda r: (not r["new"], r["skillLine"], r["spell"]))[:list_limit]:
+        lines.append("- %s: learn %d, yellow %d" % (recipe_label(r), r["learn"], r["yellow"]))
+    if len(above) > list_limit:
+        lines.append("- ... and %d more" % (len(above) - list_limit))
+
     unlisted = catalog["unlisted"]
     lines += ["", "## In the client's SkillLineAbility with a recipe category, but not in WhatsTraining (%d)" % len(unlisted), "",
               "Usually ranks, removed or test spells. Review before adding any to overrides.", ""]

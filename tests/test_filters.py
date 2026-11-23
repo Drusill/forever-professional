@@ -164,6 +164,14 @@ class MenuModelTest(unittest.TestCase):
     def test_skillups(self):
         self.assertEqual(self.ids(["skillups"]), {3171, 6617})
 
+    def test_skillups_keeps_learned_recipe_below_its_learn_level(self):
+        # Learned above the baked learn level (#11): still craftable, still gives skill.
+        spell = min(i for i, r in self.recs.items() if (r.learn or 0) > 120 and (r.grey or 0) > 120)
+        self.a = Addon(setup=f"{FILTERS}; mock.learned[{spell}] = true")  # learned status is cached at login
+        self.a.login()
+        self.a.g._ns = self.a.ns
+        self.assertEqual(self.ids(["skillups"]), {3171, 6617, spell})
+
     def test_learnable(self):
         ids = self.ids(["learnable"])
         self.assertEqual(ids, self.where(self.learnable))

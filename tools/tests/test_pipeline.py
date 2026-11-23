@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fpdata import client_tables, emit_lua, merge, whatstraining  # noqa: E402
+from fpdata import client_tables, emit_lua, merge, report, whatstraining  # noqa: E402
 from fpdata.foreverdb import ForeverDB  # noqa: E402
 from fpdata.luaparse import LuaParseError, Ref, parse_value  # noqa: E402
 
@@ -163,6 +163,36 @@ def sample_fdb():
                  "c8": {"500": [0, 0]},    # no kills: no usable count
                  "c9": {"500": [1, 7]}},   # 14.2857% stored rounded up as 1429 -> set aside
     })
+
+
+class ReportTests(unittest.TestCase):
+    def section(self, text, title):
+        """Lines of the report section whose heading starts with title, up to the next heading."""
+        out, inside = [], False
+        for line in text.splitlines():
+            if line.startswith("## "):
+                inside = line.startswith(title)
+            if inside:
+                out.append(line)
+        return out
+
+    def test_learn_above_yellow(self):
+        # The learn level comes from WhatsTraining (Classic), the thresholds from Forever's client (#11).
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, "Leatherworking.lua"), "w", encoding="utf-8") as f:
+            f.write(WT_SAMPLE)
+        recipes, ranks = whatstraining.load(d)
+        fdb = fake_fdb()
+        cat = merge.build(recipes, ranks, fdb, sla_rows(), {}, {})
+        r = {x["spell"]: x for x in cat["recipes"]}
+        r[1255143]["learn"] = 45                          # yellow 40: above
+        self.assertEqual((r[2149]["learn"], r[2149]["yellow"]), (1, 40))  # below: not listed
+        r[1250796]["learn"] = r[1250796]["yellow"]        # equal: not listed
+        text = report.build_report(cat, {"sources": {}}, fdb)
+        lines = self.section(text, "## Learn level above the yellow threshold")
+        self.assertEqual(lines[0], "## Learn level above the yellow threshold (1)")
+        entries = [x for x in lines if x.startswith("- ")]
+        self.assertEqual(entries, ["- Leatherworking `1255143` Pattern: Moonglow Boots: learn 45, yellow 40"])
 
 
 class SmallSampleTests(unittest.TestCase):

@@ -290,7 +290,7 @@ end
 local function RenderHeader(spellID, rec, skill, learned, pending)
     local h = detail.header
     h.icon:SetTexture(M.RecipeIcon(spellID, rec))
-    h.title:SetText(M.Colored(M.Difficulty(rec, skill), M.RecipeDisplayName(spellID)))
+    h.title:SetText(M.Colored(M.Difficulty(rec, skill, learned), M.RecipeDisplayName(spellID)))
     local creates, output = CreatesText(spellID, rec, pending)
     h.creates:SetText(creates or "")
     local q = output and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(output)

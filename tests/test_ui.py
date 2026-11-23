@@ -233,6 +233,20 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(row.sub.text, self.a.ns.Model.RangeText(rec, 120))
         self.assertEqual(row.status.texture, self.UI.SOURCE_ICONS.check)
 
+    def test_learned_recipe_below_learn_level_not_red(self):
+        # Learned above the baked learn level (#11): the row, its range text and the detail title aren't red.
+        recs = dict(self.a.ns.Data.Recipes[171].items())
+        spell = min(i for i, r in recs.items() if (r.learn or 0) > 120 and (r.grey or 0) > 120)
+        self.a = open_addon(f"{LEARNED}; mock.learned[{spell}] = true")
+        self.UI = self.a.ns.UI
+        row = self.search(spell)
+        self.assertFalse(row.label.text.startswith("|cffff2020"), row.label.text)
+        rec = self.a.ns.Data.Recipes[171][spell]
+        self.assertEqual(row.sub.text, self.a.ns.Model.RangeText(rec, 120, True))
+        self.UI.SelectRecipe(spell)
+        title = self.UI.detail.header.title.text
+        self.assertFalse(title.startswith("|cffff2020"), title)
+
     def test_header_row(self):
         h = self.visible_rows()[0]
         self.assertEqual((h.label.text, h.expand.rotation), ("Camping", -math.pi / 2))
