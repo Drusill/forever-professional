@@ -263,3 +263,4 @@ Run the full suite once more, then hand the user the spec's in-game checklist (n
 - The filter menu's `rows` is keyed by item key; the character menu's stays a list.
 - Commits: Task 1 `3213a1f`, Task 2 `be2e1c1`, Task 3 `6df50c3`, Task 4 `a3328ef`, Task 5 `ae61a6e`, Task 6 next.
 - First in-game test (2026-11-22): the one-row toolbar left the search box about 40px wide at 900px; the user chose a two-row toolbar (`UI.BAR_H` 34 -> 62).
+- In-game checklist (2026-11-23, Horde character with Mining 115 and First Aid 44): items 1–9 pass. Item 7's faction case (Alliance-only Cooking recipe 2795) was not checked in game, since no Alliance character has Cooking 25; `test_faction_rule_with_alts` and `test_can_learn_now` cover it.
