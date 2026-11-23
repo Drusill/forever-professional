@@ -179,5 +179,54 @@ class WidgetsTest(unittest.TestCase):
         self.assertLess(bar.fill.width, 1)
 
 
+
+class ItemTextTest(unittest.TestCase):
+    """UI.ItemText and UI.LoadItems, shared by the detail pane and the calculator."""
+
+    def setUp(self):
+        self.a = Addon()
+        self.a.login()
+        self.UI = self.a.ns.UI
+        self.a.run("redraws = 0; current = true")
+        self.redraw = self.a.run("return function() redraws = redraws + 1 end")
+        self.current = self.a.run("return function() return current end")
+
+    def text(self, item):
+        pending = self.a.lua.table()
+        return self.UI.ItemText(item, pending), lua_list(pending), pending
+
+    def test_item_text_cached(self):
+        self.a.run('mock.itemNames[2589] = "Linen Cloth"')
+        text, pending, _ = self.text(2589)
+        self.assertIn("Linen Cloth", text)
+        self.assertEqual(pending, [])
+
+    def test_item_text_uncached(self):
+        self.a.run("mock.asyncItems[99001] = true")
+        text, pending, table = self.text(99001)
+        self.assertIn("Item #99001", text)
+        self.assertEqual(pending, [99001])
+        self.UI.LoadItems(table, self.current, self.redraw)
+        self.assertEqual(self.text(99001)[1], [])     # asked for once already
+
+    def test_load_items_sync_coalesced(self):
+        pending = self.a.lua.table(99002, 99003)
+        self.UI.LoadItems(pending, self.current, self.redraw)
+        self.assertEqual(self.a.g.redraws, 1)
+
+    def test_load_items_async(self):
+        self.a.run("mock.asyncItems[99004] = true")
+        self.UI.LoadItems(self.a.lua.table(99004), self.current, self.redraw)
+        self.assertEqual(self.a.g.redraws, 0)
+        self.a.run("flush()")
+        self.assertEqual(self.a.g.redraws, 1)
+
+    def test_load_items_async_stale(self):
+        self.a.run("mock.asyncItems[99005] = true")
+        self.UI.LoadItems(self.a.lua.table(99005), self.current, self.redraw)
+        self.a.run("current = false; flush()")
+        self.assertEqual(self.a.g.redraws, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

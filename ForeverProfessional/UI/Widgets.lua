@@ -118,6 +118,41 @@ function UI.SetIcon(tex, value)
     tex:SetTexCoord(0, 1, 0, 1)   -- an atlas shown before leaves its sub-rectangle behind
 end
 
+-- Item names -----------------------------------------------------------------------------------------
+-- Names are read live; an uncached item shows "Item #id" until it loads.
+
+local requested = {}   -- [itemID] = true once a load was asked for, for the session
+
+-- Quality-coloured item name; an uncached item not asked for yet is queued in `pending`.
+function UI.ItemText(itemID, pending)
+    local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
+    if not name then
+        name = ("Item #%d"):format(itemID)
+        if not requested[itemID] then pending[#pending + 1] = itemID end
+    end
+    local q = C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
+    local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
+    return (c and c.hex or "|cffffffff") .. name .. "|r"
+end
+
+-- Load the queued items, then redraw while `stillCurrent()` holds. Cached items call back synchronously:
+-- those only mark the view dirty and it's redrawn once after the loop.
+function UI.LoadItems(pending, stillCurrent, redraw)
+    if #pending == 0 or not (Item and Item.CreateFromItemID) then return end
+    local loading, dirty = true, false
+    for _, itemID in ipairs(pending) do
+        if not requested[itemID] then
+            requested[itemID] = true
+            Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
+                if not stillCurrent() then return end
+                if loading then dirty = true else redraw() end
+            end)
+        end
+    end
+    loading = false
+    if dirty then redraw() end
+end
+
 -- Horizontal gradient between two hex colours; a flat colour when gradients aren't available.
 local function Gradient(tex, from, to)
     tex:SetTexture(WHITE)

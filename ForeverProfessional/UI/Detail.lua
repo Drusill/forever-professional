@@ -18,7 +18,6 @@ local OWNER_DOTS = { known = "40c040", learnable = "ffd100", low = "909090", non
 
 local detail = {}
 UI.detail = detail
-local requested = {}   -- [itemID] = true once a load was asked for
 
 local function ContentWidth()
     return UI.DetailContentWidth()
@@ -59,26 +58,7 @@ function UI.SetWaypoint(wp)
     return true
 end
 
--- Items ----------------------------------------------------------------------------------------
-
-local function ItemName(itemID)
-    local name = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
-    if name then return name, true end
-    return ("Item #%d"):format(itemID), false
-end
-
-local function ItemColor(itemID)
-    local q = C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
-    local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
-    return c and c.hex or "|cffffffff"
-end
-
--- Coloured item name; an uncached item is queued in `pending` for loading.
-local function ItemText(itemID, pending)
-    local name, cached = ItemName(itemID)
-    if not cached and not requested[itemID] then pending[#pending + 1] = itemID end
-    return ItemColor(itemID) .. name .. "|r"
-end
+local ItemText = UI.ItemText
 
 local function ShowItemTooltip(self)
     if not (self.item and GameTooltip) then return end
@@ -616,20 +596,6 @@ function UI.RefreshDetail()
         detail.lastSpell = spellID
     end
 
-    -- Load missing item names, then re-render if this recipe is still shown. Cached items call
-    -- back synchronously: those only mark the pane dirty and it's rendered once after the loop.
-    -- `requested` keeps an item from being asked for twice.
-    if #pending == 0 or not (Item and Item.CreateFromItemID) then return end
-    detail.loading, detail.dirty = true, false
-    for _, itemID in ipairs(pending) do
-        if not requested[itemID] then
-            requested[itemID] = true
-            Item:CreateFromItemID(itemID):ContinueOnItemLoad(function()
-                if detail.current ~= spellID then return end
-                if detail.loading then detail.dirty = true else UI.RefreshDetail() end
-            end)
-        end
-    end
-    detail.loading = false
-    if detail.dirty then UI.RefreshDetail() end
+    -- Load missing item names, then re-render if this recipe is still shown.
+    UI.LoadItems(pending, function() return detail.current == spellID end, UI.RefreshDetail)
 end
