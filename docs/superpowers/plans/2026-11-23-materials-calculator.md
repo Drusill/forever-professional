@@ -110,16 +110,16 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `M.Reagents(spellID) -> { {item, count}... } | nil`: one entry per slot with `reagents[1].itemID`; `count = quantityRequired or 1`; nil without a schematic; `{}` for a schematic with no slots.
   - Mock: `mock.schematics[id] = { {item, count}, ... }` returns a schematic with those slots (`outputItemID` from `mock.outputs[id]` when a test sets it); `mock.onlySchematics = true` makes unlisted spells return nil; otherwise today's fixed schematic. `C_Item.GetItemCount(id, includeBank) = (mock.bags[id] or 0) + (includeBank and mock.bank[id] or 0)`.
 
-- [ ] **Step 1: Run the detail tests as the pin**: `mise exec -- python -m unittest tests.test_detail -v` (PASS before any change).
-- [ ] **Step 2: Write the failing tests** (`ReagentsTest`, login with `CALC`, `seed(a)`)
+- [x] **Step 1: Run the detail tests as the pin**: `mise exec -- python -m unittest tests.test_detail -v` (PASS before any change).
+- [x] **Step 2: Write the failing tests** (`ReagentsTest`, login with `CALC`, `seed(a)`)
   - `test_reagents_from_schematic`: `M.Reagents(3932)` → `[(4363, 1), (4359, 2), (2841, 1), (2592, 1)]`.
   - `test_reagents_missing`: `M.Reagents(999999)` is nil with `onlySchematics`.
   - `test_schematic_cached`: two `M.Reagents(3926)` calls → `mock.schematicCalls` grows by 1.
   - `test_item_count_mock`: `mock.bags[2589] = 1; mock.bank[2589] = 2` → `GetItemCount(2589)` 1, `GetItemCount(2589, true)` 3.
-- [ ] **Step 3: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
-- [ ] **Step 4: Implement** the mock additions, `M.Schematic`, `M.Reagents`, and switch `UI/Detail.lua` to them.
-- [ ] **Step 5: Full suite, expect PASS** (`test_detail.py` unmodified).
-- [ ] **Step 6: Commit**: `git commit -m "refactor(model): read recipe reagents in the model"`
+- [x] **Step 3: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
+- [x] **Step 4: Implement** the mock additions, `M.Schematic`, `M.Reagents`, and switch `UI/Detail.lua` to them.
+- [x] **Step 5: Full suite, expect PASS** (`test_detail.py` unmodified).
+- [x] **Step 6: Commit**: `git commit -m "refactor(model): read recipe reagents in the model"`
 
 ---
 
@@ -135,17 +135,17 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `M.Yield(rec) -> number`: `count` if a number, `count[1]` if a table, else 1.
   - `M.CraftsFor(rec, items) -> number`: `math.ceil(items / M.Yield(rec))`; 0 for `items <= 0`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_recipes_creating_single`: 2840 → `[(186, 2657)]`.
   - `test_recipes_creating_several`: 3577 → `[(186, 3308), (171, 11479)]` (sorted by spell ID); 7080 → spells `[17561, 17563]`; 10577 → `[12716, 13240]`.
   - `test_recipes_creating_none`: 2770 (Copper Ore) → nil.
   - `test_index_matches_data`: every `(line, spellID)` with `creates` appears under its item; the total of all lists equals the Python count of recipes with `creates` (2,159 − 174 at the time of writing, computed, not hard-coded).
   - `test_yield`: 3932 → 1, 2659 → 2, 3931 (`{1, 3}`) → 1, 12584 → 3.
   - `test_crafts_for`: 12584 with 7 → 3; 2659 with 3 → 2; 3931 with 6 → 6; 0 items → 0.
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(model): index recipes by the item they create"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(model): index recipes by the item they create"`
 
 ---
 
@@ -162,7 +162,7 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - Levels: after pass 1, `level` = longest distance from a root over the chosen recipes (root reagents are level 1).
   - Pass 2: roots add `crafts × count` to their reagents' `need`; items by level, shallow first; `net = max(0, need − have)`; craft → `crafts = ceil(net / yield)`, `surplus = crafts × yield − net`, adds to reagents; buy/raw → `buy = net`. `plan.roots[i].makes = crafts × yield`; `reagents = nil` when unreadable (no items added).
 
-- [ ] **Step 1: Write the failing tests** (`seed(a)`, ctx: Tester (`me`) knows 3922, 3926, 3932; Mina knows 2657, 2659, 3304, 3307, 3308)
+- [x] **Step 1: Write the failing tests** (`seed(a)`, ctx: Tester (`me`) knows 3922, 3926, 3932; Mina knows 2657, 2659, 3304, 3307, 3308)
   - `test_one_level`: 2329 ×1 → items `{2449, 765, 3371}` all `raw`, need 1 each; no crafted items.
   - `test_nested`: 3932 ×1 → kinds, spells, levels and `need` exactly as in the fixture table.
   - `test_shared_summed`: 3932 ×1 → 2840 need 6 (three branches).
@@ -183,10 +183,10 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `test_unreadable_root`: root 999999 (no schematic) → `plan.roots[1].reagents` nil, no items, no error.
   - `test_unreadable_maker_is_unusable`: drop 2657 from `REAGENTS` → 2840 `buy` (no usable maker), `cycle` falsy.
   - `test_schematic_read_once`: 3932 ×1 → `mock.schematicCalls` == number of distinct spells read (3932, 3926, 3922, 2659, 2657, 3304).
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
-- [ ] **Step 3: Implement** pass 1, levels and pass 2. Comment the two passes and the cycle rule above the function.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(model): plan materials across crafted intermediates"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
+- [x] **Step 3: Implement** pass 1, levels and pass 2. Comment the two passes and the cycle rule above the function.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(model): plan materials across crafted intermediates"`
 
 ---
 
@@ -203,7 +203,7 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `plan.steps = { {item, spellID, line, crafts, known}... }`: crafted items with `crafts > 0`, level descending then item ID; then each root (`item = rec.creates` or nil, `crafts`).
   - `plan.tree[i] = { item, count, children }` per root; a crafted node's children use `ceil(count / yield) × reagent count`; `count` before inventory; stops after `M.PLAN_TREE_MAX = 400` nodes with `{ more = true }` as the last child.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_shopping`: 3932 ×1 → `[(2589, 2, 0, 2), (2592, 1, 0, 1), (2770, 6, 0, 6), (2771, 1, 0, 1)]`.
   - `test_steps_order`: items `[2840, 3576, 4359, 2841, 4363, 4366]`, crafts `[6, 1, 4, 1, 1, 1]`; each step comes after every step making one of its reagents.
   - `test_inventory_intermediate`: have 4359 = 3 → 4359 crafts 1; 2840 need 3; 2770 buy 3.
@@ -214,10 +214,10 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `test_tree`: 3932 ×1 → root children items `[4363, 4359, 2841, 2592]` with counts `[1, 2, 1, 1]`; 4363's children `[4359, 2840, 2589]` with `[2, 1, 2]`; 2841's children `[2840, 3576]` with `[1, 1]`; raw nodes have no children.
   - `test_tree_bought_has_no_children`: `mode(2841) = "buy"` → the 2841 node has no children.
   - `test_tree_cap`: with `M.PLAN_TREE_MAX = 5` → node count ≤ 5 plus one `more` marker, and `plan.items` still complete.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(model): shopping list, craft steps and reagent tree"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(model): shopping list, craft steps and reagent tree"`
 
 ---
 
@@ -238,7 +238,7 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `ns.ResetCraftModes()`: empties the table (same table, `wipe`).
   - `ns.CrafterText(known) -> text, kind`: `L.CALC_YOU, "me"` / `ns.CharLabel(alts[1]) .. " +N", "alt"` (no suffix for one alt) / `L.CALC_NOBODY, "nobody"`.
 
-- [ ] **Step 1: Write the failing tests** (login with `CALC`, `seed(a)`)
+- [x] **Step 1: Write the failing tests** (login with `CALC`, `seed(a)`)
   - `test_default_craft_modes`: fresh DB → `ns.db.craftModes` empty table (`test_addon.py`).
   - `test_context_plan_matches_fixture`: `PlanMaterials({3932 ×1}, ns.PlanContext())` matches the fixture table (kinds, need, crafter `me` / `[MINA]`).
   - `test_context_have_counts_bank`: `mock.bags[4359] = 1; mock.bank[4359] = 2` → `item(4359).have == 3`, crafts 1.
@@ -248,10 +248,10 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `test_bad_saved_modes_ignored`: setup with `craftModes = { [2840] = "bogus", [4359] = 5 }` → default plan, no error.
   - `test_crafter_text`: `{me = true}` → `("You", "me")`; `{alts = [MINA]}` → plain `"Mina"`, `"alt"`; two alts → `"Mina +1"`; `{}` → `("Nobody", "nobody")`.
   - `test_logged_in_is_me_even_when_alt_shown`: `UI.SetChar(MINA)` after `/fp` → `ns.PlanContext().knownBy(202, 3926).me` still true.
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator tests.test_addon -v`
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat: saved craft or buy choices and the player's plan context"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator tests.test_addon -v`
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat: saved craft or buy choices and the player's plan context"`
 
 ---
 
@@ -267,16 +267,16 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `UI.ItemText(itemID, pending) -> text`: quality-coloured name or `Item #id`, queuing an uncached, not yet requested item in `pending`.
   - `UI.LoadItems(pending, stillCurrent, redraw)`: requests each item once per session; a callback redraws only while `stillCurrent()` is true; synchronous callbacks during the loop are coalesced into one `redraw()` after it.
 
-- [ ] **Step 1: Pin**: `mise exec -- python -m unittest tests.test_detail -v` (PASS, especially `test_async_output_item`, `test_async_item_rerenders`, `test_async_item_for_old_selection_ignored`).
-- [ ] **Step 2: Write the failing tests** (`tests/test_widgets.py` `ItemTextTest`)
+- [x] **Step 1: Pin**: `mise exec -- python -m unittest tests.test_detail -v` (PASS, especially `test_async_output_item`, `test_async_item_rerenders`, `test_async_item_for_old_selection_ignored`).
+- [x] **Step 2: Write the failing tests** (`tests/test_widgets.py` `ItemTextTest`)
   - `test_item_text_cached`: `mock.itemNames[2589] = "Linen Cloth"` → text contains `Linen Cloth`, `pending` empty.
   - `test_item_text_uncached`: unknown item → `Item #2589`, `pending == [2589]`; once requested, a second call doesn't queue it again.
   - `test_load_items_sync_coalesced`: two cached-on-load items (sync callbacks) → `redraw` called once.
   - `test_load_items_async_stale`: `mock.asyncItems[2589] = true`, `stillCurrent` returns false at flush → no redraw.
-- [ ] **Step 3: Run, expect failures**
-- [ ] **Step 4: Implement**; `UI.RefreshDetail` passes `function() return detail.current == spellID end` and `UI.RefreshDetail`.
-- [ ] **Step 5: Full suite, expect PASS** (`test_detail.py` unmodified)
-- [ ] **Step 6: Commit**: `git commit -m "refactor(ui): share item names and async item loading"`
+- [x] **Step 3: Run, expect failures**
+- [x] **Step 4: Implement**; `UI.RefreshDetail` passes `function() return detail.current == spellID end` and `UI.RefreshDetail`.
+- [x] **Step 5: Full suite, expect PASS** (`test_detail.py` unmodified)
+- [x] **Step 6: Commit**: `git commit -m "refactor(ui): share item names and async item loading"`
 
 ---
 
@@ -297,7 +297,7 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `UI.calc` frame: `.back`, `.title`, `.who`, `.qty` (EditBox), `.unit` (segmented `crafts`/`items`), `.summary`, `.tabs` (segmented `shopping`/`steps`/`tree`), `.reset`, `.scroll`, `.rows` (pool), `.message`.
   - `UI.OpenCalculator(spellID)`, `UI.CloseCalculator()`, `UI.SetCalcQuantity(n)`, `UI.SetCalcUnit(key)`, `UI.SetCalcTab(key)`, `UI.RefreshCalculator()`; `UI.calc.plan` holds the last plan; `UI.calc.rendered` the drawn rows as `{ kind, item, ... }` for tests (like `detail.rendered`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_calculate_button_opens`: click `calcButton` → `UI.calc.shown`, title is the recipe name, tab `shopping`, quantity `"1"`.
   - `test_who`: `plain(UI.calc.who.text) == "Who: You"`; on 2657 (Mining tab) → `"Who: Mina"`; on a recipe nobody knows → `"Who: Nobody"`.
   - `test_shopping_rows`: rows `(item, need, have, buy)` equal the fixture shopping list; tab label `"Shopping 4"`.
@@ -311,10 +311,10 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `test_back`: click `.back` → hidden, detail shown on the same recipe.
   - `test_closes_on_other_recipe_and_hide`: `SelectRecipe(3926)` → hidden; reopen, `/fp` to close the window → hidden.
   - `test_unlearned_recipe`: a recipe nobody knows opens and plans.
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
-- [ ] **Step 3: Implement**; add `UI\Calculator.lua` to the TOC (the tests load the TOC).
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): materials calculator panel with shopping list"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_calculator -v`
+- [x] **Step 3: Implement**; add `UI\Calculator.lua` to the TOC (the tests load the TOC).
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): materials calculator panel with shopping list"`
 
 ---
 
@@ -329,7 +329,7 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
 - Consumes: Task 7's panel; `ns.SetCraftMode`, `ns.ResetCraftModes`.
 - Produces: step rows (`kind = "step"`, `.switch` on intermediates), tree rows (`kind = "node"`, `depth`, `.switch` on switchable items, `.note` with `L.CALC_CYCLE`), shopping rows with a `Craft` switch on bought intermediates; `BAG_UPDATE_DELAYED` handler; `UI.CalcRowLayout(width, depth) -> { nameW }` for the fit check.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_steps_tab`: `SetCalcTab("steps")` → rows `[2840, 3576, 4359, 2841, 4363, 4366]` with crafts and crafter texts (`Mina`, `Mina`, `You`, `Mina`, `You`, `You`); tab label `"Steps 6"`; the root row has no switch.
   - `test_tree_tab`: rows in depth-first order with depths `[0, 1, 2, 3, 4, ...]` matching `plan.tree`; raw rows show `L.CALC_RAW`; crafted rows show their crafter.
   - `test_switch_in_tree`: click 2841's switch → `ns.db.craftModes[2841] == "buy"`, its children gone, Shopping now lists 2841; switch shows `L.CALC_CRAFT`.
@@ -339,10 +339,10 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
   - `test_bag_update`: `mock.bags[2770] = 6`, `fire("BAG_UPDATE_DELAYED")` → Copper Ore row `buy` gone (✓); hidden panel → no redraw (`UI.calc.renders` counter unchanged).
   - `test_refresh_redraws`: `ns.UpdateCharacter()` while open → redrawn, still open.
   - `test_fits_minimum_window`: at 900×540, `UI.CalcRowLayout(UI.DetailContentWidth(), 7).nameW >= 100`; the header, quantity row and tabs sum to no more than the panel's inner width; the scroll area is at least 300px tall.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): craft steps, reagent tree and craft or buy switches"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): craft steps, reagent tree and craft or buy switches"`
 
 ---
 
@@ -352,9 +352,9 @@ Shopping (by item ID): `2589 ×2, 2592 ×1, 2770 ×6, 2771 ×1`. Steps: `2840, 3
 - Modify: `README.md` (Features / How to use: the calculator)
 - Modify: `AGENTS.md` (Layout: `UI/Calculator`; `Model` gains reagent reading and the material plan; `UI/Widgets` gains item text; saved `ns.db.craftModes`; client fact: `C_Item.GetItemCount(id, true)` counts the bank away from it, the global is gone)
 
-- [ ] **Step 1:** Update both files; don't touch `CHANGELOG.md` (rewritten at release time) or `docs/ideas.md`.
-- [ ] **Step 2:** Full suite, expect PASS.
-- [ ] **Step 3: Commit**: `git commit -m "docs: describe the materials calculator"`
+- [x] **Step 1:** Update both files; don't touch `CHANGELOG.md` (rewritten at release time) or `docs/ideas.md`.
+- [x] **Step 2:** Full suite, expect PASS.
+- [x] **Step 3: Commit**: `git commit -m "docs: describe the materials calculator"`
 
 ---
 
@@ -366,4 +366,10 @@ user asks, with `Closes #3`.
 
 ## Implementation notes
 
-(Filled in while building: deviations from the plan, commit hashes, in-game results.)
+- Extra exports the UI and tests use: `plan.order` (items by level), `plan.items[id].reagents` (the chosen recipe's reagents), `plan.roots[i].item` (output, nil for enchants), `M.PlanTree(plan)`, `UI.ToggleCraftMode(itemID)`, `UI.IsCalculatorShown()`. The panel's unit field is `UI.calc.unitKey`.
+- Extra strings: `CALC_EXTRA_ONE`, `CALC_HAVE_NEED`, `CALC_TIMES`, `CALC_STEP`, `CALC_MORE`.
+- The shopping rows' Craft switch and the have / need tooltip landed in Task 8 with the other switches.
+- Two test expectations were wrong, not the code: with Bronze Bar bought, Tin Bar leaves the plan too (only Bronze Bar uses it); in 13240's tree the root row is also a Goblin Mortar, so the cycle test picks the depth-1 row.
+- A switch on an item that closes a cycle is hidden; Reset clears a saved override on such an item.
+- Commits: spec and plan `34596bd`, Task 1 `5ccf05f`, Task 2 `561bcba`, Task 3 `842d5f2`, Task 4 `c9d0c27`, Task 5 `49c93d0`, Task 6 `e28045e`, Task 7 `73a6b52`, Task 8 `2b5e1d5`, Task 9 next.
+- In-game checklist: not run yet.
