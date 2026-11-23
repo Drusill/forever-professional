@@ -372,4 +372,4 @@ user asks, with `Closes #3`.
 - Two test expectations were wrong, not the code: with Bronze Bar bought, Tin Bar leaves the plan too (only Bronze Bar uses it); in 13240's tree the root row is also a Goblin Mortar, so the cycle test picks the depth-1 row.
 - A switch on an item that closes a cycle is hidden; Reset clears a saved override on such an item.
 - Commits: spec and plan `34596bd`, Task 1 `5ccf05f`, Task 2 `561bcba`, Task 3 `842d5f2`, Task 4 `c9d0c27`, Task 5 `49c93d0`, Task 6 `e28045e`, Task 7 `73a6b52`, Task 8 `2b5e1d5`, Task 9 next.
-- In-game checklist: not run yet.
+- In-game checklist (2026-11-23, Salvador, Blacksmithing 241, with alts): items 1–10 pass (screenshots in the session). Checked on Target Dummy, Heavy Copper Maul, Blessed Plate Pauldrons, Runed Silver Rod, Transmute: Earth to Water and Robe of Winter Night (18436). Nit: on the deepest tree row the "Would need itself" note is cut off; the row above shows it in full.
