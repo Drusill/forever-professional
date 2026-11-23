@@ -81,15 +81,15 @@ def srcs(rec):
   - `M.Flatten(tree, opts)`: `opts.predicates` (list of `fn(id, rec, learned) -> bool`, may be nil or empty); `opts.filter` removed. `rec` is `ns.Data.Recipes[tree.line][id]`. Returns and entries unchanged.
   - `M.FilterCounts(line, isLearned, predicates)`: counts recipes passing every predicate; nil = all.
 
-- [ ] **Step 1: Write the pinning tests** (they pass before the change)
+- [x] **Step 1: Write the pinning tests** (they pass before the change)
 
 `tests/test_filters.py` `PinTest` (login with `LEARNED` from `test_ui.py`, `mock.learned = { [2329], [3170], [7183] }`):
 - `test_segmented_pinned`: through `UI.SetFilter`: `"learned"` → recipe ids `[2329, 3170, 7183]` sorted; `"missing"` → total − 3, without 2329; `"all"` → total. `UI.matchCount` matches each.
 - `test_learnable_count_pinned`: `ns.LearnableCount(171)` equals the Python count of not-learned recipes with `(rec.learn or 0) <= 120` and no other-faction `side`.
 
-- [ ] **Step 2: Run, expect PASS**: `mise exec -- python -m unittest tests.test_filters -v`
+- [x] **Step 2: Run, expect PASS**: `mise exec -- python -m unittest tests.test_filters -v`
 
-- [ ] **Step 3: Write the failing tests** (`PredicateTest` in `tests/test_filters.py`)
+- [x] **Step 3: Write the failing tests** (`PredicateTest` in `tests/test_filters.py`)
 - `test_learned_predicate`: `M.LearnedPredicate("all")` is nil; `"learned"` returns true for `learned=true`, false otherwise; `"missing"` the reverse.
 - `test_flatten_with_predicates`: `Flatten(BuildTree(171), { predicates = { LearnedPredicate("learned") }, isLearned = … })` gives the same ids and `(count, learned) == (3, 3)`.
 - `test_flatten_and_of_predicates`: two predicates, `learned` and `id == 2329` → only `[2329]`.
@@ -99,15 +99,15 @@ def srcs(rec):
 
 Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPredicate(filter)` instead of `filter`; its tests stay as they are.
 
-- [ ] **Step 4: Run, expect failures** (nil function / unknown option): `mise exec -- python -m unittest tests.test_filters tests.test_model -v`
+- [x] **Step 4: Run, expect failures** (nil function / unknown option): `mise exec -- python -m unittest tests.test_filters tests.test_model -v`
 
-- [ ] **Step 5: Implement**
+- [x] **Step 5: Implement**
 - `ns.CanLearnNow` in `Characters.lua`; `LearnableCount` calls it (`not learned and ns.CanLearnNow(rec, prof.skill or 0, c.faction)`).
 - `M.LearnedPredicate`, the new `Flatten` (`Match` runs every predicate, then the search), `FilterCounts` with `predicates`.
 - `UI.RefreshList` passes `predicates = { M.LearnedPredicate(s.filter) }` (skip nil); `RefreshFilterButtons` calls `FilterCounts` as before (no menu yet). Update the comment above `Flatten`.
 
-- [ ] **Step 6: Full suite, expect PASS** (including `test_ui.py` filter tests unmodified): `mise exec -- python -m unittest discover tests`
-- [ ] **Step 7: Commit**: `git commit -m "refactor(model): filter the recipe list with predicates"`
+- [x] **Step 6: Full suite, expect PASS** (including `test_ui.py` filter tests unmodified): `mise exec -- python -m unittest discover tests`
+- [x] **Step 7: Commit**: `git commit -m "refactor(model): filter the recipe list with predicates"`
 
 ---
 
@@ -125,7 +125,7 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
   - `M.FilterPredicates(filters, ctx) -> list`: one predicate per group with a checked item, OR inside the group; status group skipped when `ctx.skill` is nil. `skillups`: `learned and DIFFICULTY_OK[M.Difficulty(rec, ctx.skill)]`. `learnable`: `not learned and ns.CanLearnNow(rec, ctx.skill, ctx.faction)`.
   - `M.ActiveFilterCount(filters, hasProfession) -> number`: checked items of `FILTER_GROUPS`, minus status items when `hasProfession` is false. Keys not in `FILTER_GROUPS` never count.
 
-- [ ] **Step 1: Write the failing tests** (`MenuModelTest`, login with `FILTERS`; `flat(filters, segmented="all", search="")` builds `{ LearnedPredicate(segmented), unpack(FilterPredicates(filters, { skill = 120, faction = "Horde" })) }`)
+- [x] **Step 1: Write the failing tests** (`MenuModelTest`, login with `FILTERS`; `flat(filters, segmented="all", search="")` builds `{ LearnedPredicate(segmented), unpack(FilterPredicates(filters, { skill = 120, faction = "Horde" })) }`)
 - `test_source_keys`: `SourceKeys` of 7183 → `{trainer}`; 6617 → `{vendor}`; 3230 → `{drop, other}`; 1251744 → `{quest}`; 11452 → `{unknown}`.
 - `test_skillups`: ids == `[3171, 6617]` (2329 is grey).
 - `test_learnable`: ids == Python set (not learned, `learn <= 120`); contains 3173; excludes 11452 and 2329.
@@ -140,10 +140,10 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
 - `test_status_skipped_without_skill`: `FilterPredicates({ skillups = true, vendor = true }, { skill = nil })` has one predicate (source only).
 - `test_active_filter_count`: `{ skillups, vendor, drop, new }` → 4 with profession, 3 without; `{ bogus = true }` → 0; `{}` → 0.
 
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters -v`
-- [ ] **Step 3: Implement** the four model functions and `FILTER_GROUPS`.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(model): skill-up, learnable, source and new filters"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters -v`
+- [x] **Step 3: Implement** the four model functions and `FILTER_GROUPS`.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(model): skill-up, learnable, source and new filters"`
 
 ---
 
@@ -164,7 +164,7 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
   - `UI.SetFilterOption(key, on)`, `UI.ClearFilters()` (leaves `UI.state.filter` alone). Both refresh the list (scroll to top), the segmented counts and, from Task 5, the filter button and menu (guard with `if UI.RefreshFilterMenu then …`).
   - `UI.list.empty` text switches between `L.NO_RESULTS` and `L.NO_RESULTS_FILTERED`; `UI.list.clearButton` shown only with active filters and no entries, its click calls `UI.ClearFilters()`.
 
-- [ ] **Step 1: Write the failing tests** (`WindowFilterTest`, `open_addon(FILTERS)` as in `test_ui.py`)
+- [x] **Step 1: Write the failing tests** (`WindowFilterTest`, `open_addon(FILTERS)` as in `test_ui.py`)
 - `test_default_filters`: fresh DB → `ns.db.filters` is an empty table (`test_addon.py`).
 - `test_set_option_filters_list`: `SetFilterOption("skillups", true)` → recipe ids `[3171, 6617]`; `ns.db.filters.skillups == true`; `SetFilterOption("skillups", false)` → every recipe again.
 - `test_saved_across_reload`: setup `ForeverProfessionalDB = { version = 2, filters = { vendor = true } }` + `FILTERS` → every listed recipe has `vendor` in `src`.
@@ -178,10 +178,10 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
 - `test_empty_state_filtered`: `skillups` + `SetFilter("missing")` → no entries, `UI.list.empty.text == L.NO_RESULTS_FILTERED`, `clearButton.shown`; click it → entries back, `ns.db.filters` empty, `UI.state.filter == "missing"` still.
 - `test_empty_state_plain`: no menu filters, search `"zzzz"` → `L.NO_RESULTS`, `clearButton` hidden.
 
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters tests.test_addon -v`
-- [ ] **Step 3: Implement** as listed. `RefreshList` builds `{ LearnedPredicate(s.filter), unpack(UI.MenuPredicates()) }`; `RefreshFilterButtons` passes `UI.MenuPredicates()` to `FilterCounts`. `UI.Refresh` (profession or character change) already calls both.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): apply saved recipe filters to the list"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters tests.test_addon -v`
+- [x] **Step 3: Implement** as listed. `RefreshList` builds `{ LearnedPredicate(s.filter), unpack(UI.MenuPredicates()) }`; `RefreshFilterButtons` passes `UI.MenuPredicates()` to `FilterCounts`. `UI.Refresh` (profession or character change) already calls both.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): apply saved recipe filters to the list"`
 
 ---
 
@@ -198,15 +198,15 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
   - `UI.CreateCheckRow(parent) -> button`: `.check` texture, `.label`; `:SetChecked(v)` shows/hides the check; `:SetEnabled(v)` greys label and check, and `OnClick` does nothing while disabled; `.disabledTooltip` shown on `OnEnter` while disabled.
   - `UI.CreateToggleButton(parent, label) -> button`: flat backdrop like the segmented control, `.label`; `:SetText(s)` resizes to fit; `:SetActive(v)` gold label and border when true, muted when false; `.active`.
 
-- [ ] **Step 1: Write the failing tests** (`tests/test_widgets.py`)
+- [x] **Step 1: Write the failing tests** (`tests/test_widgets.py`)
 - `test_popup`: hidden, strata `DIALOG`, `Fit(5, 22)` → height `12 + 110`.
 - `test_check_row`: `SetChecked(true)` shows `.check`; `SetEnabled(false)` → clicking doesn't call the handler; `OnEnter` with `disabledTooltip` set shows it in `GameTooltip`; enabled → no tooltip.
 - `test_toggle_button`: `SetActive(true)` → `.active` and gold label colour; `SetActive(false)` → muted.
 
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_widgets -v`
-- [ ] **Step 3: Implement** the three widgets; `CreateCharMenu` returns `UI.CreatePopup(parent, MENU_W)` anchored as today; `OpenCharMenu` ends with `m:Fit(#list, MENU_ROW_H)`.
-- [ ] **Step 4: Full suite, expect PASS** (`SelectorTest` untouched)
-- [ ] **Step 5: Commit**: `git commit -m "refactor(ui): shared popup and checkbox row widgets"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_widgets -v`
+- [x] **Step 3: Implement** the three widgets; `CreateCharMenu` returns `UI.CreatePopup(parent, MENU_W)` anchored as today; `OpenCharMenu` ends with `m:Fit(#list, MENU_ROW_H)`.
+- [x] **Step 4: Full suite, expect PASS** (`SelectorTest` untouched)
+- [x] **Step 5: Commit**: `git commit -m "refactor(ui): shared popup and checkbox row widgets"`
 
 ---
 
@@ -224,7 +224,7 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
   - `UI.filterMenu` with `UI.filterMenu.rows` keyed by item key (`rows.skillups`, `rows.vendor`, …), group headings, separators and `UI.filterMenu.clearRow`, built once from `M.FILTER_GROUPS`. Labels: `L["FILTER_" .. key:upper()]`, headings `L["FILTER_" .. group.key:upper()]` (the `new` group has no heading, only a separator).
   - `UI.RefreshFilterMenu()`: checks from `ns.db.filters`; status rows disabled with `disabledTooltip = L.FILTER_NEEDS_PROFESSION` when `ns.CharSkill(line, UI.state.char)` is nil; button text `L.FILTERS` or `L.FILTERS_COUNT:format(n)` and `SetActive(n > 0)` with `n = M.ActiveFilterCount(...)`. Called by `UI.Refresh`, `SetFilterOption` and `ClearFilters`.
 
-- [ ] **Step 1: Write the failing tests** (`FilterMenuTest`, `open_addon(FILTERS)`)
+- [x] **Step 1: Write the failing tests** (`FilterMenuTest`, `open_addon(FILTERS)`)
 - `test_button_in_toolbar`: `UI.filterButton.label.text == "Filters"`, not active; search box's `RIGHT` point is relative to `UI.filterButton`.
 - `test_toggle_menu`: click button → `UI.filterMenu.shown`; click again → hidden.
 - `test_menu_rows_follow_groups`: `rows` has exactly the ten item keys; `clearRow` exists; labels match the spec strings.
@@ -234,10 +234,10 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
 - `test_one_popup_at_a_time`: open filter menu, click `UI.charButton` → char menu shown, filter menu hidden; click filter button → filter menu shown, char menu hidden.
 - `test_menu_hides_with_window`: open, `/fp` to close → filter menu hidden.
 
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters -v`
-- [ ] **Step 3: Implement** the button, menu and refresh; window `OnHide` closes both popups.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): recipe filter menu in the toolbar"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_filters -v`
+- [x] **Step 3: Implement** the button, menu and refresh; window `OnHide` closes both popups.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): recipe filter menu in the toolbar"`
 
 ---
 
@@ -247,12 +247,19 @@ Update `tests/test_model.py` `flat()` to pass `predicates` built from `LearnedPr
 - Modify: `README.md` (Features / How to use: the filter menu)
 - Modify: `AGENTS.md` (Layout row for `UI/Widgets`: popup, checkbox row, toggle button; Data format untouched)
 
-- [ ] **Step 1:** Update both files; don't touch `CHANGELOG.md` (it's rewritten at release time) or `docs/ideas.md` (the issue tracks this).
-- [ ] **Step 2:** Full suite, expect PASS.
-- [ ] **Step 3: Commit**: `git commit -m "docs: describe the recipe filters"`
+- [x] **Step 1:** Update both files; don't touch `CHANGELOG.md` (it's rewritten at release time) or `docs/ideas.md` (the issue tracks this).
+- [x] **Step 2:** Full suite, expect PASS.
+- [x] **Step 3: Commit**: `git commit -m "docs: describe the recipe filters"`
 
 ---
 
 ## After Task 6
 
 Run the full suite once more, then hand the user the spec's in-game checklist (no TOC change: `/reload` is enough), on one character with Alchemy and one without. Open the pull request into `develop` only when the user asks, with `Closes #2`.
+
+## Implementation notes
+
+- `UI.CreateToggleButton(parent, label, onClick)` landed in Task 3 (with an `onClick` argument), because the empty state's Clear filters button needed it; its test went with it.
+- The filter menu's `rows` is keyed by item key; the character menu's stays a list.
+- Commits: Task 1 `3213a1f`, Task 2 `be2e1c1`, Task 3 `6df50c3`, Task 4 `a3328ef`, Task 5 `ae61a6e`, Task 6 next.
+- Open in-game risk: at the 900px minimum width the toolbar's search box may get very narrow next to `Filters (n)` (estimate 25–40px). Checklist item 9 covers it.
