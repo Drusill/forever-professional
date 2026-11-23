@@ -4,7 +4,7 @@ Features and decisions for ForeverProfessional that aren't built yet, including 
 
 ## Ideas
 
-- **Translate the addon UI.** `Locale.lua` holds English strings only. If the UI gets translated, also save the client's localized category names: they're only readable in game while that profession's window is open (the spike got the full tree for Blacksmithing, Tailoring, Cooking and Enchanting that way), and the baked `Categories.lua` is enUS.
+None right now.
 
 ## Decided, not built yet
 
@@ -16,6 +16,7 @@ Tracked as GitHub issues, in priority order. Start at the pinned roadmap issue #
 4. #5 Skill-up planner (needs #2, #3)
 5. #6 "Used in" reagent tooltip (shares reagent reading with #3)
 6. #7 In-game data harvest, vendors and drops (replaces the "harvest vendor data" idea)
+7. #12 Localization: UI strings, category and profession names (replaces the "translate the addon UI" idea; the spike read the full localized category tree in game for Blacksmithing, Tailoring, Cooking and Enchanting)
 
 ## Open questions
 
