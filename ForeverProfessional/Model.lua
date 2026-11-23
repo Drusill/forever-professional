@@ -952,5 +952,72 @@ function M.PlanMaterials(roots, ctx)
             n.buy = n.net
         end
     end
+
+    -- Shopping list: bought and raw items still needed, by item ID.
+    local shopping = {}
+    for _, id in ipairs(order) do
+        local n = items[id]
+        if n.kind ~= "craft" and n.need > 0 then
+            shopping[#shopping + 1] = { item = id, need = n.need, have = n.have, buy = n.buy }
+        end
+    end
+    table.sort(shopping, function(a, b) return a.item < b.item end)
+    plan.shopping = shopping
+
+    -- Craft steps: deepest level first (everything an item needs is made before it), then the roots.
+    local steps = {}
+    for _, id in ipairs(order) do
+        local n = items[id]
+        if n.kind == "craft" and n.crafts > 0 then
+            steps[#steps + 1] = { item = n.item, spellID = n.spellID, line = n.line, crafts = n.crafts, known = n.known }
+        end
+    end
+    table.sort(steps, function(a, b)
+        local la, lb = items[a.item].level, items[b.item].level
+        if la ~= lb then return la > lb end
+        return a.item < b.item
+    end)
+    for _, root in ipairs(plan.roots) do
+        steps[#steps + 1] = { item = root.item, spellID = root.spellID, line = root.line, crafts = root.crafts,
+            known = root.known, root = true }
+    end
+    plan.steps = steps
+
+    plan.tree = M.PlanTree(plan)
     return plan
+end
+
+-- The reagent tree for display: per root, each branch's own amounts before inventory. Stops after
+-- M.PLAN_TREE_MAX nodes, ending the list where it stopped with { more = true }.
+M.PLAN_TREE_MAX = 400
+
+function M.PlanTree(plan)
+    local count, capped = 0, false
+    local function Children(reagents, crafts)
+        local out = {}
+        for _, x in ipairs(reagents or {}) do
+            if count >= M.PLAN_TREE_MAX then
+                if not capped then
+                    capped = true
+                    out[#out + 1] = { more = true }
+                end
+                return out
+            end
+            count = count + 1
+            local n = plan.items[x.item]
+            local node = { item = x.item, count = crafts * x.count }
+            if n.kind == "craft" then
+                node.children = Children(n.reagents, math.ceil(node.count / n.yield))
+            end
+            out[#out + 1] = node
+        end
+        return out
+    end
+    local trees = {}
+    for i, root in ipairs(plan.roots) do
+        count = count + 1
+        trees[i] = { item = root.item, spellID = root.spellID, count = root.crafts,
+            children = Children(root.reagents, root.crafts) }
+    end
+    return trees
 end

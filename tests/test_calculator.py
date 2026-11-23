@@ -311,5 +311,90 @@ class PlanTest(PlanBase):
         self.assertEqual(self.a.mock.schematicCalls - before, 6)   # 3932, 3926, 3922, 2659, 2657, 3304
 
 
+
+def tree_children(node):
+    return [(c.item, c.count) for c in lua_list(node.children)] if node.children else []
+
+
+class OutputTest(PlanBase):
+    def test_shopping(self):
+        p = self.plan([(3932, 1)])
+        self.assertEqual([(e.item, e.need, e.have, e.buy) for e in lua_list(p.shopping)],
+                         [(2589, 2, 0, 2), (2592, 1, 0, 1), (2770, 6, 0, 6), (2771, 1, 0, 1)])
+
+    def test_steps_order(self):
+        p = self.plan([(3932, 1)])
+        steps = lua_list(p.steps)
+        self.assertEqual([s.item for s in steps], [2840, 3576, 4359, 2841, 4363, 4366])
+        self.assertEqual([s.crafts for s in steps], [6, 1, 4, 1, 1, 1])
+        self.assertEqual([s.spellID for s in steps], [2657, 3304, 3922, 2659, 3926, 3932])
+        done = set()
+        for s in steps:
+            for r in lua_list(self.M.Reagents(s.spellID)):
+                if p["items"][r.item] and p["items"][r.item].kind == "craft":
+                    self.assertIn(r.item, done, "%d before %d" % (s.item, r.item))
+            done.add(s.item)
+
+    def test_inventory_intermediate(self):
+        p = self.plan([(3932, 1)], have={4359: 3})
+        self.assertEqual((p["items"][4359].have, p["items"][4359].crafts), (3, 1))
+        self.assertEqual(p["items"][2840].need, 3)
+        self.assertEqual(p["items"][2770].buy, 3)
+
+    def test_inventory_used_once(self):
+        p = self.plan([(3932, 1)], have={2840: 1})
+        self.assertEqual((p["items"][2840].net, p["items"][2840].crafts), (5, 5))
+        self.assertEqual(p["items"][2770].buy, 5)
+
+    def test_inventory_raw(self):
+        p = self.plan([(3932, 1)], have={2589: 2})
+        self.assertIn((2589, 2, 2, 0), [(e.item, e.need, e.have, e.buy) for e in lua_list(p.shopping)])
+
+    def test_inventory_covers_intermediate(self):
+        p = self.plan([(3932, 1)], have={4363: 1})
+        self.assertEqual(p["items"][4363].crafts, 0)
+        self.assertEqual(p["items"][4359].need, 2)
+        self.assertNotIn(4363, [s.item for s in lua_list(p.steps)])
+        self.assertNotIn(2589, [e.item for e in lua_list(p.shopping)])
+
+    def test_root_output_not_subtracted(self):
+        p = self.plan([(3932, 1)], have={4366: 5})
+        self.assertEqual(lua_list(p.steps)[-1].crafts, 1)
+
+    def test_tree(self):
+        root = self.plan([(3932, 1)]).tree[1]
+        self.assertEqual((root.item, root.count, root.spellID), (4366, 1, 3932))
+        self.assertEqual(tree_children(root), [(4363, 1), (4359, 2), (2841, 1), (2592, 1)])
+        kids = {c.item: c for c in lua_list(root.children)}
+        self.assertEqual(tree_children(kids[4363]), [(4359, 2), (2840, 1), (2589, 2)])
+        self.assertEqual(tree_children(kids[2841]), [(2840, 1), (3576, 1)])
+        self.assertEqual(tree_children(kids[2592]), [])
+
+    def test_tree_bought_has_no_children(self):
+        root = self.plan([(3932, 1)], modes={2841: "buy"}).tree[1]
+        bronze = next(c for c in lua_list(root.children) if c.item == 2841)
+        self.assertEqual(tree_children(bronze), [])
+
+    def test_tree_cap(self):
+        self.a.run("_ns.Model.PLAN_TREE_MAX = 5")
+        try:
+            p = self.plan([(3932, 1)])
+        finally:
+            self.a.run("_ns.Model.PLAN_TREE_MAX = 400")
+        nodes, more = 0, 0
+
+        def walk(n):
+            nonlocal nodes, more
+            if n.more:
+                more += 1
+                return
+            nodes += 1
+            for c in lua_list(n.children) if n.children else []:
+                walk(c)
+        walk(p.tree[1])
+        self.assertLessEqual(nodes, 5)
+        self.assertEqual(more, 1)
+        self.assertEqual(p["items"][2770].need, 6)   # totals still complete
+
 if __name__ == "__main__":
     unittest.main()
