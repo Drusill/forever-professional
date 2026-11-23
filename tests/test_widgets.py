@@ -55,6 +55,48 @@ class WidgetsTest(unittest.TestCase):
         Addon.call(bar, "SetProgress", 0, 0)   # no error, empty
         self.assertLess(bar.clip.width, 1)
 
+    def test_popup(self):
+        p = self.UI.CreatePopup(self.parent, 200)
+        self.assertFalse(p.shown)
+        self.assertEqual(p.width, 200)
+        self.assertEqual(lua_list(p.rows), [])
+        Addon.call(p, "Fit", 5, 22)
+        self.assertEqual(p.height, 12 + 110)
+        Addon.call(p, "Fit", 5, 22, 9)
+        self.assertEqual(p.height, 12 + 110 + 9)
+
+    def test_check_row(self):
+        clicks = []
+        r = self.UI.CreateCheckRow(self.parent, lambda row: clicks.append(row))
+        Addon.call(r, "SetText", "Vendor")
+        self.assertEqual(r.label.text, "Vendor")
+        Addon.call(r, "SetChecked", True)
+        self.assertTrue(r.check.shown)
+        self.assertTrue(r.checked)
+        Addon.call(r, "SetChecked", False)
+        self.assertFalse(r.check.shown)
+        Addon.call(r, "Click")
+        self.assertEqual(len(clicks), 1)
+
+    def test_check_row_disabled(self):
+        clicks = []
+        r = self.UI.CreateCheckRow(self.parent, lambda row: clicks.append(row))
+        r.disabledTooltip = "Needs the profession"
+        Addon.call(r, "SetEnabled", False)
+        self.assertFalse(r.enabled)
+        Addon.call(r, "Click")
+        self.assertEqual(clicks, [])
+        self.a.g.GameTooltip.lines = self.a.lua.table()
+        self.a.g.enter(r)
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines), ["Needs the profession"])
+        self.a.g.leave(r)
+        Addon.call(r, "SetEnabled", True)
+        self.a.g.GameTooltip.lines = self.a.lua.table()
+        self.a.g.enter(r)
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines), [])
+        Addon.call(r, "Click")
+        self.assertEqual(len(clicks), 1)
+
     def test_toggle_button(self):
         clicks = []
         b = self.UI.CreateToggleButton(self.parent, "Filters", lambda btn: clicks.append(1))

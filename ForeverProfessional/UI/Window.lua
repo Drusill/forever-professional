@@ -434,13 +434,8 @@ function UI.CreateCharButton(parent)
 end
 
 local function CreateCharMenu(parent, anchor)
-    local m = UI.Panel(parent, 0.97)
-    m:SetFrameStrata("DIALOG")
+    local m = UI.CreatePopup(parent, MENU_W)
     m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
-    m:SetWidth(MENU_W)
-    m:EnableMouse(true)
-    m.rows = {}
-    m:Hide()
     return m
 end
 
@@ -486,7 +481,7 @@ function UI.OpenCharMenu()
         r:Show()
     end
     for i = #list + 1, #m.rows do m.rows[i]:Hide() end
-    m:SetHeight(12 + #list * MENU_ROW_H)
+    m:Fit(#list, MENU_ROW_H)
     m:Show()
 end
 
