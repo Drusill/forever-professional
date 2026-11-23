@@ -9,6 +9,7 @@ Blizzard's profession window only lists the recipes you have learned. ForeverPro
 ## Features
 
 - **Every profession.** Browse all recipes by category, in their difficulty colour for your skill. Filter by All, Learned or Missing, or search by name.
+- **Filters.** Narrow the list to recipes that still give you skill, recipes you can learn now, recipes from a trainer, vendor, drop, quest or other source, or recipes new in Forever. Your choices are remembered.
 - **Where to get it.** Each recipe you don't know leads with its sources:
   - trainers, with the training cost
   - vendors, with any reputation or Merchant's Favor requirement
@@ -29,6 +30,7 @@ Blizzard's profession window only lists the recipes you have learned. ForeverPro
 
 - Type `/fp` to open or close the window, or `/fp <profession>` to jump to one (for example `/fp tailor`).
 - Or click the minimap button (drag it around the edge to move it; `/fp minimap` hides it), or the ForeverProfessional entry in the addon compartment.
+- Click **Filters** next to All / Learned / Missing to pick filters. Options in the same group (Status, Source) add up; different groups narrow each other down. **Clear filters** turns them all off. Skill-ups and Learnable now need the shown character to have the profession.
 - `/fp chars` lists the characters it remembers; `/fp forget <number or name>` removes one you no longer play.
 - Drag the bottom-right corner to resize the window. Its size and position are remembered.
 

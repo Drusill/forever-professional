@@ -55,6 +55,67 @@ class WidgetsTest(unittest.TestCase):
         Addon.call(bar, "SetProgress", 0, 0)   # no error, empty
         self.assertLess(bar.clip.width, 1)
 
+    def test_popup(self):
+        p = self.UI.CreatePopup(self.parent, 200)
+        self.assertFalse(p.shown)
+        self.assertEqual(p.width, 200)
+        self.assertEqual(lua_list(p.rows), [])
+        Addon.call(p, "Fit", 5, 22)
+        self.assertEqual(p.height, 12 + 110)
+        Addon.call(p, "Fit", 5, 22, 9)
+        self.assertEqual(p.height, 12 + 110 + 9)
+
+    def test_check_row(self):
+        clicks = []
+        r = self.UI.CreateCheckRow(self.parent, lambda row: clicks.append(row))
+        Addon.call(r, "SetText", "Vendor")
+        self.assertEqual(r.label.text, "Vendor")
+        Addon.call(r, "SetChecked", True)
+        self.assertTrue(r.check.shown)
+        self.assertTrue(r.checked)
+        Addon.call(r, "SetChecked", False)
+        self.assertFalse(r.check.shown)
+        Addon.call(r, "Click")
+        self.assertEqual(len(clicks), 1)
+
+    def test_check_row_disabled(self):
+        clicks = []
+        r = self.UI.CreateCheckRow(self.parent, lambda row: clicks.append(row))
+        r.disabledTooltip = "Needs the profession"
+        self.assertEqual(r.highlight.alpha or 1, 1)
+        Addon.call(r, "SetEnabled", False)
+        self.assertFalse(r.enabled)
+        self.assertEqual(r.highlight.alpha, 0)
+        Addon.call(r, "Click")
+        self.assertEqual(clicks, [])
+        self.a.g.GameTooltip.lines = self.a.lua.table()
+        self.a.g.enter(r)
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines), ["Needs the profession"])
+        self.a.g.leave(r)
+        Addon.call(r, "SetEnabled", True)
+        self.assertEqual(r.highlight.alpha, 1)
+        self.a.g.GameTooltip.lines = self.a.lua.table()
+        self.a.g.enter(r)
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines), [])
+        Addon.call(r, "Click")
+        self.assertEqual(len(clicks), 1)
+
+    def test_toggle_button(self):
+        clicks = []
+        b = self.UI.CreateToggleButton(self.parent, "Filters", lambda btn: clicks.append(1))
+        self.assertEqual(b.label.text, "Filters")
+        self.assertFalse(b.active)
+        muted = lua_list(b.label.color)
+        Addon.call(b, "SetActive", True)
+        self.assertTrue(b.active)
+        self.assertEqual(lua_list(b.label.color), list(self.UI.HexColor(self.UI.COLORS.gold)))
+        Addon.call(b, "SetActive", False)
+        self.assertEqual(lua_list(b.label.color), muted)
+        Addon.call(b, "SetText", "Filters (2)")
+        self.assertEqual(b.width, 16 + 6 * len("Filters (2)"))
+        Addon.call(b, "Click")
+        self.assertEqual(clicks, [1])
+
     def test_segmented(self):
         picked, sel, count = self.a.run('''
             local picked

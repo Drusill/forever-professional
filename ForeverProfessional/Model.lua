@@ -190,20 +190,24 @@ end
 -- Flatten the tree into display entries:
 --   { kind = "header", cat, name, depth, count, learned, collapsed }
 --   { kind = "recipe", id, depth }
--- opts: filter ("all" | "learned" | "missing"), search (text), collapsed ({[cat]=true}), isLearned (fn).
+-- opts: predicates (list of fn(id, rec, learned) -> bool, all must pass), search (text),
+-- collapsed ({[cat]=true}), isLearned (fn).
 -- Returns entries, matching recipe count, matching learned count.
 function M.Flatten(tree, opts)
     opts = opts or {}
-    local filter = opts.filter or "all"
+    local predicates = opts.predicates or {}
     local isLearned = opts.isLearned or function() return false end
     local search = opts.search and strtrim(opts.search):lower() or ""
     if search == "" then search = nil end
     local collapsed = opts.collapsed or {}
+    local recipes = ns.Data.Recipes and ns.Data.Recipes[tree.line] or {}
 
     local function Match(id)
         local learned = isLearned(id) and true or false
-        if filter == "learned" and not learned then return false end
-        if filter == "missing" and learned then return false end
+        local rec = recipes[id] or {}
+        for _, pass in ipairs(predicates) do
+            if not pass(id, rec, learned) then return false end
+        end
         if search then
             local name = M.RecipeName(id)
             if not name or not name:lower():find(search, 1, true) then return false end
@@ -252,14 +256,105 @@ function M.CategoryIDs(tree)
     return out
 end
 
--- Recipe count of a profession and how many isLearned(id) says are learned.
-function M.FilterCounts(line, isLearned)
+-- Recipe count of a profession and how many isLearned(id) says are learned, counting only the
+-- recipes every predicate passes (nil or empty: all).
+function M.FilterCounts(line, isLearned, predicates)
     local total, learned = 0, 0
-    for id in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
-        total = total + 1
-        if isLearned(id) then learned = learned + 1 end
+    for id, rec in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
+        local isIt = isLearned(id) and true or false
+        local ok = true
+        for _, pass in ipairs(predicates or {}) do
+            if not pass(id, rec, isIt) then ok = false break end
+        end
+        if ok then
+            total = total + 1
+            if isIt then learned = learned + 1 end
+        end
     end
     return total, learned
+end
+
+-- Filters ---------------------------------------------------------------------------------------
+-- A predicate is fn(id, rec, learned) -> bool. Flatten and FilterCounts keep the recipes every
+-- predicate passes: the All / Learned / Missing choice is one, each filter menu group another.
+
+-- Predicate for the All / Learned / Missing choice; nil for "all".
+function M.LearnedPredicate(filter)
+    if filter == "learned" then return function(_, _, learned) return learned end end
+    if filter == "missing" then return function(_, _, learned) return not learned end end
+    return nil
+end
+
+-- The filter menu: groups in menu order. Items of a group combine with OR, groups with AND.
+-- Status items need the shown character to have the profession.
+M.FILTER_GROUPS = {
+    { key = "status", items = { "skillups", "learnable" }, needsProfession = true },
+    { key = "source", items = { "trainer", "vendor", "drop", "quest", "other", "unknown" } },
+    { key = "new", items = { "new" } },
+}
+
+-- Source type -> filter menu key. Types not listed here (container, object, crafted,
+-- worldObject, and any future one) are "other".
+local SOURCE_KEY = { trainer = "trainer", auto = "trainer", vendor = "vendor", drop = "drop", quest = "quest" }
+
+-- Filter menu source keys of a recipe, as a set. A recipe with no source type is "unknown".
+function M.SourceKeys(rec)
+    local keys, any = {}, false
+    for _, t in ipairs(rec.src or {}) do
+        keys[SOURCE_KEY[t] or "other"] = true
+        any = true
+    end
+    if not any then keys.unknown = true end
+    return keys
+end
+
+local SKILLUP_COLORS = { orange = true, yellow = true, green = true }
+
+-- One test per menu item: fn(rec, learned, ctx) -> bool.
+local ITEM_TESTS = {
+    skillups = function(rec, learned, ctx) return learned and SKILLUP_COLORS[M.Difficulty(rec, ctx.skill)] or false end,
+    learnable = function(rec, learned, ctx) return not learned and ns.CanLearnNow(rec, ctx.skill, ctx.faction) end,
+    new = function(rec) return rec.new and true or false end,
+}
+for _, key in ipairs(M.FILTER_GROUPS[2].items) do
+    ITEM_TESTS[key] = function(rec) return M.SourceKeys(rec)[key] or false end
+end
+
+-- Predicates for the checked menu items (filters = {[item]=true}), one per group with a checked
+-- item. ctx = { skill, faction } of the shown character; without a skill the status group is left out.
+function M.FilterPredicates(filters, ctx)
+    filters, ctx = filters or {}, ctx or {}
+    local out = {}
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if ctx.skill or not group.needsProfession then
+            local tests = {}
+            for _, key in ipairs(group.items) do
+                if filters[key] then tests[#tests + 1] = ITEM_TESTS[key] end
+            end
+            if #tests > 0 then
+                out[#out + 1] = function(_, rec, learned)
+                    for _, test in ipairs(tests) do
+                        if test(rec, learned, ctx) then return true end
+                    end
+                    return false
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Checked menu items that are in effect: status items don't count without the profession.
+function M.ActiveFilterCount(filters, hasProfession)
+    local n = 0
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if hasProfession or not group.needsProfession then
+            for _, key in ipairs(group.items) do
+                if filters and filters[key] then n = n + 1 end
+            end
+        end
+    end
+    return n
 end
 
 -- Difficulty ------------------------------------------------------------------------------

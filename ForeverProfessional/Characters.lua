@@ -33,6 +33,13 @@ function ns.CharSkill(line, key)
     return p and p.skill, p and p.max
 end
 
+-- Whether a character with this skill (nil: no profession) and faction can learn the recipe now.
+-- Learned status is the caller's to check. Shared by LearnableCount and the Learnable now filter.
+function ns.CanLearnNow(rec, skill, faction)
+    if not skill or skill < (rec.learn or 0) then return false end
+    return not (rec.side and rec.side ~= faction)
+end
+
 -- Recipes of a profession the character could learn now: not learned, has the profession with
 -- enough skill, and not locked to the other faction.
 function ns.LearnableCount(line, key)
@@ -41,8 +48,7 @@ function ns.LearnableCount(line, key)
     if not prof then return 0 end
     local skill, n = prof.skill or 0, 0
     for spellID, rec in pairs(ns.Data.Recipes[line] or {}) do
-        if not (c.learned and c.learned[spellID]) and skill >= (rec.learn or 0)
-                and not (rec.side and rec.side ~= c.faction) then
+        if not (c.learned and c.learned[spellID]) and ns.CanLearnNow(rec, skill, c.faction) then
             n = n + 1
         end
     end
