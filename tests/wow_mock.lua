@@ -355,10 +355,24 @@ C_Spell = {
     GetSpellTexture = function(id) return 136000 + (id % 100) end,
 }
 
+-- A spell listed in mock.schematics = { [spellID] = { {itemID, count}... } } gets those reagent slots;
+-- with mock.onlySchematics, unlisted spells have none. Otherwise every spell gets the fixed schematic below.
+mock.schematics = {}
+mock.outputs = {}
 C_TradeSkillUI = {
     GetRecipeSchematic = function(id, isRecraft)
         mock.schematicCalls = (mock.schematicCalls or 0) + 1
         if mock.noSchematic then return nil end
+        local listed = mock.schematics[id]
+        if listed then
+            local slots = {}
+            for i, r in ipairs(listed) do
+                slots[i] = { reagents = { { itemID = r[1] } }, quantityRequired = r[2] }
+            end
+            return { recipeID = id, outputItemID = mock.outputs[id], quantityMin = 1, quantityMax = 1,
+                reagentSlotSchematics = slots }
+        end
+        if mock.onlySchematics then return nil end
         return {
             recipeID = id, outputItemID = 2454, quantityMin = 1, quantityMax = 1,
             reagentSlotSchematics = {
@@ -371,8 +385,13 @@ C_TradeSkillUI = {
 }
 
 -- Items: ContinueOnItemLoad is synchronous unless mock.asyncItems[id] is set.
+-- GetItemCount: mock.bags[id], plus mock.bank[id] when the bank is asked for.
 mock.itemNames = {}
+mock.bags, mock.bank = {}, {}
 C_Item = {
+    GetItemCount = function(id, includeBank)
+        return (mock.bags[id] or 0) + (includeBank and mock.bank[id] or 0)
+    end,
     GetItemNameByID = function(id) return mock.itemNames[id] end,
     GetItemIconByID = function(id) return 134000 + (id % 1000) end,
     GetItemQualityByID = function(id) return 1 end,

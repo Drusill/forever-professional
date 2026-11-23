@@ -722,6 +722,7 @@ function UI.Create()
     f.detailPanel = detail
     UI.PlaceDetailPanel()
     if UI.CreateDetail then UI.CreateDetail(detail) end
+    if UI.CreateCalculator then UI.CreateCalculator(detail) end
 
     -- Resizing from the bottom-right corner.
     f:SetResizable(true)
@@ -759,6 +760,7 @@ function UI.Create()
     f:SetScript("OnHide", function()
         UI.CloseCharMenu()
         UI.CloseFilterMenu()
+        if UI.CloseCalculator then UI.CloseCalculator() end
     end)
     UI.Layout()
     return f
@@ -810,6 +812,7 @@ function UI.Layout()
     UI.PlaceDetailPanel()
     if UI.RelayoutList then UI.RelayoutList() end
     if UI.LayoutDetail then UI.LayoutDetail() end
+    if UI.LayoutCalculator then UI.LayoutCalculator() end
 end
 
 -- State changes ------------------------------------------------------------------------------
@@ -820,6 +823,7 @@ function UI.SelectProfession(line)
     if s.line ~= line then
         s.line = line
         s.selected = nil
+        if UI.CloseCalculator then UI.CloseCalculator() end
         -- Scroll back to the top only once the new profession's entries exist: setting the scroll
         -- now would redraw the old entries against the new profession's recipes.
         UI.resetListScroll = true
@@ -891,6 +895,7 @@ end
 
 function UI.SelectRecipe(spellID)
     UI.state.selected = spellID
+    if UI.CloseCalculator then UI.CloseCalculator() end
     UI.RenderList()
     if UI.RefreshDetail then UI.RefreshDetail() end
 end
@@ -946,6 +951,7 @@ function UI.Refresh()
     UI.RefreshList(UI.resetListScroll)
     UI.resetListScroll = nil
     if UI.RefreshDetail then UI.RefreshDetail() end
+    if UI.RefreshCalculator then UI.RefreshCalculator() end
 end
 
 function UI.Show(line)
