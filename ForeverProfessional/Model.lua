@@ -190,20 +190,24 @@ end
 -- Flatten the tree into display entries:
 --   { kind = "header", cat, name, depth, count, learned, collapsed }
 --   { kind = "recipe", id, depth }
--- opts: filter ("all" | "learned" | "missing"), search (text), collapsed ({[cat]=true}), isLearned (fn).
+-- opts: predicates (list of fn(id, rec, learned) -> bool, all must pass), search (text),
+-- collapsed ({[cat]=true}), isLearned (fn).
 -- Returns entries, matching recipe count, matching learned count.
 function M.Flatten(tree, opts)
     opts = opts or {}
-    local filter = opts.filter or "all"
+    local predicates = opts.predicates or {}
     local isLearned = opts.isLearned or function() return false end
     local search = opts.search and strtrim(opts.search):lower() or ""
     if search == "" then search = nil end
     local collapsed = opts.collapsed or {}
+    local recipes = ns.Data.Recipes and ns.Data.Recipes[tree.line] or {}
 
     local function Match(id)
         local learned = isLearned(id) and true or false
-        if filter == "learned" and not learned then return false end
-        if filter == "missing" and learned then return false end
+        local rec = recipes[id] or {}
+        for _, pass in ipairs(predicates) do
+            if not pass(id, rec, learned) then return false end
+        end
         if search then
             local name = M.RecipeName(id)
             if not name or not name:lower():find(search, 1, true) then return false end
@@ -252,14 +256,33 @@ function M.CategoryIDs(tree)
     return out
 end
 
--- Recipe count of a profession and how many isLearned(id) says are learned.
-function M.FilterCounts(line, isLearned)
+-- Recipe count of a profession and how many isLearned(id) says are learned, counting only the
+-- recipes every predicate passes (nil or empty: all).
+function M.FilterCounts(line, isLearned, predicates)
     local total, learned = 0, 0
-    for id in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
-        total = total + 1
-        if isLearned(id) then learned = learned + 1 end
+    for id, rec in pairs(ns.Data.Recipes and ns.Data.Recipes[line] or {}) do
+        local isIt = isLearned(id) and true or false
+        local ok = true
+        for _, pass in ipairs(predicates or {}) do
+            if not pass(id, rec, isIt) then ok = false break end
+        end
+        if ok then
+            total = total + 1
+            if isIt then learned = learned + 1 end
+        end
     end
     return total, learned
+end
+
+-- Filters ---------------------------------------------------------------------------------------
+-- A predicate is fn(id, rec, learned) -> bool. Flatten and FilterCounts keep the recipes every
+-- predicate passes: the All / Learned / Missing choice is one, each filter menu group another.
+
+-- Predicate for the All / Learned / Missing choice; nil for "all".
+function M.LearnedPredicate(filter)
+    if filter == "learned" then return function(_, _, learned) return learned end end
+    if filter == "missing" then return function(_, _, learned) return not learned end end
+    return nil
 end
 
 -- Difficulty ------------------------------------------------------------------------------

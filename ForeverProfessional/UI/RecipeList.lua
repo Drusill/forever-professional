@@ -150,7 +150,7 @@ function UI.RefreshList(resetScroll)
     if not (UI.list and s.line) then return end
     local tree = M.BuildTree(s.line)
     UI.entries, UI.matchCount = M.Flatten(tree, {
-        filter = s.filter,
+        predicates = { M.LearnedPredicate(s.filter) },
         search = s.search,
         collapsed = ns.db.collapsed,
         isLearned = function(id) return ns.IsLearned(id, s.char) end,

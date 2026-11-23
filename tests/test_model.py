@@ -23,12 +23,14 @@ class ModelTest(unittest.TestCase):
 
     def flat(self, line=171, filter="all", search=None, collapsed=None):
         a = self.a
-        a.g._opts = a.lua.table_from({"filter": filter, "search": search or "",
+        a.g._opts = a.lua.table_from({"search": search or "",
                                       "collapsed": a.lua.table_from(collapsed or {})})
         a.g._line = line
         a.g._ns = a.ns
+        a.g._filter = filter
         entries, count, learned = a.run(
             "_opts.isLearned = function(id) return _ns.IsLearned(id) end; "
+            "_opts.predicates = { _ns.Model.LearnedPredicate(_filter) }; "
             "return _ns.Model.Flatten(_ns.Model.BuildTree(_line), _opts)")
         return lua_list(entries), count, learned
 
