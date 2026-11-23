@@ -347,11 +347,38 @@ class FilterMenuTest(unittest.TestCase):
     def test_button_in_toolbar(self):
         self.assertEqual(self.button.label.text, "Filters")
         self.assertFalse(self.button.active)
+
+    def test_two_row_toolbar(self):
         same = self.a.lua.eval("function(a, b) return rawequal(a, b) end")
+        bar = self.a.g.ForeverProfessionalFrame.bar
+
+        def point(widget, name):
+            return next(p for p in lua_list(widget.points) if p[1] == name)
+
+        self.assertEqual(self.UI.BAR_H, 62)
+        self.assertEqual(bar.height, 50)
+        # Row 1: the search box from the left edge to the Filters button, which ends at the right edge.
         search = self.a.g.ForeverProfessionalSearchBox
-        right = next(p for p in lua_list(search.points) if p[1] == "RIGHT")
+        self.assertTrue(same(point(search, "TOPLEFT")[2], bar))
+        right = point(search, "RIGHT")
         self.assertTrue(same(right[2], self.button))
-        self.assertTrue(same(lua_list(self.button.points)[0][2], self.UI.filterControl))
+        self.assertEqual(right[3], "LEFT")
+        top_right = point(self.button, "TOPRIGHT")
+        self.assertTrue(same(top_right[2], bar))
+        # Row 2: All / Learned / Missing on the left, the chevrons on the right.
+        bottom_left = point(self.UI.filterControl, "BOTTOMLEFT")
+        self.assertTrue(same(bottom_left[2], bar))
+        self.assertTrue(same(point(self.UI.expandAllButton, "BOTTOMRIGHT")[2], bar))
+        self.assertTrue(same(point(self.UI.collapseAllButton, "RIGHT")[2], self.UI.expandAllButton))
+        # The menu opens under the button, aligned to its right edge.
+        menu_point = point(self.menu, "TOPRIGHT")
+        self.assertTrue(same(menu_point[2], self.button))
+        self.assertEqual(menu_point[3], "BOTTOMRIGHT")
+
+    def test_search_placeholder_clipped(self):
+        placeholder = self.a.g.ForeverProfessionalSearchBox.placeholder
+        self.assertEqual({p[1] for p in lua_list(placeholder.points)}, {"LEFT", "RIGHT"})
+        self.assertFalse(placeholder.wordWrap)
 
     def test_toggle_menu(self):
         self.assertFalse(self.menu.shown)

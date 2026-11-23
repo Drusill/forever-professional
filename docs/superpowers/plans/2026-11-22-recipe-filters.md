@@ -262,4 +262,4 @@ Run the full suite once more, then hand the user the spec's in-game checklist (n
 - `UI.CreateToggleButton(parent, label, onClick)` landed in Task 3 (with an `onClick` argument), because the empty state's Clear filters button needed it; its test went with it.
 - The filter menu's `rows` is keyed by item key; the character menu's stays a list.
 - Commits: Task 1 `3213a1f`, Task 2 `be2e1c1`, Task 3 `6df50c3`, Task 4 `a3328ef`, Task 5 `ae61a6e`, Task 6 next.
-- Open in-game risk: at the 900px minimum width the toolbar's search box may get very narrow next to `Filters (n)` (estimate 25–40px). Checklist item 9 covers it.
+- First in-game test (2026-11-22): the one-row toolbar left the search box about 40px wide at 900px; the user chose a two-row toolbar (`UI.BAR_H` 34 -> 62).

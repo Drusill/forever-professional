@@ -130,10 +130,15 @@ All / Learned / Missing control does that, and remembers the choices.
 
 ### Filter button and menu (`UI/Widgets.lua`, `UI/Window.lua`)
 
-Toolbar, right to left: expand all, collapse all, All / Learned / Missing, **Filters**, search (takes the rest).
+Toolbar, two rows (changed after the first in-game test, 2026-11-22: in one row the search box shrank
+to about 40px at the 900px minimum width). Top: the search box takes the width, **Filters** at its right.
+Bottom: All / Learned / Missing at the left, collapse all and expand all at the right. `UI.BAR_H` goes
+from 34 to 62. The menu opens under the button, aligned to its right edge. The search placeholder is
+clipped to the box.
 
 ```
-[Search…                  ] [Filters (2)] [All 179][Learned 3][Missing 176] [>][v]
+[Search…                                      ] [Filters (2)]
+[All 179][Learned 3][Missing 176]                     [>][v]
                             +---------------------------+
                             | Status                    |
                             | [x] Skill-ups             |
@@ -228,4 +233,5 @@ No TOC change, so `/reload` is enough.
 7. Switch to a profession the character doesn't have (or to an alt without it): Skill-ups and Learnable now
    are greyed with the tooltip and don't filter; switch back: they apply again.
 8. Open the character menu while the filter menu is open: only one stays open. Close the window: both close.
-9. Check the toolbar at the minimum window width (900px): the search box still has room.
+9. Check the toolbar at the minimum window width (900px): two rows, the search box wide, "Search…" not
+   running into the Filters button, the menu opening under the button without covering the detail pane.

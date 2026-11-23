@@ -11,7 +11,7 @@ UI.MIN_W, UI.MIN_H = 900, 540   -- 540: the rail fits five known professions plu
 UI.RAIL_W = 64
 UI.HEADER_H = 54
 UI.GAP = 8
-UI.BAR_H = 34      -- toolbar row at the top of the list panel
+UI.BAR_H = 62      -- toolbar at the top of the list panel: two rows of 22px controls
 local LIST_SHARE, LIST_MIN, LIST_MAX = 0.44, 380, 520
 
 -- char: the character shown (a key of ForeverProfessionalDB.chars), nil for the logged-in one. Not saved.
@@ -515,7 +515,7 @@ local FILTER_HEADINGS = { status = L.FILTER_STATUS, source = L.FILTER_SOURCE }
 
 local function CreateFilterMenu(parent, anchor)
     local m = UI.CreatePopup(parent, FILTER_MENU_W)
-    m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    m:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -2)
     m.headings = {}
     local y, rowCount, extra = -6, 0, 0
 
@@ -607,29 +607,30 @@ local function CreateToolbar(panel)
     bar:SetPoint("TOPRIGHT", -6, -6)
     bar:SetHeight(UI.BAR_H - 12)
 
-    -- Right to left: expand all, collapse all, the filter toggle; the search box takes the rest.
-    -- Chevrons as on the headers: pointing right = collapsed, down = expanded.
-    UI.expandAllButton = UI.CreateIconButton(bar, CHEVRON, L.EXPAND_ALL, function() UI.ExpandAll() end)
-    UI.expandAllButton:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
-    UI.expandAllButton.icon:SetRotation(-math.pi / 2)
-    UI.collapseAllButton = UI.CreateIconButton(bar, CHEVRON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
-    UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
-    UI.collapseAllButton.icon:SetRotation(0)
+    -- Two rows. Top: the search box takes the width, the Filters button at its right.
+    -- Bottom: All / Learned / Missing at the left, collapse all and expand all at the right.
+    UI.filterButton = UI.CreateToggleButton(bar, L.FILTERS, function() UI.ToggleFilterMenu() end)
+    UI.filterButton:SetPoint("TOPRIGHT", bar, "TOPRIGHT", 0, 0)
+    UI.filterMenu = CreateFilterMenu(UI.frame, UI.filterButton)
 
     UI.filterControl = UI.CreateSegmented(bar, {
         { key = "all", label = L.FILTER_ALL },
         { key = "learned", label = L.FILTER_LEARNED },
         { key = "missing", label = L.FILTER_MISSING },
     }, function(key) UI.SetFilter(key) end)
-    UI.filterControl:SetPoint("RIGHT", UI.collapseAllButton, "LEFT", -6, 0)
+    UI.filterControl:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", 0, 0)
     UI.filterButtons = UI.filterControl.order
 
-    UI.filterButton = UI.CreateToggleButton(bar, L.FILTERS, function() UI.ToggleFilterMenu() end)
-    UI.filterButton:SetPoint("RIGHT", UI.filterControl, "LEFT", -6, 0)
-    UI.filterMenu = CreateFilterMenu(UI.frame, UI.filterButton)
+    -- Chevrons as on the headers: pointing right = collapsed, down = expanded.
+    UI.expandAllButton = UI.CreateIconButton(bar, CHEVRON, L.EXPAND_ALL, function() UI.ExpandAll() end)
+    UI.expandAllButton:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
+    UI.expandAllButton.icon:SetRotation(-math.pi / 2)
+    UI.collapseAllButton = UI.CreateIconButton(bar, CHEVRON, L.COLLAPSE_ALL, function() UI.CollapseAll() end)
+    UI.collapseAllButton:SetPoint("RIGHT", UI.expandAllButton, "LEFT", -4, 0)
+    UI.collapseAllButton.icon:SetRotation(0)
 
     local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "BackdropTemplate")
-    search:SetPoint("LEFT", bar, "LEFT", 0, 0)
+    search:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
     search:SetPoint("RIGHT", UI.filterButton, "LEFT", -6, 0)
     search:SetHeight(22)
     search:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
@@ -645,6 +646,9 @@ local function CreateToolbar(panel)
     search.icon:SetTexture(SEARCH_ICON)
     search.placeholder = search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     search.placeholder:SetPoint("LEFT", 20, 0)
+    search.placeholder:SetPoint("RIGHT", -6, 0)
+    search.placeholder:SetJustifyH("LEFT")
+    search.placeholder:SetWordWrap(false)
     search.placeholder:SetText(L.SEARCH_RECIPES)
     search:SetScript("OnTextChanged", function(self)
         local text = self:GetText() or ""
