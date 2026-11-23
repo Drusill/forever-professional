@@ -108,5 +108,119 @@ class PredicateTest(unittest.TestCase):
         self.assertEqual(can, (True, False, True, False, False, True))
 
 
+FILTERS = "mock.learned = { [2329] = true, [3171] = true, [6617] = true }"
+FILTERS_LEARNED = {2329, 3171, 6617}
+SOURCE_KEY = {"trainer": "trainer", "auto": "trainer", "vendor": "vendor", "drop": "drop", "quest": "quest"}
+SOURCES = ("trainer", "vendor", "drop", "quest", "other", "unknown")
+
+
+def source_keys(rec):
+    """Python mirror of Model.SourceKeys."""
+    src = list(rec.src.values()) if rec.src else []
+    return {SOURCE_KEY.get(s, "other") for s in src} or {"unknown"}
+
+
+def lua_set(keys):
+    return "{ " + ", ".join(f"{k} = true" for k in keys) + " }"
+
+
+class MenuModelTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a = Addon(setup=FILTERS)
+        cls.a.login()
+        cls.a.g._ns = cls.a.ns
+        cls.M = cls.a.ns.Model
+        cls.recs = dict(cls.a.ns.Data.Recipes[171].items())
+
+    def ids(self, keys=(), segmented="all", search="", skill=120, faction="Horde", line=171):
+        entries, _, _ = self.a.run(f"""
+            local M = _ns.Model
+            local preds = M.FilterPredicates({lua_set(keys)}, {{ skill = {skill or "nil"}, faction = "{faction}" }})
+            table.insert(preds, 1, M.LearnedPredicate("{segmented}") or function() return true end)
+            return M.Flatten(M.BuildTree({line}), {{ predicates = preds, search = "{search}",
+                isLearned = function(id) return _ns.IsLearned(id) end }})""")
+        return set(recipe_ids(entries))
+
+    def where(self, test):
+        return {i for i, r in self.recs.items() if test(i, r)}
+
+    def learnable(self, i, r):
+        return i not in FILTERS_LEARNED and (r.learn or 0) <= 120 and r.side in (None, "Horde")
+
+    def test_source_keys(self):
+        cases = {7183: {"trainer"}, 6617: {"vendor"}, 3230: {"drop", "other"}, 1251744: {"quest"},
+                 11452: {"unknown"}}
+        for spell, keys in cases.items():
+            got = {k for k, v in self.M.SourceKeys(self.recs[spell]).items() if v}
+            self.assertEqual(got, keys, spell)
+
+    def test_groups(self):
+        groups = [(g.key, lua_list(g["items"])) for g in lua_list(self.M.FILTER_GROUPS)]
+        self.assertEqual(groups, [("status", ["skillups", "learnable"]), ("source", list(SOURCES)),
+                                  ("new", ["new"])])
+        self.assertTrue(self.M.FILTER_GROUPS[1].needsProfession)
+
+    def test_skillups(self):
+        self.assertEqual(self.ids(["skillups"]), {3171, 6617})
+
+    def test_learnable(self):
+        ids = self.ids(["learnable"])
+        self.assertEqual(ids, self.where(self.learnable))
+        self.assertIn(3173, ids)
+        self.assertNotIn(11452, ids)
+        self.assertNotIn(2329, ids)
+
+    def test_learnable_matches_learnable_count(self):
+        for line in (171, 182):
+            skill, _ = self.a.ns.CharSkill(line)
+            self.assertEqual(len(self.ids(["learnable"], skill=skill, line=line)),
+                             self.a.ns.LearnableCount(line), line)
+
+    def test_status_or(self):
+        self.assertEqual(self.ids(["skillups", "learnable"]), {3171, 6617} | self.where(self.learnable))
+
+    def test_each_source(self):
+        for key in SOURCES:
+            expected = self.where(lambda i, r: key in source_keys(r))
+            self.assertTrue(expected, key)
+            self.assertEqual(self.ids([key]), expected, key)
+
+    def test_sources_or(self):
+        self.assertEqual(self.ids(["vendor", "drop"]),
+                         self.where(lambda i, r: source_keys(r) & {"vendor", "drop"}))
+
+    def test_new(self):
+        expected = self.where(lambda i, r: r.new)
+        self.assertTrue(expected)
+        self.assertEqual(self.ids(["new"]), expected)
+
+    def test_and_across_groups(self):
+        self.assertEqual(self.ids(["vendor", "new"]),
+                         self.where(lambda i, r: r.new and "vendor" in source_keys(r)))
+        self.assertEqual(self.ids(["skillups", "vendor"]), {6617})
+
+    def test_with_search(self):
+        self.assertEqual(self.ids(["vendor"], search="Spell 6617"), {6617})
+        self.assertEqual(self.ids(["vendor"], search="Spell 3171"), set())
+
+    def test_with_segmented(self):
+        self.assertEqual(self.ids(["learnable"], segmented="learned"), set())
+        self.assertEqual(self.ids(["skillups"], segmented="missing"), set())
+        self.assertEqual(self.ids(["learnable"], segmented="missing"), self.ids(["learnable"]))
+
+    def test_status_skipped_without_skill(self):
+        n = self.a.run("return #_ns.Model.FilterPredicates({ skillups = true, vendor = true }, {})")
+        self.assertEqual(n, 1)
+        self.assertEqual(self.ids(["skillups", "learnable"], skill=None), set(self.recs))
+
+    def test_active_filter_count(self):
+        count = self.a.run("""
+            local f = _ns.Model.ActiveFilterCount
+            local four = { skillups = true, vendor = true, drop = true, new = true }
+            return f(four, true), f(four, false), f({ bogus = true }, true), f({}, true), f(nil, true)""")
+        self.assertEqual(count, (4, 3, 0, 0, 0))
+
+
 if __name__ == "__main__":
     unittest.main()

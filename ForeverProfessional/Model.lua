@@ -285,6 +285,78 @@ function M.LearnedPredicate(filter)
     return nil
 end
 
+-- The filter menu: groups in menu order. Items of a group combine with OR, groups with AND.
+-- Status items need the shown character to have the profession.
+M.FILTER_GROUPS = {
+    { key = "status", items = { "skillups", "learnable" }, needsProfession = true },
+    { key = "source", items = { "trainer", "vendor", "drop", "quest", "other", "unknown" } },
+    { key = "new", items = { "new" } },
+}
+
+-- Source type -> filter menu key. Types not listed here (container, object, crafted,
+-- worldObject, and any future one) are "other".
+local SOURCE_KEY = { trainer = "trainer", auto = "trainer", vendor = "vendor", drop = "drop", quest = "quest" }
+
+-- Filter menu source keys of a recipe, as a set. A recipe with no source type is "unknown".
+function M.SourceKeys(rec)
+    local keys, any = {}, false
+    for _, t in ipairs(rec.src or {}) do
+        keys[SOURCE_KEY[t] or "other"] = true
+        any = true
+    end
+    if not any then keys.unknown = true end
+    return keys
+end
+
+local SKILLUP_COLORS = { orange = true, yellow = true, green = true }
+
+-- One test per menu item: fn(rec, learned, ctx) -> bool.
+local ITEM_TESTS = {
+    skillups = function(rec, learned, ctx) return learned and SKILLUP_COLORS[M.Difficulty(rec, ctx.skill)] or false end,
+    learnable = function(rec, learned, ctx) return not learned and ns.CanLearnNow(rec, ctx.skill, ctx.faction) end,
+    new = function(rec) return rec.new and true or false end,
+}
+for _, key in ipairs(M.FILTER_GROUPS[2].items) do
+    ITEM_TESTS[key] = function(rec) return M.SourceKeys(rec)[key] or false end
+end
+
+-- Predicates for the checked menu items (filters = {[item]=true}), one per group with a checked
+-- item. ctx = { skill, faction } of the shown character; without a skill the status group is left out.
+function M.FilterPredicates(filters, ctx)
+    filters, ctx = filters or {}, ctx or {}
+    local out = {}
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if ctx.skill or not group.needsProfession then
+            local tests = {}
+            for _, key in ipairs(group.items) do
+                if filters[key] then tests[#tests + 1] = ITEM_TESTS[key] end
+            end
+            if #tests > 0 then
+                out[#out + 1] = function(_, rec, learned)
+                    for _, test in ipairs(tests) do
+                        if test(rec, learned, ctx) then return true end
+                    end
+                    return false
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- Checked menu items that are in effect: status items don't count without the profession.
+function M.ActiveFilterCount(filters, hasProfession)
+    local n = 0
+    for _, group in ipairs(M.FILTER_GROUPS) do
+        if hasProfession or not group.needsProfession then
+            for _, key in ipairs(group.items) do
+                if filters and filters[key] then n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
 -- Difficulty ------------------------------------------------------------------------------
 
 M.COLORS = {
