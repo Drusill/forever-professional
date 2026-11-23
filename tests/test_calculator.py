@@ -464,5 +464,138 @@ class ContextTest(unittest.TestCase):
         known = self.ns.PlanContext().knownBy(202, 3926)
         self.assertTrue(known.me)
 
+
+class PanelBase(unittest.TestCase):
+    setup = CALC
+
+    def setUp(self):
+        self.a = Addon(setup=self.setup)
+        self.a.login()
+        self.a.g._ns = self.a.ns
+        seed(self.a)
+        self.a.slash("")
+        self.ns, self.UI = self.a.ns, self.a.ns.UI
+        self.L = self.ns.L
+        self.open(3932)
+
+    def open(self, spell, line=None):
+        self.UI.SelectProfession(line or LINES[spell])
+        self.UI.SelectRecipe(spell)
+        self.a.call(self.UI.detail.header.calcButton, "Click")
+        self.c = self.UI.calc
+
+    def rows(self, kind):
+        return [r for r in lua_list(self.c.rendered) if r.kind == kind]
+
+    def shop(self):
+        return [(r.item, r.need, r.have, r.buy) for r in self.rows("shop")]
+
+    def tab_count(self, key):
+        return self.c.tabs.buttons[key].count.text
+
+
+class PanelTest(PanelBase):
+    def test_calculate_button_opens(self):
+        self.assertEqual(self.UI.detail.header.calcButton.label.text, "Calculate")
+        self.assertTrue(self.c.shown)
+        self.assertEqual(self.c.spellID, 3932)
+        self.assertEqual(self.c.title.text, "Spell 3932")
+        self.assertEqual(self.c.tab, "shopping")
+        self.assertEqual(self.c.qty.text, "1")
+
+    def test_who(self):
+        self.assertEqual(plain(self.c.who.text), "Who: You")
+        self.open(2657)
+        self.assertEqual(plain(self.c.who.text), "Who: Mina")
+        self.open(3929)
+        self.assertEqual(plain(self.c.who.text), "Who: Nobody")
+
+    def test_shopping_rows(self):
+        self.assertEqual(self.shop(), [(2589, 2, 0, 2), (2592, 1, 0, 1), (2770, 6, 0, 6), (2771, 1, 0, 1)])
+        self.assertEqual(self.tab_count("shopping"), "4")
+
+    def test_quantity(self):
+        self.UI.SetCalcQuantity(10)
+        self.assertEqual(self.c.qty.text, "10")
+        self.assertIn((2770, 55, 0, 55), self.shop())
+        self.a.call(self.c.qty, "SetText", "3")          # typing
+        self.assertIn((2770, 17, 0, 17), self.shop())
+        for bad in ("abc", ""):
+            self.a.call(self.c.qty, "SetText", bad)
+            self.assertIn((2770, 17, 0, 17), self.shop())
+            self.c.qty.scripts.OnEditFocusLost(self.c.qty)
+            self.assertEqual(self.c.qty.text, "3")
+        self.UI.SetCalcQuantity(1000)
+        self.assertEqual(self.c.qty.text, "999")
+
+    def test_unit_hidden_for_single_yield(self):
+        self.assertFalse(self.c.unit.shown)
+        self.assertEqual(self.c.summary.text, "1 craft, makes 1")
+
+    def test_unit_items(self):
+        self.open(2659)
+        self.assertTrue(self.c.unit.shown)
+        self.UI.SetCalcUnit("items")
+        self.UI.SetCalcQuantity(3)
+        self.assertEqual(self.c.plan.roots[1].crafts, 2)
+        self.assertEqual(self.c.summary.text, "2 crafts, 1 extra")
+        self.UI.SetCalcUnit("crafts")
+        self.assertEqual(self.c.summary.text, "3 crafts, makes 6")
+
+    def test_reopen_resets_quantity_and_unit(self):
+        self.open(2659)
+        self.UI.SetCalcUnit("items")
+        self.UI.SetCalcQuantity(5)
+        self.open(2659)
+        self.assertEqual((self.c.unitKey, self.c.qty.text), ("crafts", "1"))
+
+    def test_unit_range(self):
+        self.open(3931)
+        self.assertTrue(self.c.unit.shown)
+        self.UI.SetCalcUnit("items")
+        self.UI.SetCalcQuantity(6)
+        self.assertEqual(self.c.plan.roots[1].crafts, 6)
+
+    def test_enchant_no_output(self):
+        enchants = self.ns.Data.Recipes[333]
+        spell = min(k for k, v in enchants.items() if not v.creates)
+        self.open(spell, 333)
+        self.assertTrue(self.c.shown)
+        self.assertFalse(self.c.unit.shown)
+        self.assertEqual(self.c.summary.text, "")
+
+    def test_have_all(self):
+        self.a.run("mock.bags[2589] = 2; mock.bags[2592] = 1; mock.bags[2770] = 6; mock.bags[2771] = 1")
+        self.UI.RefreshCalculator()
+        self.assertTrue(self.c.message.shown)
+        self.assertEqual(self.c.message.text, self.L.CALC_HAVE_ALL)
+        self.assertEqual(self.tab_count("shopping"), "0")
+
+    def test_no_reagents(self):
+        spell = min(k for k in self.ns.Data.Recipes[202].keys() if k not in REAGENTS)
+        self.open(spell, 202)
+        self.assertEqual(self.c.message.text, self.L.CALC_NO_REAGENTS)
+        self.assertEqual(lua_list(self.c.rendered), [])
+
+    def test_back(self):
+        self.a.call(self.c.back, "Click")
+        self.assertFalse(self.c.shown)
+        self.assertEqual(self.UI.detail.current, 3932)
+
+    def test_closes_on_other_recipe_and_hide(self):
+        self.UI.SelectRecipe(3926)
+        self.assertFalse(self.c.shown)
+        self.open(3932)
+        self.UI.SelectProfession(186)
+        self.assertFalse(self.c.shown)
+        self.open(3932)
+        self.a.slash("")
+        self.assertFalse(self.c.shown)
+
+    def test_unlearned_recipe(self):
+        self.open(3938)
+        self.assertEqual(plain(self.c.who.text), "Who: Nobody")
+        self.assertIn(2880, [r.item for r in self.rows("shop")])
+
 if __name__ == "__main__":
     unittest.main()

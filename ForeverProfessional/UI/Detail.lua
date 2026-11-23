@@ -151,6 +151,13 @@ local function CreateHeader(parent)
     h.catChip:SetPoint("LEFT", h.stateChip, "RIGHT", 5, 0)
     h.newChip = UI.CreateChip(h)
     h.newChip:SetPoint("LEFT", h.catChip, "RIGHT", 5, 0)
+
+    -- Under the difficulty scale, on the chip row.
+    h.calcButton = UI.CreateToggleButton(h, L.CALCULATE, function()
+        if UI.OpenCalculator then UI.OpenCalculator(UI.state.selected) end
+    end)
+    h.calcButton:SetHeight(20)
+    h.calcButton:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", -4, 6)
     return h
 end
 
