@@ -325,5 +325,118 @@ class WindowFilterTest(unittest.TestCase):
         self.assertFalse(self.UI.list.clearButton.shown)
 
 
+ITEMS = ("skillups", "learnable") + SOURCES + ("new",)
+LABELS = {"skillups": "Skill-ups", "learnable": "Learnable now", "trainer": "Trainer", "vendor": "Vendor",
+          "drop": "Drop", "quest": "Quest", "other": "Other", "unknown": "Unknown source", "new": "New in Forever"}
+
+
+class FilterMenuTest(unittest.TestCase):
+    def setUp(self):
+        self.a = open_addon(FILTERS)
+        self.UI = self.a.ns.UI
+        self.L = self.a.ns.L
+        self.button = self.UI.filterButton
+        self.menu = self.UI.filterMenu
+
+    def click(self, w):
+        Addon.call(w, "Click")
+
+    def row(self, key):
+        return self.menu.rows[key]
+
+    def test_button_in_toolbar(self):
+        self.assertEqual(self.button.label.text, "Filters")
+        self.assertFalse(self.button.active)
+        same = self.a.lua.eval("function(a, b) return rawequal(a, b) end")
+        search = self.a.g.ForeverProfessionalSearchBox
+        right = next(p for p in lua_list(search.points) if p[1] == "RIGHT")
+        self.assertTrue(same(right[2], self.button))
+        self.assertTrue(same(lua_list(self.button.points)[0][2], self.UI.filterControl))
+
+    def test_toggle_menu(self):
+        self.assertFalse(self.menu.shown)
+        self.click(self.button)
+        self.assertTrue(self.menu.shown)
+        self.click(self.button)
+        self.assertFalse(self.menu.shown)
+
+    def test_menu_rows_follow_groups(self):
+        self.assertEqual(set(self.menu.rows.keys()), set(ITEMS))
+        for key, label in LABELS.items():
+            self.assertEqual(self.row(key).label.text, label, key)
+        self.assertEqual(self.menu.clearRow.label.text, "Clear filters")
+        headings = [h.text for h in lua_list(self.menu.headings)]
+        self.assertEqual(headings, ["Status", "Source"])
+
+    def test_rows_stacked_in_group_order(self):
+        tops = [lua_list(self.row(k).points)[0][3] for k in ITEMS]   # ("TOPLEFT", x, y)
+        self.assertEqual(tops, sorted(tops, reverse=True))
+        self.assertGreater(self.menu.height, 12 + 20 * len(ITEMS))
+
+    def test_click_row_filters(self):
+        self.click(self.button)
+        self.click(self.row("vendor"))
+        self.assertTrue(self.a.g.ForeverProfessionalDB.filters.vendor)
+        self.assertTrue(self.row("vendor").checked)
+        self.assertTrue(self.menu.shown)
+        self.assertEqual(self.button.label.text, "Filters (1)")
+        self.assertTrue(self.button.active)
+        self.assertIn(6617, recipe_ids(self.UI.entries))
+        self.assertNotIn(3171, recipe_ids(self.UI.entries))
+        self.click(self.row("vendor"))
+        self.assertFalse(self.row("vendor").checked)
+        self.assertEqual(self.button.label.text, "Filters")
+        self.assertFalse(self.button.active)
+
+    def test_saved_filters_shown_on_open(self):
+        a = open_addon('ForeverProfessionalDB = { version = 2, filters = { drop = true, new = true } }; ' + FILTERS)
+        menu = a.ns.UI.filterMenu
+        self.assertTrue(menu.rows.drop.checked)
+        self.assertTrue(menu.rows.new.checked)
+        self.assertFalse(menu.rows.vendor.checked)
+        self.assertEqual(a.ns.UI.filterButton.label.text, "Filters (2)")
+
+    def test_disabled_status_rows(self):
+        self.click(self.row("skillups"))
+        self.assertEqual(self.button.label.text, "Filters (1)")
+        self.UI.SelectProfession(185)   # Tester has no Cooking
+        for key in ("skillups", "learnable"):
+            self.assertFalse(self.row(key).enabled, key)
+            self.assertEqual(self.row(key).disabledTooltip, self.L.FILTER_NEEDS_PROFESSION)
+        self.assertTrue(self.row("vendor").enabled)
+        self.assertTrue(self.row("skillups").checked)
+        self.assertEqual(self.button.label.text, "Filters")
+        self.click(self.row("learnable"))
+        self.assertIsNone(self.a.g.ForeverProfessionalDB.filters.learnable)
+        self.UI.SelectProfession(171)
+        self.assertTrue(self.row("skillups").enabled)
+        self.assertEqual(self.button.label.text, "Filters (1)")
+
+    def test_clear_row(self):
+        self.click(self.row("vendor"))
+        self.click(self.row("new"))
+        self.UI.SetFilter("learned")
+        self.click(self.menu.clearRow)
+        self.assertEqual(list(self.a.g.ForeverProfessionalDB.filters.keys()), [])
+        for key in ITEMS:
+            self.assertFalse(self.row(key).checked, key)
+        self.assertEqual(self.button.label.text, "Filters")
+        self.assertEqual(self.UI.state.filter, "learned")
+
+    def test_one_popup_at_a_time(self):
+        self.click(self.button)
+        self.click(self.UI.charButton)
+        self.assertTrue(self.UI.charMenu.shown)
+        self.assertFalse(self.menu.shown)
+        self.click(self.button)
+        self.assertTrue(self.menu.shown)
+        self.assertFalse(self.UI.charMenu.shown)
+
+    def test_menu_hides_with_window(self):
+        self.click(self.button)
+        self.a.slash("")
+        self.assertFalse(self.menu.shown)
+
+
 if __name__ == "__main__":
     unittest.main()

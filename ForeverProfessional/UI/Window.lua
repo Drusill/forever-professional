@@ -469,6 +469,7 @@ end
 function UI.OpenCharMenu()
     local m = UI.charMenu
     if not m then return end
+    if UI.CloseFilterMenu then UI.CloseFilterMenu() end
     local me, list = ns.CharKey(), ns.ListChars()
     for i, e in ipairs(list) do
         local r = MenuRow(m, i)
@@ -507,6 +508,99 @@ end
 local SEARCH_ICON = "Interface\\Common\\UI-Searchbox-Icon"
 local CHEVRON = "Interface\\ChatFrame\\ChatFrameExpandArrow"   -- same as the group headers
 
+-- Filter menu: one heading per group that has one, a check row per item (Model.FILTER_GROUPS),
+-- separators before a group without a heading and before Clear filters.
+local FILTER_MENU_W, FILTER_ROW_H, HEADING_H, SEPARATOR_H = 190, 20, 18, 9
+local FILTER_HEADINGS = { status = L.FILTER_STATUS, source = L.FILTER_SOURCE }
+
+local function CreateFilterMenu(parent, anchor)
+    local m = UI.CreatePopup(parent, FILTER_MENU_W)
+    m:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    m.headings = {}
+    local y, rowCount, extra = -6, 0, 0
+
+    local function Separator()
+        local line = m:CreateTexture(nil, "ARTWORK")
+        line:SetHeight(1)
+        line:SetPoint("TOPLEFT", 10, y - (SEPARATOR_H - 1) / 2)
+        line:SetPoint("RIGHT", -10, 0)
+        line:SetColorTexture(Hex(UI.COLORS.line2))
+        y, extra = y - SEPARATOR_H, extra + SEPARATOR_H
+    end
+
+    local function Place(row)
+        row:SetPoint("TOPLEFT", 6, y)
+        row:SetPoint("RIGHT", -6, 0)
+        y, rowCount = y - FILTER_ROW_H, rowCount + 1
+    end
+
+    for _, group in ipairs(ns.Model.FILTER_GROUPS) do
+        local heading = FILTER_HEADINGS[group.key]
+        if heading then
+            local h = m:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            h:SetPoint("TOPLEFT", 10, y - 4)
+            h:SetText(heading)
+            h:SetTextColor(Hex(UI.COLORS.gold))
+            m.headings[#m.headings + 1] = h
+            y, extra = y - HEADING_H, extra + HEADING_H
+        else
+            Separator()
+        end
+        for _, key in ipairs(group.items) do
+            local row = UI.CreateCheckRow(m, function(self) UI.SetFilterOption(self.key, not self.checked) end)
+            row.key, row.needsProfession = key, group.needsProfession
+            row:SetText(L["FILTER_" .. key:upper()])
+            Place(row)
+            m.rows[key] = row
+        end
+    end
+
+    Separator()
+    local clear = CreateFrame("Button", nil, m)
+    clear:SetHeight(FILTER_ROW_H)
+    clear:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    clear.label = clear:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    clear.label:SetPoint("CENTER")
+    clear.label:SetText(L.CLEAR_FILTERS)
+    clear:SetScript("OnClick", function() UI.ClearFilters() end)
+    Place(clear)
+    m.clearRow = clear
+
+    m:Fit(rowCount, FILTER_ROW_H, extra)
+    return m
+end
+
+-- Checks, enabled status rows and the button's count, from the saved filters.
+function UI.RefreshFilterMenu()
+    local m, b = UI.filterMenu, UI.filterButton
+    if not (m and b) then return end
+    local filters = UI.state.filters or {}
+    local hasProfession = UI.state.line and ns.CharSkill(UI.state.line, UI.state.char) ~= nil
+    for key, row in pairs(m.rows) do
+        row:SetChecked(filters[key])
+        row.disabledTooltip = row.needsProfession and L.FILTER_NEEDS_PROFESSION or nil
+        row:SetEnabled(hasProfession or not row.needsProfession)
+    end
+    local n = UI.ActiveFilterCount()
+    b:SetText(n > 0 and L.FILTERS_COUNT:format(n) or L.FILTERS)
+    b:SetActive(n > 0)
+end
+
+function UI.OpenFilterMenu()
+    if not UI.filterMenu then return end
+    UI.CloseCharMenu()
+    UI.RefreshFilterMenu()
+    UI.filterMenu:Show()
+end
+
+function UI.CloseFilterMenu()
+    if UI.filterMenu then UI.filterMenu:Hide() end
+end
+
+function UI.ToggleFilterMenu()
+    if UI.filterMenu and UI.filterMenu:IsShown() then UI.CloseFilterMenu() else UI.OpenFilterMenu() end
+end
+
 local function CreateToolbar(panel)
     local bar = CreateFrame("Frame", nil, panel)
     bar:SetPoint("TOPLEFT", 6, -6)
@@ -530,9 +624,13 @@ local function CreateToolbar(panel)
     UI.filterControl:SetPoint("RIGHT", UI.collapseAllButton, "LEFT", -6, 0)
     UI.filterButtons = UI.filterControl.order
 
+    UI.filterButton = UI.CreateToggleButton(bar, L.FILTERS, function() UI.ToggleFilterMenu() end)
+    UI.filterButton:SetPoint("RIGHT", UI.filterControl, "LEFT", -6, 0)
+    UI.filterMenu = CreateFilterMenu(UI.frame, UI.filterButton)
+
     local search = CreateFrame("EditBox", "ForeverProfessionalSearchBox", bar, "BackdropTemplate")
     search:SetPoint("LEFT", bar, "LEFT", 0, 0)
-    search:SetPoint("RIGHT", UI.filterControl, "LEFT", -6, 0)
+    search:SetPoint("RIGHT", UI.filterButton, "LEFT", -6, 0)
     search:SetHeight(22)
     search:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
     search:SetBackdropColor(Hex("090807"))
@@ -654,7 +752,10 @@ function UI.Create()
     f:SetScript("OnSizeChanged", function() UI.Layout() end)
 
     f:SetScript("OnShow", function() UI.Refresh() end)
-    f:SetScript("OnHide", function() UI.CloseCharMenu() end)
+    f:SetScript("OnHide", function()
+        UI.CloseCharMenu()
+        UI.CloseFilterMenu()
+    end)
     UI.Layout()
     return f
 end
@@ -837,6 +938,7 @@ function UI.Refresh()
     UI.RefreshRail()
     UI.RefreshHeader()
     UI.RefreshFilterButtons()
+    UI.RefreshFilterMenu()
     UI.RefreshList(UI.resetListScroll)
     UI.resetListScroll = nil
     if UI.RefreshDetail then UI.RefreshDetail() end
