@@ -951,6 +951,7 @@ function UI.Refresh()
     UI.RefreshList(UI.resetListScroll)
     UI.resetListScroll = nil
     if UI.RefreshDetail then UI.RefreshDetail() end
+    if UI.RefreshCalculator then UI.RefreshCalculator() end
 end
 
 function UI.Show(line)

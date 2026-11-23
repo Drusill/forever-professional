@@ -54,6 +54,14 @@ local function CreateRow()
     r.check:SetTexture(CHECK_ICON)
     r.switch = UI.CreateToggleButton(r, "", function(b) UI.ToggleCraftMode(b.item) end)
     r.switch:SetHeight(18)
+    r:EnableMouse(true)
+    r:SetScript("OnEnter", function(self)
+        if not (self.tooltip and GameTooltip) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.tooltip)
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     return r
 end
 
@@ -84,6 +92,8 @@ local function TakeRow(y, width, depth)
     r.right:SetWidth(RIGHT_W)
     r.check:ClearAllPoints()
     r.check:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+    r.slot:Show()
+    r.tooltip = nil
     r.info:SetText("")
     r.right:SetText("")
     r.check:Hide()
@@ -99,6 +109,38 @@ end
 
 local function Colored(hex, text) return "|cff" .. hex .. text .. "|r" end
 
+-- "You" (green), an alt's class-coloured name, or "Nobody" (grey).
+local function CrafterLabel(known)
+    local text, kind = ns.CrafterText(known)
+    if kind ~= "alt" then text = Colored(CRAFTER_COLORS[kind], text) end
+    return text
+end
+
+-- The craft / buy switch of an intermediate, labelled with what a click does. Raw items and items
+-- that would need themselves have none.
+local function ShowSwitch(r, n)
+    if not (n and n.switchable and not n.cycle) then return false end
+    r.switch.item = n.item
+    r.switch:SetText(n.kind == "craft" and L.CALC_BUY or L.CALC_CRAFT)
+    r.switch:Show()
+    return true
+end
+
+-- Item icon and name, or the recipe's icon and name when it makes no item (enchants).
+local function SetSubject(r, itemID, spellID, pending)
+    if itemID then
+        r.slot:SetItem(itemID)
+        return UI.ItemText(itemID, pending)
+    end
+    r.slot:SetItem(nil)
+    r.slot.icon:SetTexture(M.SpellIcon(spellID) or M.QUESTION_ICON)
+    return M.RecipeDisplayName(spellID)
+end
+
+local function Add(entry)
+    calc.rendered[#calc.rendered + 1] = entry
+end
+
 -- Shopping: bought and raw items with have / need, what's left to buy or a check.
 local function RenderShopping(plan, y, width, pending)
     for _, e in ipairs(plan.shopping) do
@@ -106,11 +148,71 @@ local function RenderShopping(plan, y, width, pending)
         r.slot:SetItem(e.item)
         r.name:SetText(UI.ItemText(e.item, pending))
         r.info:SetText(Colored(e.have >= e.need and "40c040" or "ffffff", L.CALC_HAVE_NEED:format(e.have, e.need)))
+        r.tooltip = L.CALC_HAVE_TOOLTIP
         if e.buy > 0 then r.right:SetText(L.CALC_BUY_N:format(e.buy)) else r.check:Show() end
-        calc.rendered[#calc.rendered + 1] = { kind = "shop", item = e.item, need = e.need, have = e.have, buy = e.buy }
+        local switch = plan.items[e.item].kind == "buy" and ShowSwitch(r, plan.items[e.item])
+        Add({ kind = "shop", item = e.item, need = e.need, have = e.have, buy = e.buy, switch = switch, widget = r })
         y = y + ROW_H
     end
     return y
+end
+
+-- Steps: "1. Copper Bar x6", the profession, who crafts it. Intermediates can switch to buy.
+local function RenderSteps(plan, y, width, pending)
+    for i, st in ipairs(plan.steps) do
+        local r = TakeRow(y, width, 0)
+        local label = SetSubject(r, st.item, st.spellID, pending)
+        r.name:SetText(L.CALC_STEP:format(i, L.CALC_TIMES:format(label, st.crafts)))
+        local prof = ns.Data.Professions[st.line]
+        r.info:SetText(Colored(UI.COLORS.muted, prof and prof.name or ""))
+        local crafter = CrafterLabel(st.known)
+        r.right:SetText(crafter)
+        local switch = not st.root and ShowSwitch(r, plan.items[st.item])
+        Add({ kind = "step", item = st.item, crafts = st.crafts, crafter = crafter, switch = switch, widget = r })
+        y = y + ROW_H
+    end
+    return y
+end
+
+-- Tree: each branch's amounts, indented; who crafts each intermediate, or Buy / Raw.
+local function RenderTree(plan, y, width, pending)
+    local function Node(node, depth, root)
+        local r = TakeRow(y, width, depth)
+        y = y + ROW_H
+        if node.more then
+            r.slot:Hide()
+            r.name:SetText(L.CALC_MORE)
+            Add({ kind = "more", depth = depth, widget = r })
+            return
+        end
+        local entry = { kind = "node", item = node.item, depth = depth, count = node.count, widget = r }
+        local label = SetSubject(r, node.item, node.spellID, pending)
+        if root then
+            entry.info = CrafterLabel(root.known)
+        else
+            local n = plan.items[node.item]
+            if n.kind == "craft" then entry.info = CrafterLabel(n.known)
+            elseif n.kind == "buy" then entry.info = L.CALC_BUY
+            else entry.info = L.CALC_RAW end
+            if n.cycle then entry.note = L.CALC_CYCLE end
+            entry.switch = ShowSwitch(r, n)
+        end
+        local text = L.CALC_TIMES:format(label, node.count)
+        if entry.note then text = text .. " " .. Colored("ff8040", entry.note) end
+        r.name:SetText(text)
+        r.info:SetText(entry.info)
+        Add(entry)
+        for _, child in ipairs(node.children or {}) do Node(child, depth + 1) end
+    end
+    for i, tree in ipairs(plan.tree) do Node(tree, 0, plan.roots[i]) end
+    return y
+end
+
+function UI.ToggleCraftMode(itemID)
+    local n = calc and calc.plan and itemID and calc.plan.items[itemID]
+    if not (n and n.switchable) then return end
+    ns.SetCraftMode(itemID, n.kind == "craft" and "buy" or "craft")
+    UI.RefreshCalculator()
 end
 
 -- Panel -----------------------------------------------------------------------------------------------
@@ -146,9 +248,7 @@ function UI.RefreshCalculator()
 
     calc.icon:SetTexture(M.RecipeIcon(spellID, rec))
     calc.title:SetText(M.RecipeDisplayName(spellID))
-    local who, kind = ns.CrafterText(root.known)
-    if kind ~= "alt" then who = Colored(CRAFTER_COLORS[kind], who) end
-    calc.who:SetText(L.CALC_WHO:format(who))
+    calc.who:SetText(L.CALC_WHO:format(CrafterLabel(root.known)))
     calc.summary:ClearAllPoints()
     calc.summary:SetPoint("LEFT", multi and calc.unit or calc.qty, "RIGHT", 8, 0)
     calc.summary:SetText(Summary(rec, root))
@@ -176,8 +276,8 @@ function UI.RefreshCalculator()
     end
     if root.reagents then
         if calc.tab == "shopping" then y = RenderShopping(plan, y, width, pending)
-        elseif calc.tab == "steps" and UI.RenderCalcSteps then y = UI.RenderCalcSteps(plan, y, width, pending)
-        elseif calc.tab == "tree" and UI.RenderCalcTree then y = UI.RenderCalcTree(plan, y, width, pending) end
+        elseif calc.tab == "steps" then y = RenderSteps(plan, y, width, pending)
+        elseif calc.tab == "tree" then y = RenderTree(plan, y, width, pending) end
     end
     HideUnusedRows()
     calc.child:SetHeight(y + 8)
@@ -332,3 +432,6 @@ end
 function UI.LayoutCalculator()
     if calc and calc:IsShown() then UI.RefreshCalculator() end
 end
+
+-- Have / need follows the bags and bank while the panel is open.
+ns.On("BAG_UPDATE_DELAYED", function() UI.RefreshCalculator() end)

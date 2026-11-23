@@ -597,5 +597,111 @@ class PanelTest(PanelBase):
         self.assertEqual(plain(self.c.who.text), "Who: Nobody")
         self.assertIn(2880, [r.item for r in self.rows("shop")])
 
+
+def flat_tree(node, depth=0):
+    """(item, depth, count) in depth-first order, as the Tree tab draws it."""
+    out = [(node.item, depth, node.count)]
+    for c in lua_list(node.children) if node.children else []:
+        out.extend(flat_tree(c, depth + 1))
+    return out
+
+
+class PanelTabsTest(PanelBase):
+    def row(self, kind, item):
+        return next(r for r in self.rows(kind) if r.item == item)
+
+    def widget(self, kind, item):
+        return self.row(kind, item).widget
+
+    def test_steps_tab(self):
+        self.UI.SetCalcTab("steps")
+        steps = self.rows("step")
+        self.assertEqual([r.item for r in steps], [2840, 3576, 4359, 2841, 4363, 4366])
+        self.assertEqual([r.crafts for r in steps], [6, 1, 4, 1, 1, 1])
+        self.assertEqual([plain(r.crafter) for r in steps], ["Mina", "Mina", "You", "Mina", "You", "You"])
+        self.assertEqual(self.tab_count("steps"), "6")
+        self.assertEqual([bool(r.switch) for r in steps], [True] * 5 + [False])
+        self.assertEqual(self.widget("step", 2840).switch.label.text, "Buy")
+
+    def test_tree_tab(self):
+        self.UI.SetCalcTab("tree")
+        nodes = self.rows("node")
+        self.assertEqual([(r.item, r.depth, r.count) for r in nodes], flat_tree(self.c.plan.tree[1]))
+        self.assertEqual(nodes[0].item, 4366)
+        self.assertEqual(plain(self.row("node", 2592).info), "Raw")
+        self.assertEqual(plain(self.row("node", 4363).info), "You")
+        self.assertEqual(plain(self.row("node", 2841).info), "Mina")
+
+    def test_switch_in_tree(self):
+        self.UI.SetCalcTab("tree")
+        self.a.call(self.widget("node", 2841).switch, "Click")
+        self.assertEqual(self.ns.db.craftModes[2841], "buy")
+        self.assertNotIn(3576, [r.item for r in self.rows("node")])
+        self.assertEqual(self.widget("node", 2841).switch.label.text, "Craft")
+        self.assertEqual(plain(self.row("node", 2841).info), "Buy")
+        self.UI.SetCalcTab("shopping")
+        self.assertIn(2841, [r.item for r in self.rows("shop")])
+
+    def test_switch_in_shopping(self):
+        self.ns.SetCraftMode(2841, "buy")
+        self.UI.RefreshCalculator()
+        w = self.widget("shop", 2841)
+        self.assertTrue(w.switch.shown)
+        self.assertEqual(w.switch.label.text, "Craft")
+        self.assertFalse(self.widget("shop", 2770).switch.shown)   # raw: nothing to switch
+        self.a.call(w.switch, "Click")
+        self.assertEqual(self.ns.db.craftModes[2841], "craft")
+        self.assertNotIn(2841, [r.item for r in self.rows("shop")])
+
+    def test_reset(self):
+        self.assertFalse(self.c.reset.shown)
+        self.UI.SetCalcTab("tree")
+        self.a.call(self.widget("node", 2841).switch, "Click")
+        self.assertTrue(self.c.reset.shown)
+        self.a.call(self.c.reset, "Click")
+        self.assertEqual(list(self.ns.db.craftModes.keys()), [])
+        self.assertFalse(self.c.reset.shown)
+        self.assertIn(3576, [r.item for r in self.rows("node")])
+
+    def test_cycle_note(self):
+        self.open(13240)
+        self.UI.SetCalcTab("tree")
+        # The root row is a Goblin Mortar too; the reagent one sits under it.
+        row = next(r for r in self.rows("node") if r.item == 10577 and r.depth == 1)
+        self.assertEqual(row.note, self.L.CALC_CYCLE)
+        self.assertFalse(row.switch)
+        self.assertIn(self.L.CALC_CYCLE, row.widget.name.text)
+
+    def test_have_tooltip(self):
+        self.a.g.enter(self.widget("shop", 2770))
+        self.assertIn(self.L.CALC_HAVE_TOOLTIP, lua_list(self.a.g.GameTooltip.lines))
+
+    def test_bag_update(self):
+        self.a.run("mock.bags[2770] = 6")
+        self.a.run('fire("BAG_UPDATE_DELAYED")')
+        self.assertIn((2770, 6, 6, 0), self.shop())
+        self.UI.CloseCalculator()
+        renders = self.c.renders
+        self.a.run('fire("BAG_UPDATE_DELAYED")')
+        self.assertEqual(self.c.renders, renders)
+
+    def test_refresh_redraws(self):
+        renders = self.c.renders
+        self.ns.UpdateCharacter()
+        self.assertTrue(self.c.shown)
+        self.assertGreater(self.c.renders, renders)
+
+    def test_fits_minimum_window(self):
+        self.a.call(self.UI.frame, "SetSize", 900, 540)
+        inner = self.UI.DetailPanelWidth() - 16
+        self.assertGreaterEqual(self.UI.CalcRowLayout(self.UI.DetailContentWidth(), 7).nameW, 100)
+        self.open(2659)   # with the Crafts / Items switch
+        text_w = self.a.call   # font strings report the mock's string width (6px a character)
+        qty_row = (10 + text_w(self.c.qtyLabel, "GetStringWidth") + 6 + self.c.qty.width + 8
+                   + self.c.unit.width + 8 + text_w(self.c.summary, "GetStringWidth"))
+        self.assertLessEqual(qty_row, inner)
+        self.assertLessEqual(self.c.tabs.width + 8 + self.c.reset.width, inner)
+        self.assertGreaterEqual(self.UI.CalcVisibleHeight(), 300)
+
 if __name__ == "__main__":
     unittest.main()
