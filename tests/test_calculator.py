@@ -80,5 +80,48 @@ class ReagentsTest(unittest.TestCase):
         self.assertEqual(count(2770, True), 0)
 
 
+def makers(t):
+    return [(e.line, e.spellID) for e in lua_list(t)] if t is not None else None
+
+
+class IndexTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a = Addon()
+        cls.M = cls.a.ns.Model
+        cls.R = cls.a.ns.Data.Recipes
+
+    def test_recipes_creating_single(self):
+        self.assertEqual(makers(self.M.RecipesCreating(2840)), [(186, 2657)])
+
+    def test_recipes_creating_several(self):
+        self.assertEqual(makers(self.M.RecipesCreating(3577)), [(186, 3308), (171, 11479)])
+        self.assertEqual([s for _, s in makers(self.M.RecipesCreating(7080))], [17561, 17563])
+        self.assertEqual([s for _, s in makers(self.M.RecipesCreating(10577))], [12716, 13240])
+
+    def test_recipes_creating_none(self):
+        self.assertIsNone(self.M.RecipesCreating(2770))
+
+    def test_index_matches_data(self):
+        expected = 0
+        for line in self.R.keys():
+            for spell, rec in self.R[line].items():
+                if rec.creates:
+                    expected += 1
+                    self.assertIn((line, spell), makers(self.M.RecipesCreating(rec.creates)))
+        items = {rec.creates for line in self.R.keys() for rec in self.R[line].values() if rec.creates}
+        self.assertEqual(sum(len(makers(self.M.RecipesCreating(i))) for i in items), expected)
+
+    def test_yield(self):
+        for line, spell, n in [(202, 3932, 1), (186, 2659, 2), (202, 3931, 1), (202, 12584, 3)]:
+            self.assertEqual(self.M.Yield(self.R[line][spell]), n, spell)
+
+    def test_crafts_for(self):
+        self.assertEqual(self.M.CraftsFor(self.R[202][12584], 7), 3)
+        self.assertEqual(self.M.CraftsFor(self.R[186][2659], 3), 2)
+        self.assertEqual(self.M.CraftsFor(self.R[202][3931], 6), 6)
+        self.assertEqual(self.M.CraftsFor(self.R[202][3932], 0), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

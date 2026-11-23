@@ -745,3 +745,40 @@ function M.Reagents(spellID)
     end
     return out
 end
+
+-- Reverse index: item -> the recipes that create it, across every profession ------------------------
+
+local creating   -- [itemID] = { {line, spellID}... }, each sorted by spell ID; built on first use
+
+function M.RecipesCreating(itemID)
+    if not creating then
+        creating = {}
+        for line, recipes in pairs(ns.Data.Recipes or {}) do
+            for spellID, rec in pairs(recipes) do
+                if rec.creates then
+                    local list = creating[rec.creates] or {}
+                    list[#list + 1] = { line = line, spellID = spellID }
+                    creating[rec.creates] = list
+                end
+            end
+        end
+        for _, list in pairs(creating) do
+            table.sort(list, function(a, b) return a.spellID < b.spellID end)
+        end
+    end
+    return creating[itemID]
+end
+
+-- Items one craft makes: `count`, the minimum of a {min, max} range, else 1.
+function M.Yield(rec)
+    local c = rec and rec.count
+    if type(c) == "number" then return c end
+    if type(c) == "table" then return c[1] or 1 end
+    return 1
+end
+
+-- Whole crafts needed for `items` of the output.
+function M.CraftsFor(rec, items)
+    if not items or items <= 0 then return 0 end
+    return math.ceil(items / M.Yield(rec))
+end
