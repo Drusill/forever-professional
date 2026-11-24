@@ -621,6 +621,15 @@ class TrackedPanelTest(UIBase):
         self.assertEqual((self.UI.state.line, self.UI.state.selected), (186, 2659))
         self.assertFalse(self.c.shown)
 
+    def test_row_highlights_on_hover(self):
+        # The icon and name open the recipe: one highlighted button covers both, the slot lets clicks through.
+        track(self.a, 2659)
+        self.open()
+        w = self.row(2659).widget
+        self.assertEqual(w.nameButton.highlightTexture, r"Interface\QuestFrame\UI-QuestTitleHighlight")
+        self.assertEqual(w.nameButton.GetPoint(w.nameButton)[3], 0)
+        self.assertIs(w.slot.mouseEnabled, False)
+
     def test_live_updates(self):
         track(self.a, 3932, 2)
         self.open()

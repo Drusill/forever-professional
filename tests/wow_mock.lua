@@ -163,6 +163,8 @@ function Widget:SetPoint(...) self.points[#self.points + 1] = { ... } end
 function Widget:ClearAllPoints() self.points = {} end
 function Widget:GetPoint() local p = self.points[1]; if p then return unpack(p) end end
 function Widget:GetNumPoints() return #self.points end
+function Widget:SetHighlightTexture(tex, blend) self.highlightTexture = tex end
+function Widget:EnableMouse(v) self.mouseEnabled = v end
 function Widget:SetChecked(v) self.checked = v end
 function Widget:GetChecked() return self.checked end
 function Widget:Enable() self.disabled = false end
