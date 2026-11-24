@@ -208,10 +208,12 @@ end
 function ns.SetCraftMode(itemID, mode)
     if mode ~= "craft" and mode ~= "buy" then mode = nil end
     ns.db.craftModes[itemID] = mode
+    ns.MarkTrackedDirty()
 end
 
 function ns.ResetCraftModes()
     wipe(ns.db.craftModes)
+    ns.MarkTrackedDirty()
 end
 
 -- Who crafts something: "You", the first alt's name (" +N" for more), or "Nobody"; and that kind.
@@ -225,6 +227,144 @@ function ns.CrafterText(known)
         return text, "alt"
     end
     return L.CALC_NOBODY, "nobody"
+end
+
+-- Tracked recipes -------------------------------------------------------------------------------
+-- An account-wide, ordered list in ns.db.tracked: { {spellID, line, quantity, unit}... }. Our own list:
+-- Blizzard's recipe tracking is never touched.
+
+local TRACKED_MAX = 999
+
+local function TrackedRecipe(line, spellID)
+    return ns.Data.Recipes[line] and ns.Data.Recipes[line][spellID]
+end
+
+-- A clean copy of a saved entry, or nil when it can't be used (unknown recipe, bad quantity).
+local function NormalizeTracked(e)
+    if type(e) ~= "table" or type(e.spellID) ~= "number" or type(e.quantity) ~= "number" then return nil end
+    local rec = TrackedRecipe(e.line, e.spellID)
+    if not rec or e.quantity < 1 then return nil end
+    local unit = (e.unit == "items" and ns.Model.MakesSeveral(rec)) and "items" or "crafts"
+    return { spellID = e.spellID, line = e.line, quantity = math.min(TRACKED_MAX, math.floor(e.quantity)), unit = unit }
+end
+
+-- The combined plan of the tracked recipes and its per-recipe shares, cached until an input changes:
+-- the list, a craft/buy choice, the bags, what a character knows, or the cached characters.
+local trackedPlan, trackedShares
+
+function ns.MarkTrackedDirty()
+    trackedPlan, trackedShares = nil, nil
+end
+
+-- Every change to the list goes through here.
+function ns.TrackedChanged()
+    ns.MarkTrackedDirty()
+    if ns.UI and ns.UI.Refresh and ns.UI.IsShown and ns.UI.IsShown() then ns.UI.Refresh() end
+end
+
+-- The usable entries, in tracking order, as normalized copies.
+function ns.TrackedList()
+    local out = {}
+    for _, e in ipairs(ns.db and ns.db.tracked or {}) do
+        local n = NormalizeTracked(e)
+        if n then out[#out + 1] = n end
+    end
+    return out
+end
+
+-- Index of a spell's saved entry in ns.db.tracked.
+local function TrackedIndex(spellID)
+    for i, e in ipairs(ns.db.tracked) do
+        if type(e) == "table" and e.spellID == spellID then return i end
+    end
+end
+
+function ns.GetTracked(spellID)
+    local i = TrackedIndex(spellID)
+    return i and NormalizeTracked(ns.db.tracked[i]) or nil
+end
+
+-- Track a recipe, or update it in place when it's already tracked.
+function ns.TrackRecipe(line, spellID, quantity, unit)
+    local entry = NormalizeTracked({ spellID = spellID, line = line, quantity = quantity or 1, unit = unit })
+    if not entry then return end
+    local i = TrackedIndex(spellID)
+    ns.db.tracked[i or (#ns.db.tracked + 1)] = entry
+    ns.TrackedChanged()
+end
+
+function ns.UntrackRecipe(spellID)
+    local i = TrackedIndex(spellID)
+    if not i then return end
+    table.remove(ns.db.tracked, i)
+    ns.TrackedChanged()
+end
+
+-- A new number for a tracked recipe; 0 or less untracks it.
+function ns.SetTrackedQuantity(spellID, n)
+    local e = ns.GetTracked(spellID)
+    n = tonumber(n)
+    if not (e and n) then return end
+    if n <= 0 then return ns.UntrackRecipe(spellID) end
+    ns.TrackRecipe(e.line, spellID, n, e.unit)
+end
+
+-- Crafts or items: the number stays, its meaning changes (as in the calculator).
+function ns.SetTrackedUnit(spellID, unit)
+    local e = ns.GetTracked(spellID)
+    if e then ns.TrackRecipe(e.line, spellID, e.quantity, unit) end
+end
+
+-- Drop the saved entries ns.TrackedList skips (recipes removed from the data, bad values).
+function ns.PruneTracked()
+    if not ns.db then return end
+    ns.db.tracked = ns.TrackedList()
+end
+
+-- Plan roots for the tracked recipes, in list order; Items mode rounds up to whole crafts.
+function ns.TrackedRoots()
+    local roots = {}
+    for _, e in ipairs(ns.TrackedList()) do
+        local crafts = e.quantity
+        if e.unit == "items" then crafts = ns.Model.CraftsFor(TrackedRecipe(e.line, e.spellID), e.quantity) end
+        roots[#roots + 1] = { spellID = e.spellID, line = e.line, crafts = crafts }
+    end
+    return roots
+end
+
+-- plan, shares (Model.PlanShares) for everything tracked; nil when nothing is.
+function ns.TrackedPlan()
+    if not trackedPlan then
+        local roots = ns.TrackedRoots()
+        if #roots == 0 then return nil end
+        trackedPlan = ns.Model.PlanMaterials(roots, ns.PlanContext())
+        trackedShares = ns.Model.PlanShares(trackedPlan)
+    end
+    return trackedPlan, trackedShares
+end
+
+ns.On("BAG_UPDATE_DELAYED", function() ns.MarkTrackedDirty() end)
+
+-- One craft of a tracked recipe was made: one craft less, or the yield less in Items mode. Done at 0.
+function ns.CountTrackedCraft(spellID)
+    local e = ns.GetTracked(spellID)
+    if not e then return end
+    local step = e.unit == "items" and ns.Model.Yield(TrackedRecipe(e.line, spellID)) or 1
+    ns.SetTrackedQuantity(spellID, e.quantity - step)
+end
+
+-- Crafting is a spell cast: the player's successful cast of a tracked recipe counts it down.
+ns.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
+    if unit == "player" and spellID then ns.CountTrackedCraft(spellID) end
+end)
+
+-- "1 craft", "4 crafts", "1 item", "10 items".
+function ns.TrackedText(entry)
+    local L, q = ns.L, entry.quantity
+    if entry.unit == "items" then
+        return q == 1 and L.TRACKED_ITEM_ONE or L.TRACKED_ITEMS:format(q)
+    end
+    return q == 1 and L.TRACKED_CRAFT_ONE or L.TRACKED_CRAFTS:format(q)
 end
 
 -- /fp chars and /fp forget ------------------------------------------------------------------------
@@ -270,6 +410,7 @@ function ns.ForgetChar(arg)
     if key == ns.CharKey() then return "self" end
     local label, c = ns.CharLabel(key), ns.db.chars[key]
     ns.db.chars[key] = nil
+    ns.MarkTrackedDirty()
     if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
     return "removed", c, label
 end
@@ -337,6 +478,7 @@ end
 function ns.UpdateCharacter()
     ns.UpdateCharInfo()
     ns.ScanLearned()
+    ns.MarkTrackedDirty()
     Refresh()
 end
 
@@ -354,6 +496,7 @@ ns.ScheduleCharacterUpdate = ScheduleUpdate
 
 ns.On("PLAYER_LOGIN", function()
     if not ns.db then ns.InitDB() end
+    ns.PruneTracked()
     ns.UpdateCharacter()
     -- The spellbook isn't always complete at login; scan again shortly after.
     ScheduleUpdate(3)
@@ -365,6 +508,7 @@ ns.On("NEW_RECIPE_LEARNED", function(recipeID)
         c.learned[recipeID] = true
         c.updated = time()
     end
+    ns.MarkTrackedDirty()
     Refresh()
 end)
 

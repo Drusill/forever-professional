@@ -779,6 +779,11 @@ function M.Yield(rec)
     return 1
 end
 
+-- Whether a craft makes more than one item, or a range: then a quantity can mean crafts or items.
+function M.MakesSeveral(rec)
+    return rec ~= nil and rec.creates ~= nil and (M.Yield(rec) > 1 or type(rec.count) == "table")
+end
+
 -- Whole crafts needed for `items` of the output.
 function M.CraftsFor(rec, items)
     if not items or items <= 0 then return 0 end
@@ -1022,4 +1027,32 @@ function M.PlanTree(plan)
             children = Children(root.reagents, root.crafts) }
     end
     return trees
+end
+
+-- Each root's own share of every item, before inventory: [itemID] = { {root = i, need}... } in root order.
+-- Uses the plan's choices (what's crafted, by which recipe) and rounds crafted items per root, so a
+-- multi-output item's shares can add up to a little more than the plan's combined need.
+function M.PlanShares(plan)
+    local shares = {}
+    for i, root in ipairs(plan.roots) do
+        local need = {}
+        for _, x in ipairs(root.reagents or {}) do
+            need[x.item] = (need[x.item] or 0) + root.crafts * x.count
+        end
+        for _, id in ipairs(plan.order or {}) do
+            local n, s = plan.items[id], need[id]
+            if s and s > 0 then
+                local list = shares[id] or {}
+                list[#list + 1] = { root = i, need = s }
+                shares[id] = list
+                if n.kind == "craft" then
+                    local crafts = math.ceil(s / n.yield)
+                    for _, x in ipairs(n.reagents) do
+                        need[x.item] = (need[x.item] or 0) + crafts * x.count
+                    end
+                end
+            end
+        end
+    end
+    return shares
 end

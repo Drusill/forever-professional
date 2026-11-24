@@ -564,6 +564,19 @@ class PanelTest(PanelBase):
         self.assertFalse(self.c.unit.shown)
         self.assertEqual(self.c.summary.text, "")
 
+    def test_enchant_steps_and_tree(self):
+        # An enchant makes no item: its step and tree rows show the recipe instead of an item slot.
+        enchants = self.ns.Data.Recipes[333]
+        spell = min(k for k, v in enchants.items() if not v.creates)
+        seed(self.a, {**REAGENTS, spell: [(10940, 1)]})
+        self.open(spell, 333)
+        self.UI.SetCalcTab("steps")
+        steps = self.rows("step")
+        self.assertEqual([r.item for r in steps], [None])
+        self.assertIsNone(steps[0].widget.slot.item)
+        self.UI.SetCalcTab("tree")
+        self.assertEqual([(r.item, r.depth) for r in self.rows("node")], [(None, 0), (10940, 1)])
+
     def test_have_all(self):
         self.a.run("mock.bags[2589] = 2; mock.bags[2592] = 1; mock.bags[2770] = 6; mock.bags[2771] = 1")
         self.UI.RefreshCalculator()

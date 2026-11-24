@@ -350,6 +350,12 @@ local function CreateHeader(f)
     h.notLearned:SetPoint("LEFT", h.skillBar, "LEFT", 0, 0)
     h.notLearned:SetText(L.NOT_LEARNED_PROF)
     h.notLearned:Hide()
+
+    -- Tracked recipes (UI/Tracked.lua), left of the Skill stat, centred on the header.
+    if UI.CreateTrackedButton then
+        UI.headerTracked = UI.CreateTrackedButton(h)
+        UI.headerTracked:SetPoint("RIGHT", h.skillBar, "LEFT", -16, 9)
+    end
     return h
 end
 
@@ -359,6 +365,7 @@ function UI.RefreshHeader()
     local theme = UI.Theme(line)
     h.icon:SetTexture(PROFESSION_ICONS[line] or "Interface\\Icons\\INV_Misc_QuestionMark")
     h.name:SetText(UI.ProfessionName(line))
+    if UI.RefreshTrackedButton then UI.RefreshTrackedButton() end
     local r, g, b = Hex(theme.accent)
     if not (CreateColor and pcall(h.glow.SetGradient, h.glow, "HORIZONTAL",
             CreateColor(r, g, b, 0.22), CreateColor(r, g, b, 0))) then

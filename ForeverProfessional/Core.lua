@@ -47,6 +47,7 @@ local DEFAULTS = {
     filter = "all",
     filters = {},     -- filter menu: [item key from Model.FILTER_GROUPS] = true
     craftModes = {},  -- materials calculator: [itemID] = "craft" | "buy", overriding the default
+    tracked = {},     -- tracked recipes, in order: { {spellID, line, quantity, unit = "crafts"|"items"}... }
     minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
     minimapHidden = false,
 }

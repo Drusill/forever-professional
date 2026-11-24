@@ -8,6 +8,7 @@ local UI = ns.UI
 local Hex = UI.HexColor
 
 local TOP_H = 100              -- header, quantity and tab rows above the scroll area
+local QTY_ROW_H = 26           -- the quantity row, left out by sources without one
 local ROW_H, ROW_SLOT = 24, 20
 local INDENT = 12
 local INFO_W, SWITCH_W, RIGHT_W, PAD = 70, 46, 50, 6
@@ -29,7 +30,7 @@ function UI.CalcRowLayout(width, depth)
 end
 
 function UI.CalcVisibleHeight()
-    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - TOP_H - 8
+    return UI.Height() - UI.HEADER_H - 2 * UI.GAP - ((calc and calc.top) or TOP_H) - 8
 end
 
 -- Rows ------------------------------------------------------------------------------------------------
@@ -107,6 +108,14 @@ local function HideUnusedRows()
     used = 0
 end
 
+-- Other row pools drawn in the panel (a source's own tabs): each registers a function that hides all
+-- its rows, called before every redraw; the source's renderer shows the ones it uses.
+local pools = {}
+
+function UI.AddCalcPool(hideAll)
+    pools[#pools + 1] = hideAll
+end
+
 local function Colored(hex, text) return "|cff" .. hex .. text .. "|r" end
 
 -- "You" (green), an alt's class-coloured name, or "Nobody" (grey).
@@ -115,6 +124,7 @@ local function CrafterLabel(known)
     if kind ~= "alt" then text = Colored(CRAFTER_COLORS[kind], text) end
     return text
 end
+UI.CrafterLabel = CrafterLabel
 
 -- The craft / buy switch of an intermediate, labelled with what a click does. Raw items and items
 -- that would need themselves have none.
@@ -216,6 +226,22 @@ function UI.ToggleCraftMode(itemID)
 end
 
 -- Panel -----------------------------------------------------------------------------------------------
+-- The panel draws a plan source:
+--   { kind, title, icon, showQuantity, tabs = { {key, label}... }, Plan = fn() -> plan|nil,
+--     render = { [tab] = fn(plan, y, width, pending) -> y } (extra or replaced tabs),
+--     Update = fn(plan) (optional: header and quantity row), Message = fn(plan, tab) -> text|nil (optional),
+--     Counts = fn(plan) -> { [tab] = n } (optional, added to the default counts) }
+-- The recipe source below is the materials calculator; UI/Tracked.lua adds the tracked recipes.
+
+local RENDER = { shopping = RenderShopping, steps = RenderSteps, tree = RenderTree }
+
+-- Items still to buy in a plan.
+local function ToBuy(plan)
+    local n = 0
+    for _, e in ipairs(plan.shopping) do if e.buy > 0 then n = n + 1 end end
+    return n
+end
+UI.CalcToBuy = ToBuy
 
 local function Summary(rec, root)
     if not rec.creates then return "" end
@@ -228,62 +254,125 @@ local function Summary(rec, root)
     return L.CALC_MAKES:format(root.crafts, root.makes)
 end
 
+local RECIPE_TABS = {
+    { key = "shopping", label = L.CALC_SHOPPING },
+    { key = "steps", label = L.CALC_STEPS },
+    { key = "tree", label = L.CALC_TREE },
+}
+
+-- The materials calculator: one recipe, its quantity in crafts or items.
+local function RecipeSource(spellID, line)
+    local function Rec() return ns.Data.Recipes[line] and ns.Data.Recipes[line][spellID] end
+    return {
+        kind = "recipe", spellID = spellID, line = line, showQuantity = true, tabs = RECIPE_TABS,
+        Valid = function() return Rec() ~= nil end,
+        Plan = function()
+            local rec = Rec()
+            if not M.MakesSeveral(rec) then calc.unitKey = "crafts" end
+            local crafts = calc.unitKey == "items" and M.CraftsFor(rec, calc.quantity) or calc.quantity
+            return M.PlanMaterials({ { spellID = spellID, line = line, crafts = crafts } }, ns.PlanContext())
+        end,
+        Update = function(plan)
+            local rec, root = Rec(), plan.roots[1]
+            local multi = M.MakesSeveral(rec)
+            calc.unit:SetShown(multi)
+            calc.icon:SetTexture(M.RecipeIcon(spellID, rec))
+            calc.title:SetText(M.RecipeDisplayName(spellID))
+            calc.who:SetText(L.CALC_WHO:format(CrafterLabel(root.known)))
+            calc.summary:ClearAllPoints()
+            calc.summary:SetPoint("LEFT", multi and calc.unit or calc.qty, "RIGHT", 8, 0)
+            calc.summary:SetPoint("RIGHT", calc.track, "LEFT", -8, 0)
+            calc.summary:SetText(Summary(rec, root))
+            -- Track: not tracked yet, tracked with another quantity or unit (Update), or tracked as shown.
+            local entry = ns.GetTracked(spellID)
+            local same = entry and entry.quantity == calc.quantity and entry.unit == calc.unitKey
+            calc.track:SetText(same and L.TRACKED or entry and L.TRACK_UPDATE or L.TRACK)
+            calc.track:SetActive(entry ~= nil)
+            calc.track:SetEnabled(not same)
+        end,
+        Message = function(plan)
+            if not plan.roots[1].reagents then return L.CALC_NO_REAGENTS end
+        end,
+    }
+end
+
+-- The tab control for a source's tabs, created once per set of tabs.
+local function TabsFor(source)
+    calc.tabSets = calc.tabSets or {}
+    local set = calc.tabSets[source.tabs]
+    if not set then
+        set = UI.CreateSegmented(calc, source.tabs, function(key) UI.SetCalcTab(key) end)
+        calc.tabSets[source.tabs] = set
+    end
+    return set
+end
+
+-- Show the header rows the source uses; the tab row and the list move up without a quantity row.
+local function LayoutSource(source)
+    local q = source.showQuantity
+    calc.qtyLabel:SetShown(q)
+    calc.qty:SetShown(q)
+    if not q then calc.unit:Hide() end   -- the recipe source shows it for multi-output recipes
+    calc.summary:SetShown(q)
+    calc.track:SetShown(q)
+    calc.who:SetShown(q)
+    for _, set in pairs(calc.tabSets) do set:SetShown(set == calc.tabs) end
+    calc.top = q and TOP_H or TOP_H - QTY_ROW_H
+    calc.tabs:ClearAllPoints()
+    calc.tabs:SetPoint("TOPLEFT", 8, -(calc.top - 32))
+    calc.reset:ClearAllPoints()
+    calc.reset:SetPoint("TOPRIGHT", -8, -(calc.top - 32))
+    calc.rule:ClearAllPoints()
+    calc.rule:SetPoint("TOPLEFT", 1, -(calc.top - 4))
+    calc.rule:SetPoint("TOPRIGHT", -1, -(calc.top - 4))
+    calc.scroll:ClearAllPoints()
+    calc.scroll:SetPoint("TOPLEFT", 8, -calc.top)
+    calc.scroll:SetPoint("BOTTOMRIGHT", -28, 8)
+end
+
 function UI.RefreshCalculator()
-    if not (calc and calc:IsShown()) then return end
-    local spellID, line = calc.spellID, calc.line
-    local rec = ns.Data.Recipes[line] and ns.Data.Recipes[line][spellID]
-    if not rec then
+    if not (calc and calc:IsShown() and calc.source) then return end
+    local source = calc.source
+    if source.Valid and not source.Valid() then
         UI.CloseCalculator()
         return
     end
     calc.renders = (calc.renders or 0) + 1
 
-    local multi = rec.creates ~= nil and (M.Yield(rec) > 1 or type(rec.count) == "table")
-    calc.unit:SetShown(multi)
-    if not multi then calc.unitKey = "crafts" end
-    local crafts = calc.unitKey == "items" and M.CraftsFor(rec, calc.quantity) or calc.quantity
-    local plan = M.PlanMaterials({ { spellID = spellID, line = line, crafts = crafts } }, ns.PlanContext())
+    local plan = source.Plan()
     calc.plan = plan
-    local root = plan.roots[1]
+    if source.Update then source.Update(plan) end
+    if not source.Update then
+        calc.title:SetText(source.title or "")
+        calc.icon:SetTexture(source.icon)
+    end
 
-    calc.icon:SetTexture(M.RecipeIcon(spellID, rec))
-    calc.title:SetText(M.RecipeDisplayName(spellID))
-    calc.who:SetText(L.CALC_WHO:format(CrafterLabel(root.known)))
-    calc.summary:ClearAllPoints()
-    calc.summary:SetPoint("LEFT", multi and calc.unit or calc.qty, "RIGHT", 8, 0)
-    calc.summary:SetText(Summary(rec, root))
-
-    local toBuy = 0
-    for _, e in ipairs(plan.shopping) do if e.buy > 0 then toBuy = toBuy + 1 end end
+    local toBuy = plan and ToBuy(plan) or 0
     calc.tabs:SetCount("shopping", toBuy)
-    calc.tabs:SetCount("steps", #plan.steps)
+    calc.tabs:SetCount("steps", plan and #plan.steps or 0)
+    for key, n in pairs(source.Counts and source.Counts(plan) or {}) do calc.tabs:SetCount(key, n) end
     calc.reset:SetShown(next(ns.db.craftModes) ~= nil)
 
     local width = UI.DetailContentWidth()
     calc.child:SetWidth(width)
     calc.rendered = {}
     local pending, y = {}, 0
-    local message
-    if not root.reagents then
-        message = L.CALC_NO_REAGENTS
-    elseif calc.tab == "shopping" and toBuy == 0 then
-        message = L.CALC_HAVE_ALL
-    end
+    local message = source.Message and source.Message(plan, calc.tab)
+    local blocked = message ~= nil
+    if not message and plan and calc.tab == "shopping" and toBuy == 0 then message = L.CALC_HAVE_ALL end
     calc.message:SetShown(message ~= nil)
     if message then
         calc.message:SetText(message)
         y = 24
     end
-    if root.reagents then
-        if calc.tab == "shopping" then y = RenderShopping(plan, y, width, pending)
-        elseif calc.tab == "steps" then y = RenderSteps(plan, y, width, pending)
-        elseif calc.tab == "tree" then y = RenderTree(plan, y, width, pending) end
-    end
+    for _, hideAll in ipairs(pools) do hideAll() end
+    local render = (source.render and source.render[calc.tab]) or RENDER[calc.tab]
+    if render and not blocked then y = render(plan, y, width, pending) end
     HideUnusedRows()
     calc.child:SetHeight(y + 8)
     UI.UpdateScrollBar(calc.scroll, y + 8, UI.CalcVisibleHeight())
 
-    UI.LoadItems(pending, function() return calc:IsShown() and calc.spellID == spellID end, UI.RefreshCalculator)
+    UI.LoadItems(pending, function() return calc:IsShown() and calc.source == source end, UI.RefreshCalculator)
 end
 
 -- Number of crafts or items wanted, 1 to 999; anything else is ignored.
@@ -311,27 +400,44 @@ function UI.SetCalcTab(key)
     UI.RefreshCalculator()
 end
 
-function UI.OpenCalculator(spellID)
-    if not (calc and spellID and UI.state.line) then return end
-    calc.spellID, calc.line = spellID, UI.state.line
-    calc.quantity, calc.unitKey, calc.tab = 1, "crafts", "shopping"
-    calc.unit:SetSelected("crafts")
-    calc.tabs:SetSelected("shopping")
-    calc.qty:SetText("1")
+-- Open the panel on any plan source, on its first tab (or `tab`).
+function UI.OpenPlanPanel(source, tab)
+    if not (calc and source) then return end
+    calc.source = source
+    calc.tabs = TabsFor(source)
+    LayoutSource(source)
+    calc.tab = tab or source.tabs[1].key
+    calc.tabs:SetSelected(calc.tab)
     calc:Show()
     calc.scroll:SetVerticalScroll(0)
     UI.RefreshCalculator()
+    if UI.RefreshTrackedButton then UI.RefreshTrackedButton() end
+end
+
+function UI.OpenCalculator(spellID)
+    if not (calc and spellID and UI.state.line) then return end
+    calc.spellID, calc.line = spellID, UI.state.line
+    -- A tracked recipe opens on its tracked quantity and unit.
+    local entry = ns.GetTracked(spellID)
+    calc.quantity = entry and entry.quantity or 1
+    calc.unitKey = entry and entry.unit or "crafts"
+    calc.unit:SetSelected(calc.unitKey)
+    calc.qty:SetText(tostring(calc.quantity))
+    UI.OpenPlanPanel(RecipeSource(spellID, UI.state.line))
 end
 
 function UI.CloseCalculator()
     if calc then calc:Hide() end
+    if UI.RefreshTrackedButton then UI.RefreshTrackedButton() end
 end
 
 function UI.IsCalculatorShown()
     return calc ~= nil and calc:IsShown()
 end
 
-local function CreateQuantityBox(parent)
+-- A 1–999 number box: typing a number calls set(n); empty or invalid text goes back to get() when focus
+-- leaves. Shared by the calculator and the tracked recipes rows.
+function UI.CreateQuantityBox(parent, get, set)
     local q = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
     q:SetSize(44, 22)
     q:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
@@ -344,12 +450,13 @@ local function CreateQuantityBox(parent)
     q:SetMaxLetters(3)
     q:SetScript("OnTextChanged", function(self)
         local n = tonumber(self:GetText() or "")
-        if n and n ~= calc.quantity then UI.SetCalcQuantity(n) end
+        if n and n ~= get(self) then set(self, n) end
     end)
     -- Empty or invalid text goes back to the last valid number.
     local function Restore(self)
         self:ClearFocus()
-        if self:GetText() ~= tostring(calc.quantity) then self:SetText(tostring(calc.quantity)) end
+        local n = tostring(get(self))
+        if self:GetText() ~= n then self:SetText(n) end
     end
     q:SetScript("OnEditFocusLost", Restore)
     q:SetScript("OnEnterPressed", Restore)
@@ -385,7 +492,8 @@ function UI.CreateCalculator(parent)
     calc.qtyLabel:SetPoint("TOPLEFT", 10, -45)
     calc.qtyLabel:SetText(L.CALC_QUANTITY)
     calc.qtyLabel:SetTextColor(Hex(UI.COLORS.muted))
-    calc.qty = CreateQuantityBox(calc)
+    calc.qty = UI.CreateQuantityBox(calc, function() return calc.quantity end,
+        function(_, n) UI.SetCalcQuantity(n) end)
     calc.qty:SetPoint("LEFT", calc.qtyLabel, "RIGHT", 6, 0)
     calc.unit = UI.CreateSegmented(calc, {
         { key = "crafts", label = L.CALC_CRAFTS },
@@ -394,14 +502,19 @@ function UI.CreateCalculator(parent)
     calc.unit:SetPoint("LEFT", calc.qty, "RIGHT", 8, 0)
     calc.summary = calc:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     calc.summary:SetJustifyH("LEFT")
+    calc.summary:SetWordWrap(false)
     calc.summary:SetTextColor(Hex(UI.COLORS.muted))
+    calc.track = UI.CreateToggleButton(calc, L.TRACK, function()
+        ns.TrackRecipe(calc.line, calc.spellID, calc.quantity, calc.unitKey)
+        UI.RefreshCalculator()
+    end)
+    calc.track:SetHeight(20)
+    calc.track:SetPoint("RIGHT", calc, "TOPRIGHT", -8, -45 - 6)
 
-    calc.tabs = UI.CreateSegmented(calc, {
-        { key = "shopping", label = L.CALC_SHOPPING },
-        { key = "steps", label = L.CALC_STEPS },
-        { key = "tree", label = L.CALC_TREE },
-    }, function(key) UI.SetCalcTab(key) end)
+    calc.tabSets = {}
+    calc.tabs = TabsFor({ tabs = RECIPE_TABS })
     calc.tabs:SetPoint("TOPLEFT", 8, -68)
+    calc.top = TOP_H
     calc.reset = UI.CreateToggleButton(calc, L.CALC_RESET, function()
         ns.ResetCraftModes()
         UI.RefreshCalculator()

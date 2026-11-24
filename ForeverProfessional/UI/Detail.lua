@@ -11,7 +11,8 @@ local ICON = 18
 local SLOT = 28
 local CARD_H, CARD_ICON = 40, 24
 local BUTTON_W = 74
-local DETAIL_HEADER_H = 76   -- pinned recipe header above the scroll area
+local DETAIL_HEADER_H = 100  -- pinned recipe header above the scroll area: three lines and the action row
+local ACTION_ROW_H = 24
 local SCALE_W, SCALE_CAP = 150, 6
 local EMPTY_ART_H = 150   -- tallest the profession card gets in the empty pane
 local OWNER_DOTS = { known = "40c040", learnable = "ffd100", low = "909090", none = "6d6455" }
@@ -152,12 +153,26 @@ local function CreateHeader(parent)
     h.newChip = UI.CreateChip(h)
     h.newChip:SetPoint("LEFT", h.catChip, "RIGHT", 5, 0)
 
-    -- Under the difficulty scale, on the chip row.
+    -- Action row: Track and Calculate on the left, the tracked quantity on the right.
+    h.actionRule = h:CreateTexture(nil, "BORDER")
+    h.actionRule:SetPoint("BOTTOMLEFT", 0, ACTION_ROW_H)
+    h.actionRule:SetPoint("BOTTOMRIGHT", 0, ACTION_ROW_H)
+    h.actionRule:SetHeight(1)
+    h.actionRule:SetColorTexture(Hex(UI.COLORS.line))
+    h.trackButton = UI.CreateToggleButton(h, L.TRACK, function()
+        UI.ToggleTracked(UI.state.line, UI.state.selected)
+    end)
+    h.trackButton:SetHeight(18)
+    h.trackButton:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 4, 3)
     h.calcButton = UI.CreateToggleButton(h, L.CALCULATE, function()
         if UI.OpenCalculator then UI.OpenCalculator(UI.state.selected) end
     end)
-    h.calcButton:SetHeight(20)
-    h.calcButton:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", -4, 6)
+    h.calcButton:SetHeight(18)
+    h.calcButton:SetPoint("LEFT", h.trackButton, "RIGHT", 6, 0)
+    h.trackedText = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    h.trackedText:SetPoint("RIGHT", h, "BOTTOMRIGHT", -6, 12)
+    h.trackedText:SetJustifyH("RIGHT")
+    h.trackedText:SetTextColor(Hex(UI.COLORS.gold))
     return h
 end
 
@@ -303,6 +318,21 @@ local function RenderHeader(spellID, rec, skill, learned, pending)
     h.newChip:SetShown(rec.new and true or false)
     if rec.new then h.newChip:SetChip(L.NEW, "neutral") end
     RenderScale(h.scale, rec, skill)
+
+    local entry = ns.GetTracked(spellID)
+    h.trackButton:SetText(entry and L.UNTRACK or L.TRACK)
+    h.trackButton:SetActive(entry ~= nil)
+    h.trackedText:SetText(entry and L.TRACKED_QTY:format(ns.TrackedText(entry)) or "")
+end
+
+-- Track a recipe (1 craft), or untrack it when it's tracked.
+function UI.ToggleTracked(line, spellID)
+    if not (line and spellID) then return end
+    if ns.GetTracked(spellID) then
+        ns.UntrackRecipe(spellID)
+    else
+        ns.TrackRecipe(line, spellID, 1, "crafts")
+    end
 end
 
 local function RenderEmpty()
