@@ -396,5 +396,46 @@ class DetailTrackTest(UIBase):
         self.assertGreaterEqual(self.UI.DetailVisibleHeight(), 340)
 
 
+class PlanSourceTest(UIBase):
+    def setUp(self):
+        super().setUp()
+        self.select(3932)
+        self.a.run("""
+            _extraCalls = 0
+            _source = {
+                kind = "test", title = "Test plan", icon = 134400, showQuantity = false,
+                tabs = { { key = "shopping", label = "Shopping" }, { key = "steps", label = "Steps" },
+                         { key = "tree", label = "Tree" }, { key = "extra", label = "Extra" } },
+                Plan = function()
+                    return _ns.Model.PlanMaterials({ { spellID = 3932, line = 202, crafts = 1 },
+                        { spellID = 3938, line = 202, crafts = 1 } }, _ns.PlanContext())
+                end,
+                render = { extra = function(plan, y, width, pending)
+                    _extraCalls = _extraCalls + 1
+                    return y + 10
+                end },
+            }""")
+        self.c = self.UI.calc
+
+    def test_open_custom_source(self):
+        self.a.run("_ns.UI.OpenPlanPanel(_source)")
+        self.assertTrue(self.c.shown)
+        self.assertEqual(self.c.title.text, "Test plan")
+        self.assertFalse(self.c.qty.shown)
+        self.assertFalse(self.c.qtyLabel.shown)
+        shop = [(r.item, r.need) for r in lua_list(self.c.rendered) if r.kind == "shop"]
+        self.assertEqual(shop, COMBINED_SHOPPING)
+
+    def test_custom_tab(self):
+        self.a.run("_ns.UI.OpenPlanPanel(_source); _ns.UI.SetCalcTab('extra')")
+        self.assertEqual(self.a.g._extraCalls, 1)
+        self.assertEqual(self.c.tab, "extra")
+
+    def test_calculator_source_kind(self):
+        self.a.call(self.UI.detail.header.calcButton, "Click")
+        self.assertEqual(self.c.source.kind, "recipe")
+        self.assertTrue(self.c.qty.shown)
+
+
 if __name__ == "__main__":
     unittest.main()

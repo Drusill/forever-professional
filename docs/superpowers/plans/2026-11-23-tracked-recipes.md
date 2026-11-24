@@ -239,15 +239,15 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 **Interfaces:**
 - Produces: `UI.OpenPlanPanel(source)` with `source = { kind, title, icon, Plan = fn() -> plan, tabs = { {key, label}... }, render = { [key] = fn(plan, y, width, pending) -> y } (optional extra tabs), showQuantity = bool, onRefresh = fn (optional) }`; `UI.calc.source`; `UI.OpenCalculator(spellID)` opens the recipe source.
 
-- [ ] **Step 1: Run the pin**: `mise exec -- python -m unittest tests.test_calculator -v` (PASS).
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 1: Run the pin**: `mise exec -- python -m unittest tests.test_calculator -v` (PASS).
+- [x] **Step 2: Write the failing tests**
   - `test_open_custom_source`: a source whose `Plan` returns the 3932 + 3938 plan, tabs Shopping / Steps / Tree, no quantity row → title shown, quantity row hidden, shopping rows equal the fixture's combined shopping.
   - `test_custom_tab`: a source with an extra `"extra"` tab and render function → selecting it calls the function and draws its rows.
   - `test_calculator_source_kind`: Calculate on 3932 → `UI.calc.source.kind == "recipe"`.
-- [ ] **Step 3: Run, expect failures**
-- [ ] **Step 4: Implement** the refactor; keep every `UI.*Calc*` function name the existing tests use.
-- [ ] **Step 5: Full suite, expect PASS** (`test_calculator.py` unmodified).
-- [ ] **Step 6: Commit**: `git commit -m "refactor(ui): draw the calculator panel from a plan source"`
+- [x] **Step 3: Run, expect failures**
+- [x] **Step 4: Implement** the refactor; keep every `UI.*Calc*` function name the existing tests use.
+- [x] **Step 5: Full suite, expect PASS** (`test_calculator.py` unmodified).
+- [x] **Step 6: Commit**: `git commit -m "refactor(ui): draw the calculator panel from a plan source"`
 
 ---
 
