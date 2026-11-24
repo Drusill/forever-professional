@@ -288,5 +288,55 @@ class CountdownTest(Base):
         self.assertEqual(item(p, 4363).need, 1)
 
 
+class TrackedTooltipTest(Base):
+    def setUp(self):
+        super().setUp()
+        track(self.a, 3932)
+        track(self.a, 3938)
+
+    def hover(self, item_id):
+        self.a.run(f"GameTooltip:SetItemByID({item_id})")
+        return [plain(line) for line in lua_list(self.a.g.GameTooltip.lines)]
+
+    def test_lines_for_shared_reagent(self):
+        self.assertEqual(self.hover(2841), [" ", "Needed for: Spell 3932 (1)", "Needed for: Spell 3938 (2)",
+                                            "Tracked total: 0 / 3"])
+
+    def test_raw_through_intermediates(self):
+        self.assertEqual(self.hover(2770)[1:], ["Needed for: Spell 3932 (6)", "Needed for: Spell 3938 (1)",
+                                                "Tracked total: 0 / 7"])
+        self.a.run('mock.bags[2770] = 4; fire("BAG_UPDATE_DELAYED")')
+        self.assertEqual(self.hover(2770)[-1], "Tracked total: 4 / 7")
+
+    def test_one_recipe(self):
+        self.assertEqual(self.hover(2880)[1:], ["Needed for: Spell 3938 (1)", "Tracked total: 0 / 1"])
+
+    def test_not_needed(self):
+        self.assertEqual(self.hover(2449), [])
+
+    def test_gone_after_untrack(self):
+        self.assertIn("Tracked total: 0 / 3", self.hover(2841))
+        self.ns.UntrackRecipe(3932)
+        self.ns.UntrackRecipe(3938)
+        self.assertEqual(self.hover(2841), [])
+
+    def test_cap(self):
+        for spell in (3922, 3926, 2659):
+            track(self.a, spell)
+        self.ns.TRACKED_TOOLTIP_MAX = 2
+        self.assertEqual(self.hover(2770)[1:], ["Needed for: Spell 3932 (6)", "Needed for: Spell 3938 (1)",
+                                                "and 3 more", "Tracked total: 0 / 12"])
+
+    def test_tracked_error_swallowed(self):
+        self.a.g._ns = self.ns
+        self.a.run("_ns.TrackedPlan = function() error('boom') end; _after = 0; "
+                   "TooltipDataProcessor.AddTooltipPostCall(0, function() _after = _after + 1 end)")
+        self.assertEqual(self.hover(2841), [])
+        errors = lua_list(self.a.mock.errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("boom", errors[0])
+        self.assertEqual(self.a.g._after, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -189,8 +189,8 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Consumes: `ns.TrackedPlan()`, `M.RecipeDisplayName`.
 - Produces: `ns.TrackedLines(itemID) -> { text... }` as in the spec; `OnItem` shows the tooltip when recipe lines or tracked lines were added, each block after a blank line.
 
-- [ ] **Step 1: Run the tooltip tests as the pin**: `mise exec -- python -m unittest tests.test_tooltip -v` (PASS before any change).
-- [ ] **Step 2: Write the failing tests** (track 3932 and 3938; `GameTooltip:SetItemByID`)
+- [x] **Step 1: Run the tooltip tests as the pin**: `mise exec -- python -m unittest tests.test_tooltip -v` (PASS before any change).
+- [x] **Step 2: Write the failing tests** (track 3932 and 3938; `GameTooltip:SetItemByID`)
   - `test_lines_for_shared_reagent`: 2841 → a blank line, then `Needed for: Spell 3932 (1)`, `Needed for: Spell 3938 (2)`, `Tracked total: 0 / 3`, in that order.
   - `test_raw_through_intermediates`: 2770 → `(6)`, `(1)`, `0 / 7`; `mock.bags[2770] = 4`, `fire("BAG_UPDATE_DELAYED")`, hover again → `4 / 7`.
   - `test_one_recipe`: 2880 → only `Needed for: Spell 3938 (1)` and its total.
@@ -198,10 +198,10 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `test_gone_after_untrack`: untrack both, hover 2841 again → no `Needed for` line.
   - `test_cap`: track 3922, 3926, 2659, 3932, 3938; `ns.TRACKED_TOOLTIP_MAX = 2`; hover 2770 → two `Needed for` lines, then `and 3 more`, then the total.
   - `test_tracked_error_swallowed`: make `ns.TrackedPlan` raise → hovering any item adds nothing, `mock.errors` has one entry, other post-calls still run.
-- [ ] **Step 3: Run, expect failures**
-- [ ] **Step 4: Implement**.
-- [ ] **Step 5: Full suite, expect PASS** (`test_tooltip.py` unmodified).
-- [ ] **Step 6: Commit**: `git commit -m "feat(tooltip): show which tracked recipes need an item"`
+- [x] **Step 3: Run, expect failures**
+- [x] **Step 4: Implement**.
+- [x] **Step 5: Full suite, expect PASS** (`test_tooltip.py` unmodified).
+- [x] **Step 6: Commit**: `git commit -m "feat(tooltip): show which tracked recipes need an item"`
 
 ---
 
