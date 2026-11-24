@@ -164,17 +164,17 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Consumes: Task 1's mutators; `M.Yield`.
 - Produces: `ns.CountTrackedCraft(spellID)`: quantity − 1 (crafts) or − `M.Yield(rec)` (items); ≤ 0 untracks. Handler: `UNIT_SPELLCAST_SUCCEEDED(unit, castGUID, spellID)` with `unit == "player"`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_craft_counts_down`: 3932 ×2, `fire("UNIT_SPELLCAST_SUCCEEDED", "player", "Cast-1", 3932)` → 1.
   - `test_last_craft_untracks`: 3932 ×1 → after the cast, not tracked.
   - `test_items_by_yield`: 2659 ×5 items → 3 → 1 → untracked.
   - `test_other_unit_ignored`: unit `"target"` → unchanged.
   - `test_untracked_spell_ignored`: a cast of 3926 (not tracked) → list unchanged, no error.
   - `test_plan_follows_countdown`: 3932 ×2 → after one cast `ns.TrackedPlan()` has 4363 need 1.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(chars): count tracked recipes down as they're crafted"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(chars): count tracked recipes down as they're crafted"`
 
 ---
 

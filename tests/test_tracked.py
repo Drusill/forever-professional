@@ -245,5 +245,48 @@ class TrackedPlanTest(Base):
         self.assertEqual(len(known.alts), 0)
 
 
+def cast(a, spell, unit="player"):
+    a.run(f'fire("UNIT_SPELLCAST_SUCCEEDED", "{unit}", "Cast-1", {spell})')
+
+
+class CountdownTest(Base):
+    def test_craft_counts_down(self):
+        track(self.a, 3932, 2)
+        cast(self.a, 3932)
+        self.assertEqual(tracked(self.a), [(3932, 202, 1, "crafts")])
+
+    def test_last_craft_untracks(self):
+        track(self.a, 3932)
+        cast(self.a, 3932)
+        self.assertEqual(tracked(self.a), [])
+
+    def test_items_by_yield(self):
+        track(self.a, 2659, 5, "items")
+        cast(self.a, 2659)
+        self.assertEqual(self.ns.GetTracked(2659).quantity, 3)
+        cast(self.a, 2659)
+        self.assertEqual(self.ns.GetTracked(2659).quantity, 1)
+        cast(self.a, 2659)
+        self.assertIsNone(self.ns.GetTracked(2659))
+
+    def test_other_unit_ignored(self):
+        track(self.a, 3932, 2)
+        cast(self.a, 3932, unit="target")
+        self.assertEqual(self.ns.GetTracked(3932).quantity, 2)
+
+    def test_untracked_spell_ignored(self):
+        track(self.a, 3932, 2)
+        cast(self.a, 3926)
+        self.assertEqual(tracked(self.a), [(3932, 202, 2, "crafts")])
+        self.assertEqual(len(lua_list(self.a.mock.errors)), 0)
+
+    def test_plan_follows_countdown(self):
+        track(self.a, 3932, 2)
+        self.ns.TrackedPlan()
+        cast(self.a, 3932)
+        p, _ = self.ns.TrackedPlan()
+        self.assertEqual(item(p, 4363).need, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -345,6 +345,19 @@ end
 
 ns.On("BAG_UPDATE_DELAYED", function() ns.MarkTrackedDirty() end)
 
+-- One craft of a tracked recipe was made: one craft less, or the yield less in Items mode. Done at 0.
+function ns.CountTrackedCraft(spellID)
+    local e = ns.GetTracked(spellID)
+    if not e then return end
+    local step = e.unit == "items" and ns.Model.Yield(TrackedRecipe(e.line, spellID)) or 1
+    ns.SetTrackedQuantity(spellID, e.quantity - step)
+end
+
+-- Crafting is a spell cast: the player's successful cast of a tracked recipe counts it down.
+ns.On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
+    if unit == "player" and spellID then ns.CountTrackedCraft(spellID) end
+end)
+
 -- "1 craft", "4 crafts", "1 item", "10 items".
 function ns.TrackedText(entry)
     local L, q = ns.L, entry.quantity
