@@ -423,7 +423,8 @@ function UI.CreateSlot(parent, size)
         self.item = itemID
         self.icon:SetTexture(M.ItemIcon(itemID) or M.QUESTION_ICON)
         self.count:SetText((count and count > 1) and tostring(count) or "")
-        local q = C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
+        -- The client throws on a nil item, and slots without one (enchants, tracked recipes) pass nil.
+        local q = itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
         local c = q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
         if c and c.r then
             self.border:SetColorTexture(c.r, c.g, c.b, 1)

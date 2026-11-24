@@ -397,7 +397,11 @@ C_Item = {
     end,
     GetItemNameByID = function(id) return mock.itemNames[id] end,
     GetItemIconByID = function(id) return 134000 + (id % 1000) end,
-    GetItemQualityByID = function(id) return 1 end,
+    -- The client throws on nil ("Usage: local itemQuality = C_Item.GetItemQualityByID(itemInfo)").
+    GetItemQualityByID = function(id)
+        if id == nil then error("Usage: local itemQuality = C_Item.GetItemQualityByID(itemInfo)") end
+        return 1
+    end,
     GetItemInfoInstant = function(id) return id, "Trade Goods", "Herb", "", 134000 + (id % 1000), 7, 9 end,
     GetItemInfo = function(id) local n = mock.itemNames[id]; if n then return n, "item:" .. id, 1 end end,
     DoesItemExistByID = function(id) return true end,
