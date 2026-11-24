@@ -120,5 +120,130 @@ class TrackedListTest(Base):
         self.assertIsNone(self.a.mock.blizzardTracked)
 
 
+# Combined plan of Target Dummy 3932 x1 and Bronze Tube 3938 x1: item -> (kind, spellID, need, crafts, level).
+COMBINED = {
+    4363: ("craft", 3926, 1, 1, 1), 4359: ("craft", 3922, 4, 4, 2), 2841: ("craft", 2659, 3, 2, 1),
+    2840: ("craft", 2657, 7, 7, 3), 3576: ("craft", 3304, 2, 2, 2),
+    2589: ("raw", None, 2, None, 2), 2592: ("raw", None, 1, None, 1), 2880: ("raw", None, 1, None, 1),
+    2770: ("raw", None, 7, None, 4), 2771: ("raw", None, 2, None, 3),
+}
+COMBINED_SHOPPING = [(2589, 2), (2592, 1), (2770, 7), (2771, 2), (2880, 1)]
+COMBINED_STEPS = [2840, 3576, 4359, 2841, 4363, 4366, 4371]
+# Per-root shares before inventory: item -> [(root index, need)].
+SHARES = {
+    2841: [(1, 1), (2, 2)], 2840: [(1, 6), (2, 1)], 2770: [(1, 6), (2, 1)], 3576: [(1, 1), (2, 1)],
+    2771: [(1, 1), (2, 1)], 4363: [(1, 1)], 4359: [(1, 4)], 2589: [(1, 2)], 2592: [(1, 1)], 2880: [(2, 1)],
+}
+
+
+def share_pairs(shares, item_id):
+    return [(s.root, s.need) for s in lua_list(shares[item_id])]
+
+
+class TrackedPlanTest(Base):
+    def both(self):
+        track(self.a, 3932)
+        track(self.a, 3938)
+
+    def plan(self):
+        p, _ = self.ns.TrackedPlan()
+        return p
+
+    def test_roots(self):
+        track(self.a, 3932, 2)
+        track(self.a, 2659, 3, "items")
+        roots = [(r.spellID, r.line, r.crafts) for r in lua_list(self.ns.TrackedRoots())]
+        self.assertEqual(roots, [(3932, 202, 2), (2659, 186, 2)])
+
+    def test_combined_totals(self):
+        self.both()
+        p = self.plan()
+        for item_id, (kind, spell, need, crafts, level) in COMBINED.items():
+            n = item(p, item_id)
+            self.assertEqual((n.kind, n.spellID, n.need, n.crafts, n.level), (kind, spell, need, crafts, level), item_id)
+        self.assertEqual([(e.item, e.need) for e in lua_list(p.shopping)], COMBINED_SHOPPING)
+        self.assertEqual([s.item for s in lua_list(p.steps)], COMBINED_STEPS)
+
+    def test_inventory_once(self):
+        self.a.run("mock.bags[2770] = 4")
+        self.both()
+        n = item(self.plan(), 2770)
+        self.assertEqual((n.have, n.buy), (4, 3))
+
+    def test_shares(self):
+        self.both()
+        _, shares = self.ns.TrackedPlan()
+        for item_id, expected in SHARES.items():
+            self.assertEqual(share_pairs(shares, item_id), expected, item_id)
+        self.assertIsNone(shares[4366])
+        self.assertIsNone(shares[4371])
+
+    def test_shares_scale(self):
+        track(self.a, 3932, 2)
+        track(self.a, 3938)
+        p, shares = self.ns.TrackedPlan()
+        self.assertEqual(share_pairs(shares, 2770), [(1, 11), (2, 1)])
+        self.assertEqual(item(p, 2770).need, 12)
+
+    def test_nothing_tracked(self):
+        self.assertIsNone(self.ns.TrackedPlan())
+
+    def test_cached(self):
+        self.both()
+        first = self.plan()
+        calls = self.a.mock.schematicCalls
+        self.assertTrue(self.a.lua.eval("rawequal")(first, self.plan()))
+        self.assertEqual(self.a.mock.schematicCalls, calls)
+
+    def test_dirty_on_list_change(self):
+        self.both()
+        self.plan()
+        self.ns.SetTrackedQuantity(3932, 2)
+        self.assertEqual(item(self.plan(), 4363).need, 2)
+
+    def test_dirty_on_craft_mode(self):
+        self.both()
+        self.plan()
+        self.ns.SetCraftMode(2841, "buy")
+        self.assertEqual(item(self.plan(), 2841).kind, "buy")
+        self.ns.ResetCraftModes()
+        self.assertEqual(item(self.plan(), 2841).kind, "craft")
+
+    def test_dirty_on_bags(self):
+        self.both()
+        self.plan()
+        self.a.run('mock.bags[2770] = 7; fire("BAG_UPDATE_DELAYED")')
+        self.assertEqual(item(self.plan(), 2770).buy, 0)
+
+    def test_dirty_on_character_update(self):
+        self.both()
+        self.plan()
+        self.a.run("mock.learned[2657] = true")
+        self.ns.UpdateCharacter()
+        self.assertTrue(item(self.plan(), 2840).known.me)
+
+    def test_dirty_on_learned(self):
+        self.both()
+        self.plan()
+        self.a.run('fire("NEW_RECIPE_LEARNED", 2659)')
+        self.assertTrue(item(self.plan(), 2841).known.me)
+
+    def test_dirty_on_forget(self):
+        self.both()
+        self.plan()
+        self.ns.ForgetChar("Mina")
+        p = self.plan()
+        self.assertEqual((item(p, 2840).kind, item(p, 2841).kind), ("buy", "buy"))
+        self.assertIsNone(item(p, 3576))   # only the Bronze Bar used it
+
+    def test_orphan_stays(self):
+        track(self.a, 2657)
+        self.ns.ForgetChar("Mina")
+        self.assertEqual(tracked(self.a), [(2657, 186, 1, "crafts")])
+        known = self.plan().roots[1].known
+        self.assertFalse(known.me)
+        self.assertEqual(len(known.alts), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

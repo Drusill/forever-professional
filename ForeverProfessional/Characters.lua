@@ -208,10 +208,12 @@ end
 function ns.SetCraftMode(itemID, mode)
     if mode ~= "craft" and mode ~= "buy" then mode = nil end
     ns.db.craftModes[itemID] = mode
+    ns.MarkTrackedDirty()
 end
 
 function ns.ResetCraftModes()
     wipe(ns.db.craftModes)
+    ns.MarkTrackedDirty()
 end
 
 -- Who crafts something: "You", the first alt's name (" +N" for more), or "Nobody"; and that kind.
@@ -246,8 +248,17 @@ local function NormalizeTracked(e)
     return { spellID = e.spellID, line = e.line, quantity = math.min(TRACKED_MAX, math.floor(e.quantity)), unit = unit }
 end
 
+-- The combined plan of the tracked recipes and its per-recipe shares, cached until an input changes:
+-- the list, a craft/buy choice, the bags, what a character knows, or the cached characters.
+local trackedPlan, trackedShares
+
+function ns.MarkTrackedDirty()
+    trackedPlan, trackedShares = nil, nil
+end
+
 -- Every change to the list goes through here.
 function ns.TrackedChanged()
+    ns.MarkTrackedDirty()
     if ns.UI and ns.UI.Refresh and ns.UI.IsShown and ns.UI.IsShown() then ns.UI.Refresh() end
 end
 
@@ -310,6 +321,30 @@ function ns.PruneTracked()
     ns.db.tracked = ns.TrackedList()
 end
 
+-- Plan roots for the tracked recipes, in list order; Items mode rounds up to whole crafts.
+function ns.TrackedRoots()
+    local roots = {}
+    for _, e in ipairs(ns.TrackedList()) do
+        local crafts = e.quantity
+        if e.unit == "items" then crafts = ns.Model.CraftsFor(TrackedRecipe(e.line, e.spellID), e.quantity) end
+        roots[#roots + 1] = { spellID = e.spellID, line = e.line, crafts = crafts }
+    end
+    return roots
+end
+
+-- plan, shares (Model.PlanShares) for everything tracked; nil when nothing is.
+function ns.TrackedPlan()
+    if not trackedPlan then
+        local roots = ns.TrackedRoots()
+        if #roots == 0 then return nil end
+        trackedPlan = ns.Model.PlanMaterials(roots, ns.PlanContext())
+        trackedShares = ns.Model.PlanShares(trackedPlan)
+    end
+    return trackedPlan, trackedShares
+end
+
+ns.On("BAG_UPDATE_DELAYED", function() ns.MarkTrackedDirty() end)
+
 -- "1 craft", "4 crafts", "1 item", "10 items".
 function ns.TrackedText(entry)
     local L, q = ns.L, entry.quantity
@@ -362,6 +397,7 @@ function ns.ForgetChar(arg)
     if key == ns.CharKey() then return "self" end
     local label, c = ns.CharLabel(key), ns.db.chars[key]
     ns.db.chars[key] = nil
+    ns.MarkTrackedDirty()
     if ns.UI and ns.UI.Refresh then ns.UI.Refresh() end
     return "removed", c, label
 end
@@ -429,6 +465,7 @@ end
 function ns.UpdateCharacter()
     ns.UpdateCharInfo()
     ns.ScanLearned()
+    ns.MarkTrackedDirty()
     Refresh()
 end
 
@@ -458,6 +495,7 @@ ns.On("NEW_RECIPE_LEARNED", function(recipeID)
         c.learned[recipeID] = true
         c.updated = time()
     end
+    ns.MarkTrackedDirty()
     Refresh()
 end)
 

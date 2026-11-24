@@ -132,7 +132,7 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `M.PlanShares(plan) -> { [itemID] = { {root, need}... } }` as in the spec: per root alone, before inventory, rounding crafted items per root; entries in root order; only `need > 0`.
   - `ns.TrackedPlan() -> plan, shares` (nil when nothing is tracked), cached until marked dirty; `ns.MarkTrackedDirty()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_roots`: 3932 ×2 crafts and 2659 ×3 items → `[(3932, 202, 2), (2659, 186, 2)]`.
   - `test_combined_totals`: 3932 + 3938 → kinds, spells, need, crafts and levels as in the fixture table; shopping and steps as listed.
   - `test_inventory_once`: `mock.bags[2770] = 4` → 2770 `have` 4, `buy` 3.
@@ -147,10 +147,10 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `test_dirty_on_learned`: `fire("NEW_RECIPE_LEARNED", 2659)` → 2841 `known.me` true.
   - `test_dirty_on_forget`: `ns.ForgetChar("Mina")` → 2840, 2841 and 3576 `buy`.
   - `test_orphan_stays`: track 2657 (only Mina knows), forget Mina → still tracked, `plan.roots[1].known` has `me` false and no alts.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS** (`ContextTest` in `test_calculator.py` unmodified).
-- [ ] **Step 5: Commit**: `git commit -m "feat(model): combine tracked recipes into one plan with per-recipe shares"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS** (`ContextTest` in `test_calculator.py` unmodified).
+- [x] **Step 5: Commit**: `git commit -m "feat(model): combine tracked recipes into one plan with per-recipe shares"`
 
 ---
 
