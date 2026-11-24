@@ -318,9 +318,9 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Modify: `README.md` (Features / How to use: tracking, the Tracked panel, tooltip lines, the countdown)
 - Modify: `AGENTS.md` (Layout: `UI/Tracked`; `Characters` gains the tracked list and its plan; `Model` gains plan shares; `Tooltip` gains tracked lines; `UI/Calculator` draws plan sources; saved `ns.db.tracked`; client fact for `UNIT_SPELLCAST_SUCCEEDED` only once checked in game)
 
-- [ ] **Step 1:** Update both files; don't touch `CHANGELOG.md` (rewritten at release time) or `docs/ideas.md`.
-- [ ] **Step 2:** Full suite, expect PASS.
-- [ ] **Step 3: Commit**: `git commit -m "docs: describe tracked recipes and the shopping list"`
+- [x] **Step 1:** Update both files; don't touch `CHANGELOG.md` (rewritten at release time) or `docs/ideas.md`.
+- [x] **Step 2:** Full suite, expect PASS.
+- [x] **Step 3: Commit**: `git commit -m "docs: describe tracked recipes and the shopping list"`
 
 ---
 
@@ -332,4 +332,10 @@ when the user asks, with `Closes #4`.
 
 ## Implementation notes
 
-(Filled in during implementation: extra exports, deviations, commits.)
+- Extra exports: `ns.MarkTrackedDirty()`, `ns.CountTrackedCraft(spellID)`; `UI.ToggleTracked(line, spellID)` (detail button); `UI.CreateQuantityBox(parent, get, set)` (shared by the calculator and the Recipes rows), `UI.AddCalcPool(hideAll)` (extra row pools hidden before each redraw), `UI.CrafterLabel`, `UI.CalcToBuy`; `UI.TrackedRowLayout(width, unitW)`, `UI.ShowTrackedRecipe`, `UI.IsTrackedShown`, `UI.OpenTracked`, `UI.ToggleTrackedPanel`, `UI.CreateTrackedButton`, `UI.RefreshTrackedButton`.
+- Plan sources also take `Valid()` (the recipe source closes the panel when its recipe is gone), `Update(plan)` (header and quantity row), `Message(plan, tab)` (blocks the tab's rows) and `Counts(plan)`; a source without `Update` shows its `title` and `icon`. Tab controls are created once per tab set.
+- One test expectation was wrong, not the code: with five tracked recipes the Copper Ore total is 12 (3 direct Copper Bars + Modulator 1 + Bolts 6 + Bronze 2), not 10.
+- `test_gone_after_untrack` first asserts the lines are there, so it can't pass vacuously. The dirty tests were checked by turning `ns.MarkTrackedDirty` into a no-op: all six fail.
+- Review assessment after each commit: medium risk, under budget (1,404 changed lines through Task 8); no native review was due.
+- Not verified offline: that Forever fires `UNIT_SPELLCAST_SUCCEEDED` with the recipe's spell ID (in-game checklist item 5). Add it to AGENTS.md's client facts once checked.
+- Commits: spec and plan `ac5af5c`, Task 1 `cc1b680`, Task 2 `0fe73d9`, Task 3 `86e23cc`, Task 4 `a0ad451`, Task 5 `c12703d`, Task 6 `ae8b392`, Task 7 `d048f5a`, Task 8 `aca3efb`, Task 9 (this commit).
