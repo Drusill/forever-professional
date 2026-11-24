@@ -78,6 +78,7 @@ TOC changes need a full client restart; `/reload` doesn't pick them up. Errors c
 - `WOW_PROJECT_ID` is **18**, not 1. Detect Forever with `select(4, GetBuildInfo())` in 16000–16999.
 - `C_TradeSkillUI.GetRecipeSchematic(spellID, false)` works with the profession window closed, for unlearned recipes and other professions: output item and reagents. Read it through `Model.Schematic` / `Model.Reagents` (cached per spell).
 - `C_Item.GetItemCount(id, true)` counts the bank while away from it (checked 2026-11-23). The global `GetItemCount` is gone.
+- `C_Item.GetItemQualityByID(nil)` throws ("Usage: local itemQuality = …") instead of returning nil (seen 2026-11-24). Guard item IDs that can be nil (enchants make no item) before calling `C_Item` getters, and keep `tests/wow_mock.lua` throwing the same way.
 - **Learned status:** `C_SpellBook.IsSpellKnown(spellID)` is correct. `GetRecipeInfo().learned` is not reliable with the window closed.
 - `GetProfessions()` + `GetProfessionInfo()` give the player's professions and skill without a window. `GetAllProfessionTradeSkillLines` also returns Forever child lines (2937 Alchemy, 2938 Blacksmithing…) and two "Test Profession [DNT]" entries to ignore.
 - Unlearned recipes can't be shown in Blizzard's profession window, and `GetRecipeSourceText` returns nothing. That's why the catalog is baked.
