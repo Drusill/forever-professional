@@ -382,6 +382,9 @@ C_TradeSkillUI = {
             },
         }
     end,
+    -- Blizzard's own recipe tracking: the addon must never call it.
+    SetRecipeTracked = function() mock.blizzardTracked = true end,
+    GetRecipesTracked = function() mock.blizzardTracked = true; return {} end,
 }
 
 -- Items: ContinueOnItemLoad is synchronous unless mock.asyncItems[id] is set.

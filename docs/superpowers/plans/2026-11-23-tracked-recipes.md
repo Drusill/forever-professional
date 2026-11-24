@@ -98,7 +98,7 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `ns.TrackedText(entry) -> string`: `"1 craft"`, `"4 crafts"`, `"1 item"`, `"10 items"`.
   - `ns.TrackedChanged()`: the single notification every mutator calls (Task 2 makes it mark the plan dirty; here it refreshes the UI if shown).
 
-- [ ] **Step 1: Write the failing tests** (`TrackedListTest`, login with `CALC`, `seed(a)`)
+- [x] **Step 1: Write the failing tests** (`TrackedListTest`, login with `CALC`, `seed(a)`)
   - `test_empty_by_default`: `tracked(a) == []`, `ns.db.tracked` is a table.
   - `test_track_adds_in_order`: track 3932, then 3938 ×2 → `[(3932, 202, 1, "crafts"), (3938, 202, 2, "crafts")]`.
   - `test_track_existing_updates_in_place`: track 3932, 3938, then 3932 ×5 → order kept, 3932 quantity 5.
@@ -111,10 +111,10 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `test_saved_across_reload`: `CALC + "ForeverProfessionalDB.tracked = { {spellID = 2659, line = 186, quantity = 6, unit = 'items'} }"` → `[(2659, 186, 6, "items")]`.
   - `test_tracked_text`: the four strings above.
   - `test_never_blizzard_tracking`: after tracking, updating and untracking, `mock.blizzardTracked` is nil.
-- [ ] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_tracked -v`
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(chars): save tracked recipes account-wide"`
+- [x] **Step 2: Run, expect failures**: `mise exec -- python -m unittest tests.test_tracked -v`
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(chars): save tracked recipes account-wide"`
 
 ---
 

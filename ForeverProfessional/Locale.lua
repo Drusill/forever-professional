@@ -138,3 +138,9 @@ L.CALC_CYCLE = "Would need itself: buy it"
 L.CALC_NO_REAGENTS = "This recipe's reagents couldn't be read."
 L.CALC_STEP = "%d. %s"
 L.CALC_MORE = "…"
+
+-- Tracked recipes
+L.TRACKED_CRAFTS = "%d crafts"
+L.TRACKED_CRAFT_ONE = "1 craft"
+L.TRACKED_ITEMS = "%d items"
+L.TRACKED_ITEM_ONE = "1 item"

@@ -779,6 +779,11 @@ function M.Yield(rec)
     return 1
 end
 
+-- Whether a craft makes more than one item, or a range: then a quantity can mean crafts or items.
+function M.MakesSeveral(rec)
+    return rec ~= nil and rec.creates ~= nil and (M.Yield(rec) > 1 or type(rec.count) == "table")
+end
+
 -- Whole crafts needed for `items` of the output.
 function M.CraftsFor(rec, items)
     if not items or items <= 0 then return 0 end
