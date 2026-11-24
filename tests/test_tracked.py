@@ -496,5 +496,165 @@ class CalcTrackTest(UIBase):
         self.assertLessEqual(row, self.UI.DetailPanelWidth() - 16)
 
 
+class TrackedPanelTest(UIBase):
+    def setUp(self):
+        super().setUp()
+        self.select(3932)
+        self.c = self.UI.calc
+        self.button = self.UI.headerTracked
+
+    def open(self):
+        self.a.call(self.button, "Click")
+
+    def rows(self, kind="tracked"):
+        return [r for r in lua_list(self.c.rendered) if r.kind == kind]
+
+    def row(self, spell):
+        return next(r for r in self.rows() if r.spellID == spell)
+
+    def tab_count(self, key):
+        return self.c.tabs.buttons[key].count.text
+
+    def test_header_button(self):
+        self.assertEqual(self.button.label.text, "Tracked")
+        track(self.a, 3932)
+        track(self.a, 2659, 6, "items")
+        self.assertEqual(self.button.label.text, "Tracked 2")
+
+    def test_opens_and_toggles(self):
+        self.open()
+        self.assertTrue(self.c.shown)
+        self.assertEqual(self.c.source.kind, "tracked")
+        self.assertEqual(self.c.title.text, "Tracked recipes")
+        self.assertEqual(self.c.tab, "recipes")
+        self.assertFalse(self.c.qty.shown)
+        self.open()
+        self.assertFalse(self.c.shown)
+
+    def test_recipes_rows(self):
+        track(self.a, 3932)
+        track(self.a, 2659, 6, "items")
+        self.open()
+        got = [(r.spellID, r.quantity, r.unit, plain(r.crafter)) for r in self.rows()]
+        self.assertEqual(got, [(3932, 1, "crafts", "You"), (2659, 6, "items", "Mina")])
+        self.assertFalse(self.row(3932).widget.unit.shown)
+        self.assertTrue(self.row(2659).widget.unit.shown)
+        self.assertEqual(self.tab_count("recipes"), "2")
+
+    def test_edit_quantity(self):
+        track(self.a, 3932)
+        self.open()
+        box = self.row(3932).widget.qty
+        self.a.call(box, "SetText", "3")
+        self.assertEqual(self.ns.GetTracked(3932).quantity, 3)
+        box = self.row(3932).widget.qty
+        self.a.call(box, "SetText", "abc")
+        box.scripts.OnEditFocusLost(box)
+        self.assertEqual(box.text, "3")
+        self.assertEqual(self.ns.GetTracked(3932).quantity, 3)
+
+    def test_unit_switch(self):
+        track(self.a, 2659, 6, "items")
+        self.open()
+        unit = self.row(2659).widget.unit
+        self.a.call(unit.buttons["crafts"], "Click")
+        self.assertEqual((self.ns.GetTracked(2659).unit, self.ns.GetTracked(2659).quantity), ("crafts", 6))
+
+    def test_untrack_row(self):
+        track(self.a, 3932)
+        track(self.a, 2659)
+        self.open()
+        self.a.call(self.row(3932).widget.untrack, "Click")
+        self.assertEqual([r.spellID for r in self.rows()], [2659])
+        self.assertEqual(self.button.label.text, "Tracked 1")
+
+    def test_combined_tabs(self):
+        track(self.a, 3932)
+        track(self.a, 3938)
+        self.open()
+        self.UI.SetCalcTab("shopping")
+        self.assertEqual([(r.item, r.need) for r in self.rows("shop")], COMBINED_SHOPPING)
+        self.assertEqual(self.tab_count("shopping"), "5")
+        self.assertEqual(self.rows(), [])   # the Recipes rows are hidden on other tabs
+        self.UI.SetCalcTab("steps")
+        self.assertEqual([r.item for r in self.rows("step")], COMBINED_STEPS)
+        self.UI.SetCalcTab("tree")
+        self.assertEqual(len([r for r in self.rows("node") if r.depth == 0]), 2)
+
+    def test_recipe_rows_hidden_off_tab(self):
+        track(self.a, 3932)
+        self.open()
+        widget = self.row(3932).widget
+        self.UI.SetCalcTab("shopping")
+        self.assertFalse(widget.shown)
+
+    def test_switch_and_reset(self):
+        track(self.a, 3932)
+        track(self.a, 3938)
+        self.open()
+        self.UI.SetCalcTab("tree")
+        self.UI.ToggleCraftMode(2841)
+        self.UI.SetCalcTab("shopping")
+        self.assertIn(2841, [r.item for r in self.rows("shop")])
+        self.a.call(self.c.reset, "Click")
+        self.assertNotIn(2841, [r.item for r in self.rows("shop")])
+
+    def test_empty(self):
+        track(self.a, 3932)
+        self.open()
+        self.ns.UntrackRecipe(3932)
+        for tab in ("recipes", "shopping"):
+            self.UI.SetCalcTab(tab)
+            self.assertTrue(self.c.message.shown)
+            self.assertEqual(self.c.message.text, self.L.TRACKED_EMPTY)
+            self.assertEqual(lua_list(self.c.rendered), [])
+
+    def test_row_click_selects_recipe(self):
+        track(self.a, 2659)
+        self.open()
+        self.a.call(self.row(2659).widget.nameButton, "Click")
+        self.assertEqual((self.UI.state.line, self.UI.state.selected), (186, 2659))
+        self.assertFalse(self.c.shown)
+
+    def test_live_updates(self):
+        track(self.a, 3932, 2)
+        self.open()
+        cast(self.a, 3932)
+        self.assertEqual(self.row(3932).quantity, 1)
+        self.UI.SetCalcTab("shopping")
+        self.a.run('mock.bags[2770] = 6; fire("BAG_UPDATE_DELAYED")')
+        copper = next(r for r in self.rows("shop") if r.item == 2770)
+        self.assertEqual(copper.buy, 0)
+
+    def test_closes(self):
+        self.open()
+        self.UI.SelectRecipe(3926)
+        self.assertFalse(self.c.shown)
+        self.open()
+        self.a.slash("")
+        self.assertFalse(self.c.shown)
+
+    def test_never_blizzard_tracking_panel(self):
+        track(self.a, 2659, 6, "items")
+        self.open()
+        self.a.call(self.row(2659).widget.qty, "SetText", "4")
+        self.a.call(self.row(2659).widget.unit.buttons["crafts"], "Click")
+        self.a.call(self.row(2659).widget.untrack, "Click")
+        self.assertIsNone(self.a.mock.blizzardTracked)
+
+    def test_fits_minimum_window(self):
+        self.at_minimum_size()
+        track(self.a, 3932, 999)
+        track(self.a, 2659, 999, "items")
+        self.UI.SelectProfession(165)   # Leatherworking: the longest profession name
+        text_w = self.a.call
+        right = 6 + 32 + 6 + 150 + 14 + 150 + 16 + 150    # close, character menu, Recipes, Skill
+        left = 14 + 34 + 10 + text_w(self.UI.header.name, "GetStringWidth")
+        self.assertLessEqual(left + 12 + self.button.width + 16 + right, self.UI.Width() - self.UI.RAIL_W)
+        self.open()
+        unit_w = self.row(2659).widget.unit.width
+        self.assertGreaterEqual(self.UI.TrackedRowLayout(self.UI.DetailContentWidth(), unit_w).nameW, 120)
+
+
 if __name__ == "__main__":
     unittest.main()

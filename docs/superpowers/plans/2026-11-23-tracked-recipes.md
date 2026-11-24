@@ -290,7 +290,7 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Consumes: `UI.OpenPlanPanel`, `ns.TrackedPlan`, `ns.TrackedList`, the mutators, `ns.CrafterText`, `M.MakesSeveral`.
 - Produces: `UI.headerTracked`; `UI.OpenTracked()`, `UI.ToggleTrackedPanel()`; recipe rows in `UI.calc.rendered` as `{ kind = "tracked", spellID, quantity, unit, crafter, widget }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_header_button`: `"Tracked"` with nothing tracked; after tracking 3932 and 2659 → `"Tracked 2"`.
   - `test_opens_and_toggles`: click → panel shown, `source.kind == "tracked"`, title `"Tracked recipes"`, tab `recipes`, quantity row hidden; click again → hidden.
   - `test_recipes_rows`: 3932 ×1 and 2659 ×6 items → rows `(3932, 1, "crafts", "You")`, `(2659, 6, "items", "Mina")`; the unit switch only on 2659; tab label `"Recipes 2"`.
@@ -305,10 +305,10 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
   - `test_closes`: `SelectRecipe(3926)` → hidden; reopen, `/fp` to close the window → hidden.
   - `test_never_blizzard_tracking_panel`: after every action above, `mock.blizzardTracked` is nil.
   - `test_fits_minimum_window`: at 900×540, the header button's right edge stays left of the Skill stat and its left edge right of the profession name (longest: Leatherworking, mock string widths); a Recipes row with the unit switch keeps `nameW >= 120`.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**; add `UI\Tracked.lua` to the TOC (the tests load the TOC).
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): tracked recipes panel with the combined shopping list"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**; add `UI\Tracked.lua` to the TOC (the tests load the TOC).
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): tracked recipes panel with the combined shopping list"`
 
 ---
 

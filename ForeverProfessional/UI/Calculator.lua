@@ -108,6 +108,14 @@ local function HideUnusedRows()
     used = 0
 end
 
+-- Other row pools drawn in the panel (a source's own tabs): each registers a function that hides all
+-- its rows, called before every redraw; the source's renderer shows the ones it uses.
+local pools = {}
+
+function UI.AddCalcPool(hideAll)
+    pools[#pools + 1] = hideAll
+end
+
 local function Colored(hex, text) return "|cff" .. hex .. text .. "|r" end
 
 -- "You" (green), an alt's class-coloured name, or "Nobody" (grey).
@@ -116,6 +124,7 @@ local function CrafterLabel(known)
     if kind ~= "alt" then text = Colored(CRAFTER_COLORS[kind], text) end
     return text
 end
+UI.CrafterLabel = CrafterLabel
 
 -- The craft / buy switch of an intermediate, labelled with what a click does. Raw items and items
 -- that would need themselves have none.
@@ -356,6 +365,7 @@ function UI.RefreshCalculator()
         calc.message:SetText(message)
         y = 24
     end
+    for _, hideAll in ipairs(pools) do hideAll() end
     local render = (source.render and source.render[calc.tab]) or RENDER[calc.tab]
     if render and not blocked then y = render(plan, y, width, pending) end
     HideUnusedRows()
@@ -401,6 +411,7 @@ function UI.OpenPlanPanel(source, tab)
     calc:Show()
     calc.scroll:SetVerticalScroll(0)
     UI.RefreshCalculator()
+    if UI.RefreshTrackedButton then UI.RefreshTrackedButton() end
 end
 
 function UI.OpenCalculator(spellID)
@@ -417,13 +428,16 @@ end
 
 function UI.CloseCalculator()
     if calc then calc:Hide() end
+    if UI.RefreshTrackedButton then UI.RefreshTrackedButton() end
 end
 
 function UI.IsCalculatorShown()
     return calc ~= nil and calc:IsShown()
 end
 
-local function CreateQuantityBox(parent)
+-- A 1–999 number box: typing a number calls set(n); empty or invalid text goes back to get() when focus
+-- leaves. Shared by the calculator and the tracked recipes rows.
+function UI.CreateQuantityBox(parent, get, set)
     local q = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
     q:SetSize(44, 22)
     q:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
@@ -436,12 +450,13 @@ local function CreateQuantityBox(parent)
     q:SetMaxLetters(3)
     q:SetScript("OnTextChanged", function(self)
         local n = tonumber(self:GetText() or "")
-        if n and n ~= calc.quantity then UI.SetCalcQuantity(n) end
+        if n and n ~= get(self) then set(self, n) end
     end)
     -- Empty or invalid text goes back to the last valid number.
     local function Restore(self)
         self:ClearFocus()
-        if self:GetText() ~= tostring(calc.quantity) then self:SetText(tostring(calc.quantity)) end
+        local n = tostring(get(self))
+        if self:GetText() ~= n then self:SetText(n) end
     end
     q:SetScript("OnEditFocusLost", Restore)
     q:SetScript("OnEnterPressed", Restore)
@@ -477,7 +492,8 @@ function UI.CreateCalculator(parent)
     calc.qtyLabel:SetPoint("TOPLEFT", 10, -45)
     calc.qtyLabel:SetText(L.CALC_QUANTITY)
     calc.qtyLabel:SetTextColor(Hex(UI.COLORS.muted))
-    calc.qty = CreateQuantityBox(calc)
+    calc.qty = UI.CreateQuantityBox(calc, function() return calc.quantity end,
+        function(_, n) UI.SetCalcQuantity(n) end)
     calc.qty:SetPoint("LEFT", calc.qtyLabel, "RIGHT", 6, 0)
     calc.unit = UI.CreateSegmented(calc, {
         { key = "crafts", label = L.CALC_CRAFTS },
