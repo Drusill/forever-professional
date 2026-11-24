@@ -68,7 +68,8 @@ bags or on the Auction House can be matched to the plan. The list counts down as
    craft (by the yield in Items mode); at 0 the recipe leaves the list.
 7. **Tooltip: one line per recipe, plus a total.** `Needed for: <recipe> (n)`, n being that recipe's own share
    at its tracked quantity before bags; then `Tracked total: have / need` from the combined plan. At most five
-   recipe lines, then `and N more`.
+   recipe lines, then `and N more`. When the total need is 0 (what you carry, often an intermediate, covers
+   it), only the total is shown, since the recipe lines would contradict it (decided in game, 2026-11-24).
 8. **Orphans stay; removed recipes go.** A tracked recipe nobody knows (alt forgotten, never learned) stays and
    shows "Nobody". Entries whose recipe is gone from the data are skipped by the plan and pruned at login.
 

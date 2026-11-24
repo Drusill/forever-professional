@@ -48,6 +48,10 @@ function ns.TrackedLines(itemID)
     local plan, shares = ns.TrackedPlan()
     local list = plan and shares[itemID]
     if not list then return out end
+    local n = plan.items[itemID]
+    -- Shares count before bags; when what you carry (often an intermediate) covers it all, they'd contradict
+    -- the total, so only the total is shown.
+    if n.need == 0 then list = {} end
     for i, s in ipairs(list) do
         if i > ns.TRACKED_TOOLTIP_MAX then
             out[#out + 1] = L.NEEDED_MORE:format(#list - ns.TRACKED_TOOLTIP_MAX)
@@ -55,7 +59,6 @@ function ns.TrackedLines(itemID)
         end
         out[#out + 1] = L.NEEDED_FOR:format(ns.Model.RecipeDisplayName(plan.roots[s.root].spellID), s.need)
     end
-    local n = plan.items[itemID]
     out[#out + 1] = L.TRACKED_TOTAL:format(n.have, n.need)
     return out
 end

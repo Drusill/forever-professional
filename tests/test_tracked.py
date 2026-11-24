@@ -308,6 +308,11 @@ class TrackedTooltipTest(Base):
         self.a.run('mock.bags[2770] = 4; fire("BAG_UPDATE_DELAYED")')
         self.assertEqual(self.hover(2770)[-1], "Tracked total: 4 / 7")
 
+    def test_covered_by_intermediates(self):
+        # Bars in the bags cover all the ore: no "Needed for" lines, only the total.
+        self.a.run('mock.bags[2840] = 50; mock.bags[2841] = 50; fire("BAG_UPDATE_DELAYED")')
+        self.assertEqual(self.hover(2770), [" ", "Tracked total: 0 / 0"])
+
     def test_one_recipe(self):
         self.assertEqual(self.hover(2880)[1:], ["Needed for: Spell 3938 (1)", "Tracked total: 0 / 1"])
 
