@@ -437,5 +437,64 @@ class PlanSourceTest(UIBase):
         self.assertTrue(self.c.qty.shown)
 
 
+class CalcTrackTest(UIBase):
+    def open(self, spell):
+        self.select(spell)
+        self.a.call(self.UI.detail.header.calcButton, "Click")
+        self.c = self.UI.calc
+
+    def click_track(self):
+        self.a.call(self.c.track, "Click")
+
+    def test_track_button(self):
+        self.open(3932)
+        self.assertEqual(self.c.track.label.text, "Track")
+        self.UI.SetCalcQuantity(3)
+        self.click_track()
+        self.assertEqual(tracked(self.a), [(3932, 202, 3, "crafts")])
+        self.assertEqual(self.c.track.label.text, "Tracked")
+        self.assertFalse(self.a.call(self.c.track, "IsEnabled"))
+
+    def test_update(self):
+        self.open(3932)
+        self.UI.SetCalcQuantity(3)
+        self.click_track()
+        self.UI.SetCalcQuantity(5)
+        self.assertEqual(self.c.track.label.text, "Update")
+        self.assertTrue(self.a.call(self.c.track, "IsEnabled"))
+        self.click_track()
+        self.assertEqual(self.ns.GetTracked(3932).quantity, 5)
+
+    def test_prefill(self):
+        track(self.a, 2659, 6, "items")
+        self.open(2659)
+        self.assertEqual((self.c.qty.text, self.c.unitKey), ("6", "items"))
+        self.assertEqual(self.c.track.label.text, "Tracked")
+
+    def test_items_unit_saved(self):
+        self.open(2659)
+        self.UI.SetCalcUnit("items")
+        self.UI.SetCalcQuantity(3)
+        self.click_track()
+        self.assertEqual(tracked(self.a), [(2659, 186, 3, "items")])
+
+    def test_detail_follows(self):
+        self.open(3932)
+        self.click_track()
+        self.a.call(self.c.back, "Click")
+        self.assertEqual(self.UI.detail.header.trackButton.label.text, "Untrack")
+
+    def test_quantity_row_fits(self):
+        self.at_minimum_size()
+        self.open(2659)
+        self.UI.SetCalcUnit("items")
+        self.c.track.SetText(self.c.track, "Update")
+        self.c.summary.SetText(self.c.summary, "4 crafts, 2 extra")
+        text_w = self.a.call
+        row = (10 + text_w(self.c.qtyLabel, "GetStringWidth") + 6 + self.c.qty.width + 8 + self.c.unit.width + 8
+               + text_w(self.c.summary, "GetStringWidth") + 8 + self.c.track.width + 8)
+        self.assertLessEqual(row, self.UI.DetailPanelWidth() - 16)
+
+
 if __name__ == "__main__":
     unittest.main()

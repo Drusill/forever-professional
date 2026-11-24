@@ -272,7 +272,14 @@ local function RecipeSource(spellID, line)
             calc.who:SetText(L.CALC_WHO:format(CrafterLabel(root.known)))
             calc.summary:ClearAllPoints()
             calc.summary:SetPoint("LEFT", multi and calc.unit or calc.qty, "RIGHT", 8, 0)
+            calc.summary:SetPoint("RIGHT", calc.track, "LEFT", -8, 0)
             calc.summary:SetText(Summary(rec, root))
+            -- Track: not tracked yet, tracked with another quantity or unit (Update), or tracked as shown.
+            local entry = ns.GetTracked(spellID)
+            local same = entry and entry.quantity == calc.quantity and entry.unit == calc.unitKey
+            calc.track:SetText(same and L.TRACKED or entry and L.TRACK_UPDATE or L.TRACK)
+            calc.track:SetActive(entry ~= nil)
+            calc.track:SetEnabled(not same)
         end,
         Message = function(plan)
             if not plan.roots[1].reagents then return L.CALC_NO_REAGENTS end
@@ -298,6 +305,7 @@ local function LayoutSource(source)
     calc.qty:SetShown(q)
     if not q then calc.unit:Hide() end   -- the recipe source shows it for multi-output recipes
     calc.summary:SetShown(q)
+    calc.track:SetShown(q)
     calc.who:SetShown(q)
     for _, set in pairs(calc.tabSets) do set:SetShown(set == calc.tabs) end
     calc.top = q and TOP_H or TOP_H - QTY_ROW_H
@@ -398,9 +406,12 @@ end
 function UI.OpenCalculator(spellID)
     if not (calc and spellID and UI.state.line) then return end
     calc.spellID, calc.line = spellID, UI.state.line
-    calc.quantity, calc.unitKey = 1, "crafts"
-    calc.unit:SetSelected("crafts")
-    calc.qty:SetText("1")
+    -- A tracked recipe opens on its tracked quantity and unit.
+    local entry = ns.GetTracked(spellID)
+    calc.quantity = entry and entry.quantity or 1
+    calc.unitKey = entry and entry.unit or "crafts"
+    calc.unit:SetSelected(calc.unitKey)
+    calc.qty:SetText(tostring(calc.quantity))
     UI.OpenPlanPanel(RecipeSource(spellID, UI.state.line))
 end
 
@@ -475,7 +486,14 @@ function UI.CreateCalculator(parent)
     calc.unit:SetPoint("LEFT", calc.qty, "RIGHT", 8, 0)
     calc.summary = calc:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     calc.summary:SetJustifyH("LEFT")
+    calc.summary:SetWordWrap(false)
     calc.summary:SetTextColor(Hex(UI.COLORS.muted))
+    calc.track = UI.CreateToggleButton(calc, L.TRACK, function()
+        ns.TrackRecipe(calc.line, calc.spellID, calc.quantity, calc.unitKey)
+        UI.RefreshCalculator()
+    end)
+    calc.track:SetHeight(20)
+    calc.track:SetPoint("RIGHT", calc, "TOPRIGHT", -8, -45 - 6)
 
     calc.tabSets = {}
     calc.tabs = TabsFor({ tabs = RECIPE_TABS })

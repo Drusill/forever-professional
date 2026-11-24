@@ -262,17 +262,17 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Consumes: Task 1's mutators; the recipe source.
 - Produces: `UI.calc.track` (label `L.TRACK` / `L.TRACK_UPDATE` / disabled `L.TRACKED`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
   - `test_track_button`: Calculate on 3932, quantity 3, click Track → `[(3932, 202, 3, "crafts")]`; button disabled, `"Tracked"`.
   - `test_update`: then quantity 5 → `"Update"`, enabled; click → quantity 5.
   - `test_prefill`: 2659 tracked ×6 items; Calculate on it → `qty` `"6"`, `unitKey` `"items"`, button `"Tracked"`.
   - `test_items_unit_saved`: Calculate on 2659, Items 3, Track → `(2659, 186, 3, "items")`.
   - `test_detail_follows`: after tracking from the calculator, Back → the detail's Track button reads `"Untrack"`.
   - `test_quantity_row_fits`: at 900×540, label + box + unit switch + `"4 crafts, 2 extra"` + Track button + gaps ≤ the panel's inner width.
-- [ ] **Step 2: Run, expect failures**
-- [ ] **Step 3: Implement**.
-- [ ] **Step 4: Full suite, expect PASS**
-- [ ] **Step 5: Commit**: `git commit -m "feat(ui): track a recipe from the calculator"`
+- [x] **Step 2: Run, expect failures**
+- [x] **Step 3: Implement**.
+- [x] **Step 4: Full suite, expect PASS**
+- [x] **Step 5: Commit**: `git commit -m "feat(ui): track a recipe from the calculator"`
 
 ---
 
