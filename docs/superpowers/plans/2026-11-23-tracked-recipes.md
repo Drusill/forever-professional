@@ -216,17 +216,17 @@ Tooltip strings in the mock (`C_Spell.GetSpellName` returns `"Spell <id>"`): Bro
 - Consumes: Task 1's `ns.TrackRecipe`, `ns.UntrackRecipe`, `ns.GetTracked`, `ns.TrackedText`.
 - Produces: `detail.header.trackButton`, `detail.header.trackedText`; `UI.ToggleTracked(line, spellID)`.
 
-- [ ] **Step 1: Run the pins**: `mise exec -- python -m unittest tests.test_detail tests.test_calculator -v` (PASS).
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 1: Run the pins**: `mise exec -- python -m unittest tests.test_detail tests.test_calculator -v` (PASS).
+- [x] **Step 2: Write the failing tests**
   - `test_action_row`: `trackButton` label `"Track"`, `calcButton` shown, `trackedText` empty.
   - `test_track_toggle`: click Track → `tracked(a) == [(3932, 202, 1, "crafts")]`, label `"Untrack"`, `trackedText` `"Tracked: 1 craft"`; click again → untracked, `"Track"`, empty text.
   - `test_tracked_text_items`: 2659 ×6 items tracked, select it on Mining → `"Tracked: 6 items"`.
   - `test_follows_countdown`: tracked 3932 ×2, cast once → `"Tracked: 1 craft"` without reselecting.
   - `test_action_row_fits`: at 900×540, Track + Calculate + `"Tracked: 999 crafts"` (mock string width) + gaps ≤ `UI.DetailContentWidth()`; `UI.DetailVisibleHeight() >= 340`.
-- [ ] **Step 3: Run, expect failures**
-- [ ] **Step 4: Implement**.
-- [ ] **Step 5: Full suite, expect PASS**
-- [ ] **Step 6: Commit**: `git commit -m "feat(ui): detail action row with Track and Calculate"`
+- [x] **Step 3: Run, expect failures**
+- [x] **Step 4: Implement**.
+- [x] **Step 5: Full suite, expect PASS**
+- [x] **Step 6: Commit**: `git commit -m "feat(ui): detail action row with Track and Calculate"`
 
 ---
 

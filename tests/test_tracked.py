@@ -338,5 +338,63 @@ class TrackedTooltipTest(Base):
         self.assertEqual(self.a.g._after, 1)
 
 
+class UIBase(Base):
+    """The window open on a recipe, like the calculator's PanelBase."""
+
+    def setUp(self):
+        super().setUp()
+        self.a.g._ns = self.ns
+        self.a.slash("")
+        self.UI, self.L = self.ns.UI, self.ns.L
+
+    def select(self, spell):
+        self.UI.SelectProfession(LINES[spell])
+        self.UI.SelectRecipe(spell)
+
+    def at_minimum_size(self):
+        self.a.call(self.UI.frame, "SetSize", 900, 540)
+
+
+class DetailTrackTest(UIBase):
+    def setUp(self):
+        super().setUp()
+        self.select(3932)
+        self.h = self.UI.detail.header
+
+    def test_action_row(self):
+        self.assertEqual(self.h.trackButton.label.text, "Track")
+        self.assertTrue(self.h.calcButton.shown)
+        self.assertIn(self.h.trackedText.text, (None, ""))
+
+    def test_track_toggle(self):
+        self.a.call(self.h.trackButton, "Click")
+        self.assertEqual(tracked(self.a), [(3932, 202, 1, "crafts")])
+        self.assertEqual(self.h.trackButton.label.text, "Untrack")
+        self.assertEqual(self.h.trackedText.text, "Tracked: 1 craft")
+        self.a.call(self.h.trackButton, "Click")
+        self.assertEqual(tracked(self.a), [])
+        self.assertEqual(self.h.trackButton.label.text, "Track")
+        self.assertEqual(self.h.trackedText.text, "")
+
+    def test_tracked_text_items(self):
+        track(self.a, 2659, 6, "items")
+        self.select(2659)
+        self.assertEqual(self.h.trackedText.text, "Tracked: 6 items")
+
+    def test_follows_countdown(self):
+        track(self.a, 3932, 2)
+        cast(self.a, 3932)
+        self.assertEqual(self.h.trackedText.text, "Tracked: 1 craft")
+
+    def test_action_row_fits(self):
+        self.at_minimum_size()
+        self.h.trackButton.SetText(self.h.trackButton, "Untrack")
+        self.h.trackedText.SetText(self.h.trackedText, "Tracked: 999 crafts")
+        used = (4 + self.h.trackButton.width + 6 + self.h.calcButton.width + 12
+                + self.h.trackedText.GetStringWidth(self.h.trackedText) + 6)
+        self.assertLessEqual(used, self.UI.DetailContentWidth())
+        self.assertGreaterEqual(self.UI.DetailVisibleHeight(), 340)
+
+
 if __name__ == "__main__":
     unittest.main()
