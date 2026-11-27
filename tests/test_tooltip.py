@@ -79,6 +79,13 @@ class TooltipTest(unittest.TestCase):
                    "for _, fn in ipairs(mock.postCalls[0]) do fn(_other, { type = 0, id = 250999 }) end")
         self.assertEqual(lua_list(self.a.g._other.lines), [])
 
+    def test_block_order_recipe_and_tracked(self):
+        # Pinned before the "Used in" block joins: owner lines first, then the tracked block, each after a blank.
+        self.a.g._ns = self.a.ns
+        self.a.run("_ns.TrackedLines = function() return { 'Needed for: X (1)', 'Tracked total: 0 / 1' } end")
+        self.set_item(250999)
+        self.assertEqual(self.lines(), [" ", LEARNABLE, LOW, " ", "Needed for: X (1)", "Tracked total: 0 / 1"])
+
     def test_errors_swallowed(self):
         self.a.g._ns = self.a.ns
         self.a.run("_ns.OwnerLines = function() error('boom') end")
