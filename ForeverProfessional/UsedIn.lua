@@ -157,6 +157,44 @@ function ns.UsedInGroups(itemID)
     return out
 end
 
+-- Tooltip lines --------------------------------------------------------------------------------------
+
+UsedIn.NAMES_MAX = 10   -- recipe names listed per profession with Shift
+local GREY, DIM, WHITE = { 0.75, 0.75, 0.75 }, { 0.5, 0.5, 0.5 }, { 1, 1, 1 }
+
+local function Line(out, text, c)
+    out[#out + 1] = { text = text, r = c[1], g = c[2], b = c[3] }
+end
+
+-- { {text, r, g, b}... }: "Used in" per profession; with shift, the recipe names under each (known in
+-- white), else a hint that Shift lists them. Names and hint only with the tooltipUsedInNames setting.
+-- {} before the index is complete or when nothing of yours uses the item.
+function ns.UsedInLines(itemID, shift)
+    local L, out = ns.L, {}
+    local groups = ns.UsedInGroups(itemID)
+    if not groups or #groups == 0 then return out end
+    local names = ns.Setting("tooltipUsedInNames")
+    for _, g in ipairs(groups) do
+        local prof = ProfessionName(g.line)
+        if g.total == 1 then
+            Line(out, L.USED_IN_ONE:format(prof, g.known), GREY)
+        else
+            Line(out, L.USED_IN:format(g.total, prof, g.known), GREY)
+        end
+        if names and shift then
+            for i, r in ipairs(g.recipes) do
+                if i > UsedIn.NAMES_MAX then
+                    Line(out, "  " .. L.NEEDED_MORE:format(#g.recipes - UsedIn.NAMES_MAX), DIM)
+                    break
+                end
+                Line(out, "  " .. r.name, r.known and WHITE or DIM)
+            end
+        end
+    end
+    if names and not shift then Line(out, L.USED_IN_HINT, DIM) end
+    return out
+end
+
 ns.On("PLAYER_LOGIN", function()
     C_Timer.After(UsedIn.DELAY, function()
         if ns.Setting("tooltipUsedIn") then UsedIn.Start() end

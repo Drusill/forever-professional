@@ -156,3 +156,8 @@ L.TRACKED_EMPTY = "Nothing tracked yet. Track a recipe from its detail or the ca
 L.NEEDED_FOR = "Needed for: %s (%d)"
 L.NEEDED_MORE = "and %d more"
 L.TRACKED_TOTAL = "Tracked total: %d / %d"
+
+-- "Used in" reagent lines (UsedIn.lua)
+L.USED_IN = "Used in %d %s recipes (%d known)"
+L.USED_IN_ONE = "Used in 1 %s recipe (%d known)"
+L.USED_IN_HINT = "Hold Shift to list the recipes"

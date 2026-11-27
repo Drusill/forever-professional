@@ -274,5 +274,99 @@ class GroupsTest(unittest.TestCase):
         self.assertIsNone(a.ns.UsedInGroups(LINEN))
 
 
+def tailoring_spells(n):
+    """The first n Tailoring spell IDs in the data (ascending), read from the baked file."""
+    import re
+    text = (pathlib.Path(__file__).resolve().parent.parent / "ForeverProfessional" / "Data" / "Recipes"
+            / "Tailoring.lua").read_text(encoding="utf-8")
+    return sorted(int(m) for m in re.findall(r"^\s*\[(\d+)\] = \{", text, re.M))[:n]
+
+
+GREY, DIM, WHITE = (0.75, 0.75, 0.75), (0.5, 0.5, 0.5), (1, 1, 1)
+HINT = "Hold Shift to list the recipes"
+LINEN_LINES = ["Used in 1 Tailoring recipe (1 known)", "Used in 1 Alchemy recipe (0 known)",
+               "Used in 1 Cooking recipe (0 known)", "Used in 1 First Aid recipe (1 known)"]
+
+
+class TooltipLinesTest(unittest.TestCase):
+    def setUp(self):
+        self.a = ready()
+
+    def hover(self, item, a=None):
+        a = a or self.a
+        a.run(f"GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID({item})")
+        tt = a.g.GameTooltip
+        return [plain(l) for l in lua_list(tt.lines)]
+
+    def colors(self, a=None):
+        return [tuple(round(v, 2) for v in c.values()) for c in lua_list((a or self.a).g.GameTooltip.colors)]
+
+    def test_lines_and_hint(self):
+        self.assertEqual(self.hover(LINEN), [" "] + LINEN_LINES + [HINT])
+        self.assertEqual(self.colors()[1:], [GREY] * 4 + [DIM])
+
+    def test_plural(self):
+        self.assertEqual(self.hover(BOLT), [" ", "Used in 2 Tailoring recipes (0 known)", HINT])
+
+    def test_shift_lists_names(self):
+        self.a.run("mock.shift = true")
+        self.assertEqual(self.hover(LINEN), [
+            " ", LINEN_LINES[0], "  Spell 2963", LINEN_LINES[1], "  Spell 7183",
+            LINEN_LINES[2], "  Spell 2795", LINEN_LINES[3], "  Spell 3275"])
+        self.assertEqual(self.colors()[1:], [GREY, WHITE, GREY, DIM, GREY, DIM, GREY, WHITE])
+
+    def test_shift_cap(self):
+        spells = tailoring_spells(12)
+        a = ready(schematics={s: [(THREAD, 1)] for s in spells})
+        a.run("mock.shift = true")
+        lines = self.hover(THREAD, a)
+        self.assertEqual(lines[1], "Used in 12 Tailoring recipes (0 known)")
+        self.assertEqual(len(lines), 2 + 10 + 1)
+        self.assertEqual(lines[-1], "  and 2 more")
+
+    def test_names_setting_off(self):
+        self.a.run("ForeverProfessionalDB.tooltipUsedInNames = false")
+        self.assertEqual(self.hover(LINEN), [" "] + LINEN_LINES)
+        self.a.run("mock.shift = true")
+        self.assertEqual(self.hover(LINEN), [" "] + LINEN_LINES)
+
+    def test_setting_off(self):
+        self.a.run("ForeverProfessionalDB.tooltipUsedIn = false")
+        self.assertEqual(self.hover(LINEN), [])
+
+    def test_not_ready(self):
+        self.assertEqual(self.hover(LINEN, logged_in()), [])
+
+    def test_unused_item(self):
+        self.assertEqual(self.hover(765), [])
+
+    def test_after_tracked_block(self):
+        self.a.g._ns = self.a.ns
+        self.a.run("_ns.TrackedLines = function() return { 'Needed for: X (1)', 'Tracked total: 0 / 1' } end")
+        self.assertEqual(self.hover(LINEN), [" ", "Needed for: X (1)", "Tracked total: 0 / 1", " "]
+                         + LINEN_LINES + [HINT])
+
+    def test_tracked_setting_off(self):
+        self.a.g._ns = self.a.ns
+        self.a.run("_ns.TrackedLines = function() return { 'Needed for: X (1)', 'Tracked total: 0 / 1' } end; "
+                   "ForeverProfessionalDB.tooltipTracked = false")
+        self.assertEqual(self.hover(LINEN), [" "] + LINEN_LINES + [HINT])
+
+    def test_owner_setting_off(self):
+        a = ready()
+        a.run("ForeverProfessionalDB.tooltipOwners = false")
+        self.assertEqual(self.hover(6053, a), [])      # a Cooking recipe item: owner lines hidden
+        a.run("ForeverProfessionalDB.tooltipOwners = true")
+        self.assertNotEqual(self.hover(6053, a), [])
+
+    def test_used_in_error_swallowed(self):
+        self.a.g._ns = self.a.ns
+        self.a.run("_ns.UsedInLines = function() error('boom') end")
+        self.assertEqual(self.hover(LINEN), [])
+        errors = lua_list(self.a.mock.errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("boom", errors[0])
+
+
 if __name__ == "__main__":
     unittest.main()
