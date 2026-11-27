@@ -368,6 +368,72 @@ class TooltipLinesTest(unittest.TestCase):
         self.assertIn("boom", errors[0])
 
 
+class DebugTest(unittest.TestCase):
+    def debug(self, a):
+        before = len(a.printed())
+        a.slash("debug")
+        return [plain(p).removeprefix("ForeverProfessional ") for p in a.printed()[before:]]
+
+    def test_off(self):
+        a = logged_in(CHARS + "; ForeverProfessionalDB.tooltipUsedIn = false")
+        out = self.debug(a)
+        self.assertEqual(len(out), 1)
+        self.assertIn("Used in index: off", out[0])
+
+    def test_not_started(self):
+        a = Addon(setup=CHARS + "; " + seeded())
+        a.run('fire("ADDON_LOADED", "ForeverProfessional"); fire("PLAYER_LOGIN")')
+        before = len(a.printed())
+        a.g.SlashCmdList.FOREVERPROFESSIONAL("debug")   # no flush: the 5 s timer hasn't fired
+        out = [plain(p).removeprefix("ForeverProfessional ") for p in a.printed()[before:]]
+        self.assertIn("Used in index: not started yet (starts 5 s after login).", out[0])
+
+    def test_building(self):
+        a = logged_in()
+        read, total = a.ns.UsedIn.stats.read, a.ns.UsedIn.Index().total
+        out = self.debug(a)
+        self.assertIn(f"Used in index: building, {read} / {total} recipes.", out[0])
+
+    def test_ready(self):
+        a = ready()
+        total = a.ns.UsedIn.Index().total
+        out = self.debug(a)
+        self.assertIn("Used in index: ready.", out[0])
+        self.assertRegex(out[1], r"^Build: \d+\.\d ms over \d+ frames \(slowest frame \d+\.\d\d ms\), \d+\.\d s wall\.$")
+        self.assertEqual(out[2], f"Recipes: {total} read, {total - len(SCHEMATICS)} without reagents. "
+                                 "Items: 4, entries: 9.")
+        self.assertRegex(out[3], r"^Lua memory \(every addon, rough\): \d+ KB before, \d+ KB after \([+-]\d+ KB\)\.$")
+        self.assertEqual(out[4], "First hover: none yet. Hover a reagent, then /fp debug again.")
+        self.assertEqual(len(out), 5)
+
+    def test_first_hover(self):
+        a = ready()
+        a.run("GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID(2589)")
+        first = a.ns.UsedIn.stats.firstHoverMs
+        a.run("GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID(2996)")
+        self.assertEqual(a.ns.UsedIn.stats.firstHoverMs, first)
+        self.assertGreaterEqual(a.ns.UsedIn.stats.slowestHoverMs, first)
+        self.assertRegex(self.debug(a)[4], r"^First hover: \d+\.\d\d ms\. Slowest hover: \d+\.\d\d ms\.$")
+
+    def test_hover_before_ready_not_timed(self):
+        a = logged_in()
+        a.run("GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID(2589)")
+        self.assertIsNone(a.ns.UsedIn.stats.firstHoverMs)
+
+    def test_addon_memory_when_available(self):
+        a = ready(CHARS + "; _updates = 0; UpdateAddOnMemoryUsage = function() _updates = _updates + 1 end; "
+                  "C_AddOns = C_AddOns or {}; C_AddOns.GetAddOnMemoryUsage = function(name) "
+                  "return name == 'ForeverProfessional' and 1234.5 or 0 end")
+        out = self.debug(a)
+        self.assertEqual(out[3], "Addon memory: 1235 KB before, 1235 KB after (+0 KB).")
+        self.assertEqual(a.g._updates, 2)   # once at the start, once at the end: never per batch
+
+    def test_help_lists_debug(self):
+        a = logged_in()
+        a.slash("help")
+        self.assertIn("/fp debug", a.printed()[-1])
+
+
 class ShiftRedrawTest(unittest.TestCase):
     def setUp(self):
         self.a = ready()

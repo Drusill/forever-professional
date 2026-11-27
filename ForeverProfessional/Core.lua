@@ -171,6 +171,9 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
     elseif cmd == "forget" then
         ns.ForgetCommand(rest)
         return
+    elseif cmd == "debug" then
+        for _, line in ipairs(ns.UsedIn.DebugLines()) do ns.Print(line) end
+        return
     end
     if not ns.UI then return end
     if msg == "" then

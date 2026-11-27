@@ -29,10 +29,22 @@ function UsedIn.Lookup(itemID)
     return builder:Lookup(itemID)
 end
 
+-- Memory in KB and where it came from: this addon's own usage when the client reports it (the update scans
+-- every addon, so it runs at the start and the end only, never per batch), else the whole Lua state.
+local function Memory()
+    local get = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or GetAddOnMemoryUsage
+    if UpdateAddOnMemoryUsage and get then
+        local ok = pcall(UpdateAddOnMemoryUsage)
+        local okGet, kb = pcall(get, "ForeverProfessional")
+        if ok and okGet and type(kb) == "number" then return kb, "addon" end
+    end
+    return collectgarbage("count"), "lua"
+end
+
 local function Begin()
     if builder then return end
     UsedIn.stats = NewStats()
-    UsedIn.stats.memBefore = collectgarbage("count")
+    UsedIn.stats.memBefore, UsedIn.stats.memSource = Memory()
     UsedIn.stats.started = GetTime()
     builder = ns.Model.NewUsedInIndex()
 end
@@ -50,7 +62,7 @@ local function StepOnce()
     if done then
         running = false
         s.wallSeconds = GetTime() - s.started
-        s.memAfter = collectgarbage("count")
+        s.memAfter = Memory()
     end
     return done
 end
@@ -169,10 +181,21 @@ end
 -- { {text, r, g, b}... }: "Used in" per profession; with shift, the recipe names under each (known in
 -- white), else a hint that Shift lists them. Names and hint only with the tooltipUsedInNames setting.
 -- {} before the index is complete or when nothing of yours uses the item.
+local function TimeHover(t0)
+    local s, ms = UsedIn.stats, debugprofilestop() - t0
+    if not s.firstHoverMs then s.firstHoverMs = ms end
+    if not s.slowestHoverMs or ms > s.slowestHoverMs then s.slowestHoverMs = ms end
+end
+
 function ns.UsedInLines(itemID, shift)
     local L, out = ns.L, {}
+    if not UsedIn.Ready() then return out end
+    local t0 = debugprofilestop()
     local groups = ns.UsedInGroups(itemID)
-    if not groups or #groups == 0 then return out end
+    if #groups == 0 then
+        TimeHover(t0)
+        return out
+    end
     local names = ns.Setting("tooltipUsedInNames")
     for _, g in ipairs(groups) do
         local prof = ProfessionName(g.line)
@@ -192,6 +215,40 @@ function ns.UsedInLines(itemID, shift)
         end
     end
     if names and not shift then Line(out, L.USED_IN_HINT, DIM) end
+    TimeHover(t0)
+    return out
+end
+
+-- /fp debug -------------------------------------------------------------------------------------------
+
+local function Round(x) return math.floor(x + 0.5) end
+
+-- The index's state and cost, as chat lines: build time per frame, memory and the first hover.
+function UsedIn.DebugLines()
+    local L, s, out = ns.L, UsedIn.stats, {}
+    if not ns.Setting("tooltipUsedIn") then
+        out[1] = L.DEBUG_OFF
+        return out
+    end
+    if not builder then
+        out[1] = L.DEBUG_NOT_STARTED:format(UsedIn.DELAY)
+        return out
+    end
+    if not UsedIn.Ready() then
+        out[1] = L.DEBUG_BUILDING:format(s.read, builder.total)
+        return out
+    end
+    out[#out + 1] = L.DEBUG_READY
+    out[#out + 1] = L.DEBUG_COST:format(s.totalMs, s.frames, s.slowestMs, s.wallSeconds)
+    out[#out + 1] = L.DEBUG_COUNTS:format(s.read, s.missing, s.items, s.entries)
+    local before, after = Round(s.memBefore), Round(s.memAfter)
+    out[#out + 1] = (s.memSource == "addon" and L.DEBUG_MEMORY_ADDON or L.DEBUG_MEMORY_LUA)
+        :format(before, after, after - before)
+    if s.firstHoverMs then
+        out[#out + 1] = L.DEBUG_HOVER:format(s.firstHoverMs, s.slowestHoverMs)
+    else
+        out[#out + 1] = L.DEBUG_NO_HOVER
+    end
     return out
 end
 
