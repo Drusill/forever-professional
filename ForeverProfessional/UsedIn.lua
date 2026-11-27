@@ -84,6 +84,79 @@ function UsedIn.Finish()
     while not StepOnce() do end
 end
 
+-- Counting -----------------------------------------------------------------------------------------
+
+-- Who holds each profession: { [line] = { [faction] = true } }, over every saved character.
+local function Holders()
+    local out = {}
+    for _, c in pairs(ns.db and ns.db.chars or {}) do
+        for line in pairs(c.professions or {}) do
+            out[line] = out[line] or {}
+            if c.faction then out[line][c.faction] = true end
+        end
+    end
+    return out
+end
+
+local function KnownByAnyone(spellID)
+    for _, c in pairs(ns.db and ns.db.chars or {}) do
+        if c.learned and c.learned[spellID] then return true end
+    end
+    return false
+end
+
+local function ProfessionName(line)
+    local p = ns.Data.Professions and ns.Data.Professions[line]
+    return p and p.name or tostring(line)
+end
+
+-- The recipes using an item, per profession any of your characters holds:
+-- { {line, total, known, recipes = { {spellID, known}... }}... }, nil until the index is complete.
+-- A recipe counts when someone knows it, or it isn't locked to a side, or a holder of the profession is of
+-- its side. The logged-in character's professions come first, then by name; recipes by skill, then name.
+function ns.UsedInGroups(itemID)
+    local uses = UsedIn.Lookup(itemID)
+    if not UsedIn.Ready() then return nil end
+    local out = {}
+    if not uses then return out end
+    local holders = Holders()
+    local me = ns.GetChar()
+    local mine = me and me.professions or {}
+    local byLine = {}
+    for _, u in ipairs(uses) do
+        local sides = holders[u.line]
+        local rec = sides and ns.Data.Recipes[u.line] and ns.Data.Recipes[u.line][u.spellID]
+        if rec then
+            local known = KnownByAnyone(u.spellID)
+            if known or not rec.side or sides[rec.side] then
+                local g = byLine[u.line]
+                if not g then
+                    g = { line = u.line, total = 0, known = 0, recipes = {} }
+                    byLine[u.line] = g
+                    out[#out + 1] = g
+                end
+                g.total = g.total + 1
+                if known then g.known = g.known + 1 end
+                g.recipes[#g.recipes + 1] = { spellID = u.spellID, known = known,
+                    learn = rec.learn or 0, name = ns.Model.RecipeDisplayName(u.spellID) }
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        local ma, mb = mine[a.line] ~= nil, mine[b.line] ~= nil
+        if ma ~= mb then return ma end
+        return ProfessionName(a.line) < ProfessionName(b.line)
+    end)
+    for _, g in ipairs(out) do
+        table.sort(g.recipes, function(a, b)
+            if a.learn ~= b.learn then return a.learn < b.learn end
+            if a.name ~= b.name then return a.name < b.name end
+            return a.spellID < b.spellID
+        end)
+    end
+    return out
+end
+
 ns.On("PLAYER_LOGIN", function()
     C_Timer.After(UsedIn.DELAY, function()
         if ns.Setting("tooltipUsedIn") then UsedIn.Start() end

@@ -21,20 +21,27 @@ SCHEMATICS = {
 }
 
 DRU, PALY = "Player-1-0000000B", "Player-1-0000000D"
-# Logged-in Tester (Horde) holds Tailoring and knows 2963. Dru (Horde) holds First Aid, Alchemy and Cooking
-# and knows 3275. Paly (Alliance) holds Cooking.
-CHARS = """
+
+
+def chars(dru_learned="[3275] = true", paly=True):
+    """Logged-in Tester (Horde) holds Tailoring and knows 2963. Dru (Horde) holds First Aid, Alchemy and
+    Cooking and knows 3275. Paly (Alliance) holds Cooking."""
+    paly_entry = """
+  ["Player-1-0000000D"] = { guid = "Player-1-0000000D", name = "Paly", class = "PALADIN", faction = "Alliance",
+    level = 50, updated = 1795000000, learned = {}, professions = { [185] = { skill = 30, max = 75 } } },"""
+    return """
 ForeverProfessionalDB = { version = 2, chars = {
   ["Player-1-0000000B"] = { guid = "Player-1-0000000B", name = "Dru", class = "ROGUE", faction = "Horde",
-    level = 40, updated = 1795000000, learned = { [3275] = true },
+    level = 40, updated = 1795000000, learned = { %s },
     professions = { [129] = { skill = 100, max = 150 }, [171] = { skill = 60, max = 75 },
-                    [185] = { skill = 50, max = 75 } } },
-  ["Player-1-0000000D"] = { guid = "Player-1-0000000D", name = "Paly", class = "PALADIN", faction = "Alliance",
-    level = 50, updated = 1795000000, learned = {}, professions = { [185] = { skill = 30, max = 75 } } },
+                    [185] = { skill = 50, max = 75 } } },%s
 } }
 mock.professions = { { name = "Tailoring", icon = 136249, skill = 60, max = 75, line = 197 } }
 mock.learned = { [2963] = true }
-"""
+""" % (dru_learned, paly_entry if paly else "")
+
+
+CHARS = chars()
 
 
 def seeded(schematics=SCHEMATICS):
@@ -209,6 +216,62 @@ class BuildTest(unittest.TestCase):
         self.assertIsNone(self.U.Lookup(LINEN))
         self.U.Finish()
         self.assertEqual(len(lua_list(self.U.Lookup(LINEN))), 4)
+
+
+NO_PALY = chars(paly=False)
+
+
+def ready(setup=CHARS, schematics=SCHEMATICS):
+    a = logged_in(setup, schematics)
+    a.ns.UsedIn.Finish()
+    return a
+
+
+def groups(a, item):
+    g = a.ns.UsedInGroups(item)
+    return g and [(x.line, x.total, x.known) for x in lua_list(g)]
+
+
+def recipes(a, item, line):
+    for g in lua_list(a.ns.UsedInGroups(item)):
+        if g.line == line:
+            return [(r.spellID, r.known) for r in lua_list(g.recipes)]
+
+
+class GroupsTest(unittest.TestCase):
+    def test_fixture_without_paly(self):
+        self.assertNotIn("Paly", NO_PALY)
+        self.assertIn("Dru", NO_PALY)
+
+    def test_groups(self):
+        # Tester's Tailoring first, then by name: Alchemy, Cooking (Paly is Alliance), First Aid (Dru knows it).
+        a = ready()
+        self.assertEqual(groups(a, LINEN), [(197, 1, 1), (171, 1, 0), (185, 1, 0), (129, 1, 1)])
+
+    def test_other_side_recipe_needs_a_holder_of_that_side(self):
+        a = ready(NO_PALY)
+        self.assertEqual(groups(a, LINEN), [(197, 1, 1), (171, 1, 0), (129, 1, 1)])
+
+    def test_known_recipe_counts_whatever_its_side(self):
+        a = ready(chars(dru_learned="[3275] = true, [2795] = true", paly=False))
+        self.assertIn((185, 1, 1), groups(a, LINEN))
+
+    def test_profession_nobody_holds(self):
+        a = ready(schematics={**SCHEMATICS, 3932: [(LINEN, 1)]})   # Engineering: Target Dummy
+        self.assertNotIn(202, [g[0] for g in groups(a, LINEN)])
+
+    def test_recipes_sorted_by_learn_then_name(self):
+        a = ready(schematics={**SCHEMATICS, 2401: [(BOLT, 1)]})   # Tailoring, learned at 70
+        self.assertEqual(recipes(a, BOLT, 197), [(2387, False), (3915, False), (2401, False)])
+        self.assertEqual(recipes(a, LINEN, 197), [(2963, True)])
+
+    def test_unused_item(self):
+        a = ready()
+        self.assertEqual(groups(a, 765), [])
+
+    def test_nil_before_ready(self):
+        a = logged_in()
+        self.assertIsNone(a.ns.UsedInGroups(LINEN))
 
 
 if __name__ == "__main__":
