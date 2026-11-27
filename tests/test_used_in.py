@@ -129,5 +129,87 @@ class IndexTest(unittest.TestCase):
         self.assertEqual(self.a.mock.schematicCalls, before)
 
 
+def one_frame(a):
+    """Run the timers queued so far once, like one client frame."""
+    a.run("local t = mock.timers; mock.timers = {}; for _, f in ipairs(t) do f() end")
+
+
+class BuildTest(unittest.TestCase):
+    def setUp(self):
+        self.a = logged_in()
+        self.U = self.a.ns.UsedIn
+
+    def stats(self):
+        return self.U.stats
+
+    def test_waits_after_login(self):
+        a = Addon(setup=CHARS + "; " + seeded())
+        a.run(f'fire("ADDON_LOADED", "ForeverProfessional"); fire("PLAYER_LOGIN")')
+        self.assertFalse(a.ns.UsedIn.Ready())
+        self.assertEqual(a.ns.UsedIn.stats.frames, 0)
+        self.assertEqual(a.ns.UsedIn.DELAY, 5)
+
+    def test_started_by_login(self):
+        # login() flushes 20 timer rounds: the build is under way, a batch per round, not done yet.
+        read = self.stats().read
+        self.assertGreater(read, 0)
+        self.assertEqual(read % self.U.BATCH, 0)
+        self.assertFalse(self.U.Ready())
+        self.assertTrue(self.U.Building())
+
+    def test_one_batch_per_frame(self):
+        read = self.stats().read
+        one_frame(self.a)
+        self.assertEqual(self.stats().read, read + 40)
+        self.assertEqual(self.U.BATCH, 40)
+
+    def test_runs_to_the_end(self):
+        while not self.U.Ready():
+            one_frame(self.a)
+        self.assertFalse(self.U.Building())
+        self.assertEqual(len(lua_list(self.a.mock.timers)), 0)
+
+    def test_not_started_when_off(self):
+        a = logged_in(CHARS + "; ForeverProfessionalDB.tooltipUsedIn = false")
+        self.assertEqual(a.ns.UsedIn.stats.frames, 0)
+        self.assertFalse(a.ns.UsedIn.Building())
+
+    def test_stop_and_resume(self):
+        self.U.Stop()
+        read = self.stats().read
+        self.a.run("flush()")
+        self.assertEqual(self.stats().read, read)
+        self.assertFalse(self.U.Building())
+        self.U.Start()
+        one_frame(self.a)
+        self.assertEqual(self.stats().read, read + 40)
+
+    def test_start_twice_one_chain(self):
+        self.U.Start()
+        self.U.Start()
+        read = self.stats().read
+        one_frame(self.a)
+        self.assertEqual(self.stats().read, read + 40)
+
+    def test_finish_and_stats(self):
+        self.U.Finish()
+        self.assertTrue(self.U.Ready())
+        s = self.stats()
+        b = self.U.Index()
+        self.assertEqual(s.read, b.total)
+        self.assertEqual(s.missing, b.total - len(SCHEMATICS))
+        self.assertEqual(s["items"], 4)
+        self.assertEqual(s.entries, 9)
+        self.assertGreaterEqual(s.frames, 20)
+        for key in ("totalMs", "slowestMs", "wallSeconds", "memBefore", "memAfter"):
+            self.assertGreaterEqual(s[key], 0, key)
+        self.assertGreaterEqual(s.totalMs, s.slowestMs)
+
+    def test_lookup_only_when_ready(self):
+        self.assertIsNone(self.U.Lookup(LINEN))
+        self.U.Finish()
+        self.assertEqual(len(lua_list(self.U.Lookup(LINEN))), 4)
+
+
 if __name__ == "__main__":
     unittest.main()
