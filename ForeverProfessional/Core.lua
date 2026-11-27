@@ -159,6 +159,10 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
         if ns.MinimapButton then ns.MinimapButton.ToggleHidden() end
         return
     end
+    if msg:lower() == "options" then
+        if ns.UI and ns.UI.ToggleOptions then ns.UI.ToggleOptions() end
+        return
+    end
     local cmd, rest = msg:match("^(%S+)%s*(.-)$")
     cmd = cmd and cmd:lower()
     if cmd == "chars" then

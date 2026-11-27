@@ -8,7 +8,7 @@ ns.L = L
 L.TITLE = "ForeverProfessional"
 L.LOADED = "loaded. Type |cffffd200/fp|r to open."
 L.HELP = "|cffffd200/fp|r toggles the window, |cffffd200/fp <profession>|r opens a profession, "
-    .. "|cffffd200/fp minimap|r shows or hides the minimap button, "
+    .. "|cffffd200/fp minimap|r shows or hides the minimap button, |cffffd200/fp options|r opens the options, "
     .. "|cffffd200/fp chars|r lists your characters, |cffffd200/fp forget <number or name>|r removes one."
 L.UNKNOWN_PROFESSION = "No profession called \"%s\"."
 
@@ -161,3 +161,14 @@ L.TRACKED_TOTAL = "Tracked total: %d / %d"
 L.USED_IN = "Used in %d %s recipes (%d known)"
 L.USED_IN_ONE = "Used in 1 %s recipe (%d known)"
 L.USED_IN_HINT = "Hold Shift to list the recipes"
+
+-- Options window (UI/Options.lua)
+L.OPTIONS_TITLE = "ForeverProfessional options"
+L.OPTIONS_BUTTON = "Options"
+L.OPTIONS_MINIMAP = "Minimap"
+L.OPTIONS_SHOW_MINIMAP = "Show the minimap button"
+L.OPTIONS_TOOLTIPS = "Item tooltips"
+L.OPTIONS_OWNERS = "Recipe items: who knows or can learn it"
+L.OPTIONS_TRACKED = "Tracked recipes: \"Needed for\" lines"
+L.OPTIONS_USED_IN = "Reagents: \"Used in\" lines"
+L.OPTIONS_USED_IN_NAMES = "Hold Shift to list the recipes"
