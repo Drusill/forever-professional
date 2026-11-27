@@ -1,6 +1,6 @@
 # "Used in" Reagent Tooltip Implementation Plan
 
-> Steps use checkbox (`- [ ]`) syntax for tracking. Implement task by task, test first.
+> Steps use checkbox (`- [x]`) syntax for tracking. Implement task by task, test first.
 
 **Goal:** Item tooltips say which professions of your characters use an item as a reagent, how many of those recipes are known, and list them with Shift. A background index, built live after login, backs the lines. A small options window turns the tooltip lines and the minimap button on and off. `/fp debug` prints the index cost.
 
@@ -70,9 +70,9 @@ with 0 countable recipes is never shown.
 - Test: `tests/test_calculator.py` (`test_reagents_first_of_slot`: a slot with two reagents yields only the first from `M.Reagents`; needs the mock's alternative slots from Task 2, so this test lands in Task 2 instead if the mock can't express it yet)
 - Test: `tests/test_minimap.py` (`test_left_click_toggles_only`: a right click today does nothing)
 
-- [ ] **Step 1:** Write the pins. They must pass against current code (they pin, they don't drive). Check each can fail by breaking the code briefly.
-- [ ] **Step 2:** Full suite, expect PASS.
-- [ ] **Step 3: Commit**: `test: pin tooltip order, reagent reading and minimap clicks`
+- [x] **Step 1:** Write the pins. They must pass against current code (they pin, they don't drive). Check each can fail by breaking the code briefly.
+- [x] **Step 2:** Full suite, expect PASS.
+- [x] **Step 3: Commit**: `test: pin tooltip order, reagent reading and minimap clicks`
 
 ### Task 2: Mock support
 
@@ -80,8 +80,8 @@ with 0 countable recipes is never shown.
 - Modify: `tests/wow_mock.lua`: `mock.schematics` slots accept alternatives `{itemID, count, alt...}`; `IsShiftKeyDown()` returns `mock.shift`; tooltips get `IsShown`, `Show`, `Hide`, `GetOwner`, and `RefreshData` (clears, then re-runs the item post-calls for `self.item`) unless `mock.noRefreshData`.
 - Test: `tests/test_addon.py` (or the closest mock test file): one test per mock addition.
 
-- [ ] **Step 1:** Failing tests for the mock additions. **Step 2:** Implement. **Step 3:** Full suite.
-- [ ] **Step 4: Commit**: `test(mock): reagent alternatives, Shift and tooltip refresh`
+- [x] **Step 1:** Failing tests for the mock additions. **Step 2:** Implement. **Step 3:** Full suite.
+- [x] **Step 4: Commit**: `test(mock): reagent alternatives, Shift and tooltip refresh`
 
 ### Task 3: Reagent reader and index builder (`Model.lua`)
 
@@ -89,79 +89,79 @@ with 0 countable recipes is never shown.
 - `M.ReagentItems(spellID) -> { itemID... } | nil`: every reagent of every slot, distinct, slot order; uses `M.schematics[spellID]` when it's a table, else `pcall(GetRecipeSchematic, spellID, false)` without caching.
 - `M.NewUsedInIndex() -> builder` with `Step(n) -> done`, `Done()`, `Lookup(itemID) -> { {line, spellID}... } | nil`, and counters `read`, `missing`, `items`, `entries`. Queue order: lines ascending, spells ascending. Lists sorted by line, `learn`, spell ID when the last step finishes.
 
-- [ ] **Step 1: Failing tests** (`tests/test_used_in.py`, `IndexTest`):
+- [x] **Step 1: Failing tests** (`tests/test_used_in.py`, `IndexTest`):
   - `test_reagent_items_all_slots_and_alternatives`, `test_reagent_items_distinct`, `test_reagent_items_missing` (nil), `test_reagent_items_uses_cache` (`mock.schematicCalls` unchanged for a spell already in `M.schematics`).
   - `test_schematics_untouched`: after a full build, `next(M.schematics) == nil`.
   - `test_batch_size`: `Step(10)` raises `read` by 10 and calls the API at most 10 times.
   - `test_index_lookup`: Linen 2589 → the fixture's recipes, sorted; an unused item → nil; `missing` counts recipes without schematics.
   - `test_done_once`: `Step` after done returns true and reads nothing.
-- [ ] **Step 2:** Run, expect failures. **Step 3:** Implement. **Step 4:** Full suite.
-- [ ] **Step 5: Commit**: `feat(model): reverse reagent index built in batches`
+- [x] **Step 2:** Run, expect failures. **Step 3:** Implement. **Step 4:** Full suite.
+- [x] **Step 5: Commit**: `feat(model): reverse reagent index built in batches`
 
 ### Task 4: Settings defaults
 
 **Files:** `Core.lua` (`DEFAULTS`: `tooltipOwners`, `tooltipTracked`, `tooltipUsedIn`, `tooltipUsedInNames` = true; `ns.Setting(key)` reading `ns.db`, true when there's no db yet), tests in `tests/test_addon.py`.
 
-- [ ] **Step 1: Failing tests:** defaults true; a saved `false` stays false after login; `ns.Setting` before `InitDB`.
-- [ ] **Step 2–4:** Run, implement, full suite.
-- [ ] **Step 5: Commit**: `feat(core): tooltip settings`
+- [x] **Step 1: Failing tests:** defaults true; a saved `false` stays false after login; `ns.Setting` before `InitDB`.
+- [x] **Step 2–4:** Run, implement, full suite.
+- [x] **Step 5: Commit**: `feat(core): tooltip settings`
 
 ### Task 5: Background build and stats (`UsedIn.lua`, new)
 
 **Interfaces:** `ns.UsedIn.Start()`, `ns.UsedIn.Stop()`, `ns.UsedIn.Ready()`, `ns.UsedIn.Finish()` (synchronous, for tests and `/fp debug`), `ns.UsedIn.stats` (spec's list), `ns.UsedIn.BATCH = 40`. Login schedules `Start` after 5 s when `tooltipUsedIn` is on. The chain re-arms with `C_Timer.After(0, step)`.
 
-- [ ] **Step 1: Failing tests** (`BuildTest`): nothing built before the delay; after `flush()` rounds the build progresses by `BATCH` per round; not started with the setting off; `Stop` halts the chain; `Start` twice doesn't run two chains; stats filled (frames, read, missing, items, entries, total and slowest ms ≥ 0, memory numbers present).
-- [ ] **Step 2:** Run, expect failures. **Step 3:** Add `UsedIn.lua` to the TOC, implement. **Step 4:** Full suite.
-- [ ] **Step 5: Commit**: `feat(used-in): build the reagent index over frames after login`
+- [x] **Step 1: Failing tests** (`BuildTest`): nothing built before the delay; after `flush()` rounds the build progresses by `BATCH` per round; not started with the setting off; `Stop` halts the chain; `Start` twice doesn't run two chains; stats filled (frames, read, missing, items, entries, total and slowest ms ≥ 0, memory numbers present).
+- [x] **Step 2:** Run, expect failures. **Step 3:** Add `UsedIn.lua` to the TOC, implement. **Step 4:** Full suite.
+- [x] **Step 5: Commit**: `feat(used-in): build the reagent index over frames after login`
 
 ### Task 6: Groups (`UsedIn.lua`)
 
 **Interface:** `ns.UsedInGroups(itemID)` as in the spec; nil until ready.
 
-- [ ] **Step 1: Failing tests** (`GroupsTest`, the fixture): the three groups and their order; known counts by alt; the Alliance recipe with and without Paly; a recipe known by a character despite its side counts; a profession nobody holds has no group; recipes sorted by `learn` then name; nil before ready.
-- [ ] **Step 2–4:** Run, implement, full suite.
-- [ ] **Step 5: Commit**: `feat(used-in): count recipes per profession your characters hold`
+- [x] **Step 1: Failing tests** (`GroupsTest`, the fixture): the three groups and their order; known counts by alt; the Alliance recipe with and without Paly; a recipe known by a character despite its side counts; a profession nobody holds has no group; recipes sorted by `learn` then name; nil before ready.
+- [x] **Step 2–4:** Run, implement, full suite.
+- [x] **Step 5: Commit**: `feat(used-in): count recipes per profession your characters hold`
 
 ### Task 7: Tooltip lines (`UsedIn.lua`, `Tooltip.lua`, `Locale.lua`)
 
 **Interface:** `ns.UsedInLines(itemID, shift) -> { {text, r, g, b}... }`; `Tooltip.lua` adds them after the tracked block with a blank line; owner and tracked blocks gated by `tooltipOwners` / `tooltipTracked`.
 
-- [ ] **Step 1: Failing tests** (through `GameTooltip:SetItemByID`): the fixture's three lines after "Tracked total"; singular; "(0 known)"; the hint as the last line; with `mock.shift` the names (white known, grey unknown) under each group; 12 recipes → 10 names + `  and 2 more`; `tooltipUsedInNames` off → no hint, no names even with Shift; `tooltipUsedIn` off → no block; not ready → no block; `tooltipOwners` / `tooltipTracked` off hide their blocks; an error inside `ns.UsedInLines` is swallowed and reported (`test_used_in_error_swallowed`); an enchant-like recipe without `creates` doesn't trip the nil guard.
-- [ ] **Step 2–4:** Run, implement, full suite.
-- [ ] **Step 5: Commit**: `feat(tooltip): "Used in" lines with Shift recipe names`
+- [x] **Step 1: Failing tests** (through `GameTooltip:SetItemByID`): the fixture's three lines after "Tracked total"; singular; "(0 known)"; the hint as the last line; with `mock.shift` the names (white known, grey unknown) under each group; 12 recipes → 10 names + `  and 2 more`; `tooltipUsedInNames` off → no hint, no names even with Shift; `tooltipUsedIn` off → no block; not ready → no block; `tooltipOwners` / `tooltipTracked` off hide their blocks; an error inside `ns.UsedInLines` is swallowed and reported (`test_used_in_error_swallowed`); an enchant-like recipe without `creates` doesn't trip the nil guard.
+- [x] **Step 2–4:** Run, implement, full suite.
+- [x] **Step 5: Commit**: `feat(tooltip): "Used in" lines with Shift recipe names`
 
 ### Task 8: Shift redraw (`Tooltip.lua`)
 
-- [ ] **Step 1: Failing tests:** `fire("MODIFIER_STATE_CHANGED", "LSHIFT", 1)` with a shown item tooltip and `mock.shift = true` → names appear (via `RefreshData`); with `mock.noRefreshData` → the owner's `OnEnter` runs; `"LCTRL"` → nothing; a hidden tooltip → nothing; registration wrapped in `pcall`.
-- [ ] **Step 2–4:** Run, implement, full suite.
-- [ ] **Step 5: Commit**: `feat(tooltip): redraw item tooltips when Shift changes`
+- [x] **Step 1: Failing tests:** `fire("MODIFIER_STATE_CHANGED", "LSHIFT", 1)` with a shown item tooltip and `mock.shift = true` → names appear (via `RefreshData`); with `mock.noRefreshData` → the owner's `OnEnter` runs; `"LCTRL"` → nothing; a hidden tooltip → nothing; registration wrapped in `pcall`.
+- [x] **Step 2–4:** Run, implement, full suite.
+- [x] **Step 5: Commit**: `feat(tooltip): redraw item tooltips when Shift changes`
 
 ### Task 9: Options window (`UI/Options.lua`, new; `Core.lua`; `UI/Minimap.lua`; `Locale.lua`)
 
 **Interfaces:** `UI.ToggleOptions()`, `UI.ShowOptions()`, `UI.HideOptions()`; `MB.SetHidden(hidden)` extracted from `MB.ToggleHidden` (which then calls it); `/fp options`.
 
-- [ ] **Step 1: Failing tests** (`tests/test_options.py`): `/fp options` shows and hides it; five rows in the spec's order with the right checked state; clicking each writes its variable (minimap row shows and hides the button, the `/fp minimap` chat message isn't printed from the window); the Shift row disabled while "Used in" is off and enabled again when it's on; turning "Used in" on with no index starts the build; listed in `UISpecialFrames`; fits a 1024×768 `UIParent`; `/fp minimap` still works (existing tests unmodified).
-- [ ] **Step 2:** Run, expect failures. **Step 3:** Add `UI\Options.lua` to the TOC, implement. **Step 4:** Full suite.
-- [ ] **Step 5: Commit**: `feat(ui): options window`
+- [x] **Step 1: Failing tests** (`tests/test_options.py`): `/fp options` shows and hides it; five rows in the spec's order with the right checked state; clicking each writes its variable (minimap row shows and hides the button, the `/fp minimap` chat message isn't printed from the window); the Shift row disabled while "Used in" is off and enabled again when it's on; turning "Used in" on with no index starts the build; listed in `UISpecialFrames`; fits a 1024×768 `UIParent`; `/fp minimap` still works (existing tests unmodified).
+- [x] **Step 2:** Run, expect failures. **Step 3:** Add `UI\Options.lua` to the TOC, implement. **Step 4:** Full suite.
+- [x] **Step 5: Commit**: `feat(ui): options window`
 
 ### Task 10: Open options from the gear and right-clicks (`UI/Window.lua`, `UI/Minimap.lua`)
 
-- [ ] **Step 1: Failing tests:** a gear button left of the close button opens options and has an "Options" tooltip; the header still fits at 900 wide (charButton, Tracked and Skill don't overlap); minimap right click opens options and left click still toggles the window; the minimap tooltip has "Right-click: options"; `ForeverProfessional_OnAddonCompartmentClick("ForeverProfessional", "RightButton")` opens options, `"LeftButton"` toggles the window.
-- [ ] **Step 2–4:** Run, implement, full suite. Update Task 1's `test_left_click_toggles_only` pin to the new behaviour in this commit, with the reason in the commit body.
-- [ ] **Step 5: Commit**: `feat(ui): open options from the window and the minimap`
+- [x] **Step 1: Failing tests:** a gear button left of the close button opens options and has an "Options" tooltip; the header still fits at 900 wide (charButton, Tracked and Skill don't overlap); minimap right click opens options and left click still toggles the window; the minimap tooltip has "Right-click: options"; `ForeverProfessional_OnAddonCompartmentClick("ForeverProfessional", "RightButton")` opens options, `"LeftButton"` toggles the window.
+- [x] **Step 2–4:** Run, implement, full suite. Update Task 1's `test_left_click_toggles_only` pin to the new behaviour in this commit, with the reason in the commit body.
+- [x] **Step 5: Commit**: `feat(ui): open options from the window and the minimap`
 
 ### Task 11: `/fp debug` (`Core.lua`, `UsedIn.lua`, `Locale.lua`)
 
-- [ ] **Step 1: Failing tests:** before start → "Used in index: not started" (or "off" when the setting is off); during → "building, n / 2158 recipes"; after → one line per stat (total ms, slowest batch ms, frames, wall seconds, read, missing, items, entries, memory KB before / after), and "first hover: n ms" once an item tooltip was shown after ready; `/fp help` lists `/fp options` and `/fp debug`.
-- [ ] **Step 2–4:** Run, implement, full suite.
-- [ ] **Step 5: Commit**: `feat(core): /fp debug prints the reagent index cost`
+- [x] **Step 1: Failing tests:** before start → "Used in index: not started" (or "off" when the setting is off); during → "building, n / 2158 recipes"; after → one line per stat (total ms, slowest batch ms, frames, wall seconds, read, missing, items, entries, memory KB before / after), and "first hover: n ms" once an item tooltip was shown after ready; `/fp help` lists `/fp options` and `/fp debug`.
+- [x] **Step 2–4:** Run, implement, full suite.
+- [x] **Step 5: Commit**: `feat(core): /fp debug prints the reagent index cost`
 
 ### Task 12: Docs
 
 **Files:** `README.md` (Features / How to use: "Used in" lines, Shift, the options window and how to open it, `/fp options`, `/fp debug`); `AGENTS.md` (Layout: `UsedIn`, `UI/Options`, `Model` gains the reagent index; saved variables: the four tooltip settings; client facts only once checked in game). Don't touch `CHANGELOG.md` or `docs/ideas.md`.
 
-- [ ] **Step 1:** Update both files. **Step 2:** Full suite.
-- [ ] **Step 3: Commit**: `docs: describe the "Used in" tooltip and the options window`
+- [x] **Step 1:** Update both files. **Step 2:** Full suite.
+- [x] **Step 3: Commit**: `docs: describe the "Used in" tooltip and the options window`
 
 ---
 
@@ -181,3 +181,15 @@ the pull request into `develop` only when the user asks, with `Closes #6`.
 7. Open options from `/fp options`, the gear, a right-click on the minimap button and on the compartment entry. Toggle each checkbox and re-hover: lines go and come back; the minimap button hides and shows; the Shift row greys out with "Used in" off.
 8. `/reload`: the settings are kept.
 9. On an alt of the other faction, a faction-locked recipe's reagent counts only when a character of that faction holds the profession.
+
+## Implementation notes
+
+- Task 1: the minimap right-click pin already existed (`test_right_click_does_nothing`); the `M.Reagents` first-of-slot pin needed the Task 2 mock, so it landed there (`test_reagents_first_of_slot`). The tooltip order pin was checked by swapping the two blocks: it fails.
+- `UsedIn.lua` sits after `Model.lua` in the TOC (not right after `Characters.lua`); it only uses Model at runtime.
+- `MB.SetHidden` already existed; nothing was extracted from `ToggleHidden`.
+- Mock: `AddLine` records colours (`tooltip.colors`); `Click` honours `RegisterForClicks` like the client; a test plays a client without `RefreshData` by setting it to `false` (unknown mock methods are no-ops, so `nil` can't express it).
+- `ns.UsedInLines` returns `{}` before the index is ready, and `ns.UsedInGroups` returns `nil`. Groups with no countable recipe aren't shown.
+- `/fp debug` reports addon memory (`UpdateAddOnMemoryUsage` + `GetAddOnMemoryUsage`, at the start and the end of the build only) when the client has it, else `collectgarbage("count")`, labelled "every addon, rough". It also reports the slowest hover, not just the first.
+- Dropped from Task 7: the enchant nil-guard test. The "Used in" path calls no `C_Item` getter.
+- Header fit at 900px (Task 10) is an estimate (8px a letter for the name, 6px for small text, "Tracked 99"): about 8px spare. In-game checklist item 7 checks it.
+- Commits: spec and plan `9eece21`, Task 1 `30deb3d`, Task 2 `55dca0c`, Task 3 `deff77d`, Task 4 `1fc943f`, Task 5 `8606f63`, Task 6 `41f0f64`, Task 7 `233656b`, Task 8 `8bc9d4a`, Task 9 `6f93dcb`, Task 10 `a52d87e`, Task 11 `0129e4c`, Task 12 (this commit).

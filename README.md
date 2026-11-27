@@ -19,6 +19,8 @@ Blizzard's profession window only lists the recipes you have learned. ForeverPro
 - **Waypoints.** One click puts a map pin on the NPC or object, when its location is known.
 - **Materials calculator.** Enter how many of a recipe you want and get the raw materials to buy or farm, the crafts in order with which of your characters can make each, and the reagent tree. Reagents you or an alt can craft are crafted; switch any of them to buy. What's in your bags and bank is subtracted.
 - **Tracked recipes.** Track several recipes, each with a quantity, and get one shopping list for all of them, shared by all your characters. Item tooltips say which tracked recipe needs the item and how many, and each craft counts its recipe down.
+- **"Used in" tooltips.** Hover a material (cloth, herbs, ore, a crafted part) to see which professions of your characters use it, how many recipes and how many of those you already know. Hold Shift to list the recipes.
+- **Options.** Turn each tooltip addition and the minimap button on or off.
 - **All your characters.** Every character you log in with is remembered. Switch character to see its professions, skill and recipes.
 - **Recipe tooltips.** Hover a recipe item at a vendor, in the Auction House or in a chat link to see which of your characters know it, which can learn it now and which need more skill.
 - **Your language.** Item and recipe names are read live from the game, so they match your client. NPC, quest and object names are translated for German, Spanish, French, Korean, Portuguese, Russian and Chinese clients.
@@ -32,10 +34,12 @@ Blizzard's profession window only lists the recipes you have learned. ForeverPro
 
 - Type `/fp` to open or close the window, or `/fp <profession>` to jump to one (for example `/fp tailor`).
 - Or click the minimap button (drag it around the edge to move it; `/fp minimap` hides it), or the ForeverProfessional entry in the addon compartment.
+- Open the options with `/fp options`, the gear in the window header, or a right-click on the minimap button or the compartment entry.
 - Click **Calculate** on a recipe to plan materials. Type a quantity (on recipes that make several, choose Crafts or Items), then pick **Shopping**, **Steps** or **Tree**. The Craft / Buy buttons are remembered for every recipe; **Reset choices** clears them.
 - Click **Track** on a recipe (or in the calculator, to track the quantity shown there). **Tracked** in the window header opens your tracked recipes: change quantities or untrack them under **Recipes**, and see what to buy for all of them under **Shopping**. Crafting a tracked recipe counts it down; it leaves the list when you've made them all.
 - Click **Filters** next to All / Learned / Missing to pick filters. Options in the same group (Status, Source) add up; different groups narrow each other down. **Clear filters** turns them all off. Skill-ups and Learnable now need the shown character to have the profession.
 - `/fp chars` lists the characters it remembers; `/fp forget <number or name>` removes one you no longer play.
+- The "Used in" lines appear a few seconds after login, once the addon has read every recipe's reagents. `/fp debug` shows how far it got and what it cost.
 - Drag the bottom-right corner to resize the window. Its size and position are remembered.
 
 ## About the data
