@@ -748,6 +748,108 @@ function M.Reagents(spellID)
     return out
 end
 
+-- The distinct item IDs a recipe uses, every reagent of every slot (alternatives too), in slot order; nil
+-- without a schematic. For the "Used in" index: it reads a schematic already in M.schematics, else asks the
+-- client without caching the table, so a full index doesn't keep every recipe's schematic in memory.
+function M.ReagentItems(spellID)
+    local s = M.schematics[spellID]
+    if s == false then return nil end
+    if s == nil then
+        if not (C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic) then return nil end
+        local ok, res = pcall(C_TradeSkillUI.GetRecipeSchematic, spellID, false)
+        s = ok and res or nil
+        if not s then return nil end
+    end
+    local out, seen = {}, {}
+    for _, slot in ipairs(s.reagentSlotSchematics or {}) do
+        for _, r in ipairs(slot.reagents or {}) do
+            local id = r.itemID
+            if id and not seen[id] then
+                seen[id] = true
+                out[#out + 1] = id
+            end
+        end
+    end
+    return out
+end
+
+-- Reverse reagent index: item -> the recipes that use it. Built in batches (Step(n) reads n recipes), so a
+-- caller can spread the ~2,000 client calls over frames. Frame-free: UsedIn.lua drives it.
+
+local UsedInIndex = {}
+UsedInIndex.__index = UsedInIndex
+
+function M.NewUsedInIndex()
+    local b = setmetatable({ lines = {}, spells = {}, pos = 1, index = {},
+        read = 0, missing = 0, items = 0, entries = 0, done = false }, UsedInIndex)
+    local lines = {}
+    for line in pairs(ns.Data.Recipes or {}) do lines[#lines + 1] = line end
+    table.sort(lines)
+    for _, line in ipairs(lines) do
+        local spells = {}
+        for spellID in pairs(ns.Data.Recipes[line]) do spells[#spells + 1] = spellID end
+        table.sort(spells)
+        for _, spellID in ipairs(spells) do
+            b.lines[#b.lines + 1], b.spells[#b.spells + 1] = line, spellID
+        end
+    end
+    b.total = #b.spells
+    return b
+end
+
+-- Each item's recipes by line, then the skill they're learned at, then spell ID.
+local function SortUses(index)
+    local function learn(e)
+        local rec = ns.Data.Recipes[e.line] and ns.Data.Recipes[e.line][e.spellID]
+        return rec and rec.learn or 0
+    end
+    for _, list in pairs(index) do
+        table.sort(list, function(a, b)
+            if a.line ~= b.line then return a.line < b.line end
+            local la, lb = learn(a), learn(b)
+            if la ~= lb then return la < lb end
+            return a.spellID < b.spellID
+        end)
+    end
+end
+
+-- Read up to n more recipes. Returns true once every recipe is read.
+function UsedInIndex:Step(n)
+    if self.done then return true end
+    local last = math.min(self.pos + n - 1, self.total)
+    for i = self.pos, last do
+        local line, spellID = self.lines[i], self.spells[i]
+        local items = M.ReagentItems(spellID)
+        self.read = self.read + 1
+        if not items then
+            self.missing = self.missing + 1
+        else
+            for _, item in ipairs(items) do
+                local list = self.index[item]
+                if not list then
+                    list = {}
+                    self.index[item] = list
+                    self.items = self.items + 1
+                end
+                list[#list + 1] = { line = line, spellID = spellID }
+                self.entries = self.entries + 1
+            end
+        end
+    end
+    self.pos = last + 1
+    if self.pos > self.total then
+        self.done = true
+        self.lines, self.spells = nil, nil
+        SortUses(self.index)
+    end
+    return self.done
+end
+
+function UsedInIndex:Done() return self.done end
+
+-- { {line, spellID}... } or nil. Complete only once Done().
+function UsedInIndex:Lookup(itemID) return itemID and self.index[itemID] end
+
 -- Reverse index: item -> the recipes that create it, across every profession ------------------------
 
 local creating   -- [itemID] = { {line, spellID}... }, each sorted by spell ID; built on first use
