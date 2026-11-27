@@ -129,5 +129,73 @@ class OptionsTest(unittest.TestCase):
         self.assertIn("/fp options", self.a.printed()[-1])
 
 
+class OpenFromTest(unittest.TestCase):
+    def setUp(self):
+        self.a = logged_in()
+        self.a.slash("")          # open the main window, so its header exists
+        self.UI = self.a.ns.UI
+        self.L = self.a.ns.L
+
+    def options_shown(self):
+        w = self.a.g.ForeverProfessionalOptions
+        return bool(w and w.shown)
+
+    def test_gear_left_of_close(self):
+        gear = self.UI.optionsButton
+        point, rel, rel_point, x, _ = self.a.call(gear, "GetPoint")
+        self.assertEqual((point, rel_point), ("RIGHT", "LEFT"))
+        self.assertTrue(self.a.lua.eval("rawequal")(rel, self.a.g.ForeverProfessionalFrame.close))
+        point, rel, *_ = self.a.call(self.UI.charButton, "GetPoint")
+        self.assertTrue(self.a.lua.eval("rawequal")(rel, gear))
+        gear.scripts.OnClick(gear)
+        self.assertTrue(self.options_shown())
+        gear.scripts.OnClick(gear)
+        self.assertFalse(self.options_shown())
+
+    def test_gear_icon(self):
+        self.assertEqual(self.UI.optionsButton.icon.texture, r"Interface\Buttons\UI-OptionsButton")
+
+    def test_gear_tooltip(self):
+        self.a.g.enter(self.UI.optionsButton)
+        self.assertEqual(lua_list(self.a.g.GameTooltip.lines), [self.L.OPTIONS_BUTTON])
+
+    def test_header_fits_minimum_width(self):
+        # An estimate, as in the #4 spec (the mock doesn't measure fonts): the large name font ~8px a letter,
+        # small text ~6px, "Tracked 99" at most. Left to right: icon, name, Tracked, Skill, Recipes, character,
+        # gear, close. Checked in game at the minimum width too.
+        names = [p.name for p in self.a.ns.Data.Professions.values()]
+        name_w = 8 * max(len(n) for n in names)
+        tracked_w = 16 + 6 * len(self.L.TRACKED_N % 99)
+        used = (14 + 34 + 10 + name_w + 16 + tracked_w + 16 + 150 + 16 + 150 + 14 + 150 + 6
+                + self.UI.optionsButton.width + 2 + 32 + 6)
+        self.assertLessEqual(used, self.UI.MIN_W - self.UI.RAIL_W - 1)
+
+    def test_minimap_right_click(self):
+        btn = self.a.g.ForeverProfessionalMinimapButton
+        shown = self.a.g.ForeverProfessionalFrame.shown
+        self.a.call(btn, "Click", "RightButton")
+        self.assertTrue(self.options_shown())
+        self.assertEqual(self.a.g.ForeverProfessionalFrame.shown, shown)
+        self.a.call(btn, "Click", "LeftButton")
+        self.assertNotEqual(self.a.g.ForeverProfessionalFrame.shown, shown)
+
+    def test_minimap_registers_right_clicks(self):
+        btn = self.a.g.ForeverProfessionalMinimapButton
+        self.assertIn("RightButtonUp", lua_list(btn.clicks))
+
+    def test_minimap_tooltip_mentions_right_click(self):
+        self.a.g.enter(self.a.g.ForeverProfessionalMinimapButton)
+        self.assertIn(self.L.MINIMAP_RIGHT_CLICK, lua_list(self.a.g.GameTooltip.lines))
+
+    def test_compartment_right_click(self):
+        click = self.a.g.ForeverProfessional_OnAddonCompartmentClick
+        shown = self.a.g.ForeverProfessionalFrame.shown
+        click("ForeverProfessional", "RightButton")
+        self.assertTrue(self.options_shown())
+        self.assertEqual(self.a.g.ForeverProfessionalFrame.shown, shown)
+        click("ForeverProfessional", "LeftButton")
+        self.assertNotEqual(self.a.g.ForeverProfessionalFrame.shown, shown)
+
+
 if __name__ == "__main__":
     unittest.main()

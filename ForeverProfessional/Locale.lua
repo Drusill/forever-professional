@@ -88,6 +88,7 @@ L.FORGET_USAGE = "Usage: /fp forget <number or name>, with the numbers from |cff
 
 L.MINIMAP_CLICK = "Click to open or close"
 L.MINIMAP_DRAG = "Drag to move"
+L.MINIMAP_RIGHT_CLICK = "Right-click for options"
 L.MINIMAP_HIDE_HINT = "/fp minimap hides this button"
 L.MINIMAP_HIDDEN = "Minimap button hidden. Type |cffffd200/fp minimap|r to show it again."
 L.MINIMAP_SHOWN = "Minimap button shown."

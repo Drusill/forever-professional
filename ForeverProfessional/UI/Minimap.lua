@@ -47,6 +47,7 @@ function MB.ShowTooltip(owner, isButton)
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
     GameTooltip:SetText(L.TITLE, 1, 0.82, 0)
     GameTooltip:AddLine(L.MINIMAP_CLICK, 1, 1, 1)
+    GameTooltip:AddLine(L.MINIMAP_RIGHT_CLICK, 1, 1, 1)
     if isButton then
         if owner:GetParent() == Minimap then GameTooltip:AddLine(L.MINIMAP_DRAG, 1, 1, 1) end
         GameTooltip:AddLine(L.MINIMAP_HIDE_HINT, 0.7, 0.7, 0.7)
@@ -73,7 +74,7 @@ function MB.Create()
     b:SetSize(31, 31)
     b:SetFrameStrata("MEDIUM")
     b:SetFrameLevel(Minimap:GetFrameLevel() + 8)
-    b:RegisterForClicks("LeftButtonUp")
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:RegisterForDrag("LeftButton")
     b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
@@ -95,7 +96,11 @@ function MB.Create()
     border:SetPoint("TOPLEFT")
 
     b:SetScript("OnClick", function(_, button)
-        if button == "LeftButton" and ns.UI then ns.UI.Toggle() end
+        if button == "LeftButton" and ns.UI then
+            ns.UI.Toggle()
+        elseif button == "RightButton" and ns.UI and ns.UI.ToggleOptions then
+            ns.UI.ToggleOptions()
+        end
     end)
     b:SetScript("OnEnter", function(self) MB.ShowTooltip(self, true) end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -119,9 +124,11 @@ end
 ns.On("PLAYER_LOGIN", function() MB.Create() end)
 
 -- Addon compartment (the addon list button by the minimap), declared in the TOC.
--- The client calls these with (addonName, ...); any click toggles the window.
-function ForeverProfessional_OnAddonCompartmentClick()
-    if ns.UI then ns.UI.Toggle() end
+-- The client calls these with (addonName, ...); the click passes the mouse button second. A right-click
+-- opens the options, any other click toggles the window.
+function ForeverProfessional_OnAddonCompartmentClick(_, button)
+    if not ns.UI then return end
+    if button == "RightButton" and ns.UI.ToggleOptions then ns.UI.ToggleOptions() else ns.UI.Toggle() end
 end
 
 function ForeverProfessional_OnAddonCompartmentEnter(_, owner)

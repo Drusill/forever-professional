@@ -280,6 +280,7 @@ end
 -- Header ------------------------------------------------------------------------------------------
 
 local STAT_W = 150
+local OPTIONS_ICON = "Interface\\Buttons\\UI-OptionsButton"   -- the client's gear
 
 local function CreateStat(header, label)
     local s = {}
@@ -325,13 +326,16 @@ local function CreateHeader(f)
     h.name:SetPoint("LEFT", h.icon, "RIGHT", 10, 0)
     h.name:SetJustifyH("LEFT")
 
-    -- Right to left: close button, character selector, recipes, skill.
+    -- Right to left: close button, options gear, character selector, recipes, skill.
     f.close = CreateFrame("Button", "ForeverProfessionalFrameClose", h, "UIPanelCloseButton")
     f.close:SetPoint("RIGHT", h, "RIGHT", -6, 0)
     f.close:SetScript("OnClick", function() UI.Hide() end)
 
+    UI.optionsButton = UI.CreateIconButton(h, OPTIONS_ICON, L.OPTIONS_BUTTON, function() UI.ToggleOptions() end)
+    UI.optionsButton:SetPoint("RIGHT", f.close, "LEFT", -2, 0)
+
     UI.charButton = UI.CreateCharButton(h)
-    UI.charButton:SetPoint("RIGHT", f.close, "LEFT", -6, 0)
+    UI.charButton:SetPoint("RIGHT", UI.optionsButton, "LEFT", -6, 0)
 
     local recipes = CreateStat(h, L.RECIPES)
     h.recipesLabel, h.recipesText = recipes.label, recipes.value

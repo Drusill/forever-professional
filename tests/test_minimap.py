@@ -56,9 +56,11 @@ class ButtonTest(unittest.TestCase):
         self.a.call(self.btn, "Click", "LeftButton")
         self.assertFalse(self.window_shown())
 
-    def test_right_click_does_nothing(self):
+    def test_right_click_opens_options_not_the_window(self):
+        # Was test_right_click_does_nothing: right-click now opens the options window (#6).
         self.a.call(self.btn, "Click", "RightButton")
         self.assertFalse(self.window_shown())
+        self.assertTrue(self.a.g.ForeverProfessionalOptions.shown)
 
     def test_default_position_is_bottom_left_on_the_ring(self):
         self.assertOffset(self.offset(), ring_point(225))

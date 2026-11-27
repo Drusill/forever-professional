@@ -187,8 +187,18 @@ function Widget:CreateFontString(name, layer, template)
     return t
 end
 function Widget:CreateMaskTexture(name) return self:CreateTexture(name) end
+-- Like the client, a button registered for some clicks ignores the others.
+function Widget:RegisterForClicks(...) self.clicks = { ... } end
 function Widget:Click(button)
-    if self.scripts.OnClick then self.scripts.OnClick(self, button or "LeftButton", false) end
+    button = button or "LeftButton"
+    if self.clicks then
+        local ok = false
+        for _, c in ipairs(self.clicks) do
+            if c == button .. "Up" or c == button .. "Down" or c == "AnyUp" or c == "AnyDown" then ok = true end
+        end
+        if not ok then return end
+    end
+    if self.scripts.OnClick then self.scripts.OnClick(self, button, false) end
 end
 function Widget:SetScrollChild(c) self.scrollChild = c; c.parent = self end
 function Widget:GetScrollChild() return self.scrollChild end
