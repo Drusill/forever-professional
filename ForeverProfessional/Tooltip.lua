@@ -83,6 +83,7 @@ local function AddUsedInLines(tooltip, itemID)
     if #lines == 0 then return false end
     tooltip:AddLine(" ")
     for _, l in ipairs(lines) do tooltip:AddLine(l.text, l.r, l.g, l.b) end
+    tooltip.fpUsedIn = true   -- Shift changes redraw it (below)
     return true
 end
 
@@ -123,6 +124,31 @@ for _, tooltip in ipairs({ GameTooltip, ItemRefTooltip }) do
         if not viaProcessor then
             pcall(tooltip.HookScript, tooltip, "OnTooltipSetItem", function(self) Safe(self) end)
         end
-        pcall(tooltip.HookScript, tooltip, "OnTooltipCleared", function(self) self.fpItem = nil end)
+        pcall(tooltip.HookScript, tooltip, "OnTooltipCleared", function(self)
+            self.fpItem, self.fpUsedIn = nil, nil
+        end)
     end
 end
+
+-- Pressing or releasing Shift redraws a shown tooltip with "Used in" lines, so the recipe names come and
+-- go without moving the mouse. RefreshData rebuilds the tooltip (post-calls included); without it, the
+-- owner's OnEnter sets it again.
+local function Redraw(tooltip)
+    if not (tooltip and tooltip.fpUsedIn and tooltip:IsShown()) then return end
+    if tooltip.RefreshData then
+        tooltip:RefreshData()
+        return
+    end
+    local owner = tooltip.GetOwner and tooltip:GetOwner()
+    local onEnter = owner and owner.GetScript and owner:GetScript("OnEnter")
+    if onEnter then onEnter(owner) end
+end
+
+ns.On("MODIFIER_STATE_CHANGED", function(key)
+    if key ~= "LSHIFT" and key ~= "RSHIFT" then return end
+    if not (ns.Setting("tooltipUsedIn") and ns.Setting("tooltipUsedInNames")) then return end
+    for _, tooltip in ipairs({ GameTooltip, ItemRefTooltip }) do
+        local ok, err = pcall(Redraw, tooltip)
+        if not ok and geterrorhandler then geterrorhandler()(err) end
+    end
+end)

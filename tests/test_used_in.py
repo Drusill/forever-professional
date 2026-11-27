@@ -368,5 +368,76 @@ class TooltipLinesTest(unittest.TestCase):
         self.assertIn("boom", errors[0])
 
 
+class ShiftRedrawTest(unittest.TestCase):
+    def setUp(self):
+        self.a = ready()
+        self.a.run("_refreshes = 0; local r = GameTooltip.RefreshData; "
+                   "GameTooltip.RefreshData = function(self) _refreshes = _refreshes + 1; return r(self) end")
+
+    def lines(self):
+        return [plain(l) for l in lua_list(self.a.g.GameTooltip.lines)]
+
+    def hover(self, item=LINEN):
+        self.a.run(f"GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID({item})")
+
+    def press(self, key="LSHIFT", down=True):
+        self.a.run(f"mock.shift = {'true' if down and 'SHIFT' in key else 'false'}; "
+                   f"fire('MODIFIER_STATE_CHANGED', '{key}', {1 if down else 0})")
+
+    def test_shift_down_and_up(self):
+        self.hover()
+        self.assertEqual(self.lines()[-1], HINT)
+        self.press()
+        self.assertIn("  Spell 2963", self.lines())
+        self.assertNotIn(HINT, self.lines())
+        self.press(down=False)
+        self.assertEqual(self.lines()[-1], HINT)
+        self.assertEqual(self.a.g._refreshes, 2)
+
+    def test_right_shift(self):
+        self.hover()
+        self.press("RSHIFT")
+        self.assertIn("  Spell 2963", self.lines())
+
+    def test_other_modifier_ignored(self):
+        self.hover()
+        self.press("LCTRL")
+        self.assertEqual(self.a.g._refreshes, 0)
+
+    def test_hidden_tooltip_ignored(self):
+        self.hover()
+        self.a.run("GameTooltip:Hide()")
+        self.press()
+        self.assertEqual(self.a.g._refreshes, 0)
+
+    def test_item_without_used_in_ignored(self):
+        self.hover(765)
+        self.press()
+        self.assertEqual(self.a.g._refreshes, 0)
+
+    def test_fallback_owner_on_enter(self):
+        self.a.run("GameTooltip.RefreshData = false; _entered = 0; _bag = CreateFrame('Button'); "
+                   "_bag:SetScript('OnEnter', function(self) _entered = _entered + 1; "
+                   "GameTooltip:SetOwner(self); GameTooltip:SetItemByID(2589) end); "
+                   "_bag.scripts.OnEnter(_bag)")
+        self.press()
+        self.assertEqual(self.a.g._entered, 2)
+        self.assertIn("  Spell 2963", self.lines())
+
+    def test_names_setting_off_no_redraw(self):
+        self.a.run("ForeverProfessionalDB.tooltipUsedInNames = false")
+        self.hover()
+        self.press()
+        self.assertEqual(self.a.g._refreshes, 0)
+
+    def test_redraw_error_reported(self):
+        self.hover()
+        self.a.run("GameTooltip.RefreshData = function() error('boom') end")
+        self.press()       # must not raise
+        errors = lua_list(self.a.mock.errors)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("boom", errors[0])
+
+
 if __name__ == "__main__":
     unittest.main()
