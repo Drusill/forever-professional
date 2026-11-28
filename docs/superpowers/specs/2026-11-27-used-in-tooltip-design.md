@@ -107,8 +107,11 @@ tooltip lines off, which also takes the existing minimap setting.
   done (`GetTime`), recipes read, missing schematics, distinct items, index entries, memory at the start
   and the end of the build (addon memory when the client reports it, else `collectgarbage("count")`), the
   memory now, and the first hover's cost in ms after the index is ready. The end count still holds the
-  client's schematic tables waiting for the garbage collector: `/fp debug gc` runs a full collection
-  first, so "now" is the memory the addon keeps.
+  client's schematic tables waiting for the garbage collector. `/fp debug gc` runs a full collection
+  first, then builds a throwaway second copy of the index and collects again: the difference is the
+  memory the index keeps, apart from anything else the addon allocated since login. The queue is sorted
+  by one number per recipe (`learn * span + spellID`), so `table.sort` needs no Lua comparator; the
+  debug output shows that setup's time.
 - `ns.UsedInGroups(itemID)` → `{ {line, total, known, recipes = { {spellID, known}... }}... }`, nil until
   the index is done. It covers lines held by any character (`professions` keys), with recipes filtered by
   decision 6. A line left with no countable recipe gets no group. Groups for the logged-in character's professions come first, then the rest, each by profession
@@ -180,7 +183,7 @@ The issue requires a measured, acceptable cost. `/fp debug` prints the numbers. 
   that can't be split: the slowest recipe line shows whether that's the cause.
 - The index ready within a few seconds of login.
 - The first hover after the index is done under 2 ms.
-- Memory kept, measured with `/fp debug gc`: well under 1 MB over the build start.
+- Memory the index keeps ("Index kept" in `/fp debug gc`): well under 1 MB.
 
 If a batch is too slow even at small sizes, the fallback is decision 1's alternative (baking), which needs
 separate approval for `tools/`.

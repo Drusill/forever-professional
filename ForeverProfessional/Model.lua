@@ -798,18 +798,18 @@ function M.NewUsedInIndex()
     local lines = {}
     for line in pairs(ns.Data.Recipes or {}) do lines[#lines + 1] = line end
     table.sort(lines)
+    -- Each recipe sorts by one number, learn * span + spellID (span is above every spell ID of the line), so
+    -- table.sort compares numbers itself instead of calling a Lua comparator ~20,000 times: that sort was the
+    -- slowest frame of the build in game (10 ms).
     for _, line in ipairs(lines) do
-        local recipes, spells, learn = ns.Data.Recipes[line], {}, {}
-        for spellID, rec in pairs(recipes) do
-            spells[#spells + 1] = spellID
-            learn[spellID] = rec.learn or 0
+        local recipes, keys, span = ns.Data.Recipes[line], {}, 1
+        for spellID in pairs(recipes) do
+            if spellID >= span then span = spellID + 1 end
         end
-        table.sort(spells, function(x, y)
-            if learn[x] ~= learn[y] then return learn[x] < learn[y] end
-            return x < y
-        end)
-        for _, spellID in ipairs(spells) do
-            b.lines[#b.lines + 1], b.spells[#b.spells + 1] = line, spellID
+        for spellID, rec in pairs(recipes) do keys[#keys + 1] = (rec.learn or 0) * span + spellID end
+        table.sort(keys)
+        for _, key in ipairs(keys) do
+            b.lines[#b.lines + 1], b.spells[#b.spells + 1] = line, key % span
         end
     end
     b.total = #b.spells

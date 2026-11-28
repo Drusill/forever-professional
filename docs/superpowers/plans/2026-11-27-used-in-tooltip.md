@@ -207,3 +207,14 @@ First `/fp debug` in game: 148.3 ms over 54 frames, slowest frame 43.18 ms (targ
 - [x] Full suite: 515 tests pass.
 
 In game: full client restart is not needed (no TOC change), `/reload` is enough. Wait about 10 s, then `/fp debug`: slowest frame ≤ 8 ms, and the slowest recipe line. Then `/fp debug gc`: memory after a full garbage collection, well under 1 MB over the build start.
+
+## Task 14: setup frame and the index's own memory
+
+Second check in game: 96.5 ms over 25 frames, slowest frame 10.19 ms, slowest recipe 2.77 ms (spell 1244431), 1.4 s wall; addon memory 5849 → 19407 KB right after the build, 6664 KB a little later without forcing a collection (the +13.5 MB was garbage), 7866 KB after `/fp debug gc` (+2017 KB over the build start, which counts everything the addon allocated since, not only the index); first hover 0.01 ms.
+
+- A batch frame can't pass 4 ms + the slowest recipe (6.8 ms), so the 10.19 ms frame was the setup: the queue sort called a Lua comparator per comparison.
+- [x] Failing tests: setup timed as `setupMs` and shown in `/fp debug`; `/fp debug gc` reports "Index kept" from a second copy, leaving the real index and its stats alone, with two collections.
+- [x] The queue sorts one number per recipe, `learn * span + spellID` (span above the line's largest spell ID; largest in the data 1,328,948, largest learn 320, so exact in a double).
+- [x] Full suite: 517 tests pass.
+
+In game (`/reload`): `/fp debug` → slowest frame ≤ 8 ms and "Listing the recipes" ms; `/fp debug gc` → "Index kept" well under 1 MB.

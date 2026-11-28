@@ -415,6 +415,12 @@ class TooltipLinesTest(unittest.TestCase):
         self.assertIn("boom", errors[0])
 
 
+def wrap_new_index(a, effect):
+    """Run the Lua statement `effect` each time Model.NewUsedInIndex is called."""
+    a.lua.eval("function(M) local new = M.NewUsedInIndex; M.NewUsedInIndex = function() %s; return new() end "
+               "end" % effect)(a.ns.Model)
+
+
 COLLECTS = ("_collects = 0; local cg = collectgarbage; collectgarbage = function(o, ...) "
             "if o == 'collect' then _collects = _collects + 1 end return cg(o, ...) end")
 
@@ -451,7 +457,7 @@ class DebugTest(unittest.TestCase):
         out = self.debug(a)
         self.assertIn("Used in index: ready.", out[0])
         self.assertRegex(out[1], r"^Build: \d+\.\d ms over \d+ frames \(slowest frame \d+\.\d\d ms\), \d+\.\d s wall\.$")
-        self.assertRegex(out[2], r"^Slowest recipe: \d+\.\d\d ms \(spell \d+\)\.$")
+        self.assertRegex(out[2], r"^Slowest recipe: \d+\.\d\d ms \(spell \d+\)\. Listing the recipes: \d+\.\d\d ms\.$")
         self.assertEqual(out[3], f"Recipes: {total} read, {total - len(SCHEMATICS)} without reagents. "
                                  "Items: 4, entries: 9.")
         self.assertRegex(out[4], r"^Lua memory \(every addon, rough\): \d+ KB before, \d+ KB right after "
@@ -464,11 +470,39 @@ class DebugTest(unittest.TestCase):
 
     def test_gc(self):
         a = ready(CHARS + "; " + COLLECTS)
+        index, frames = a.ns.UsedIn.Index(), a.ns.UsedIn.stats.frames
         out = self.debug(a, "debug gc")
-        self.assertEqual(a.g._collects, 1)
+        self.assertEqual(a.g._collects, 2)   # before and after building the copy
         self.assertRegex(out[5], r"^Lua memory \(every addon, rough\) after a full garbage collection: \d+ KB "
                                  r"\([+-]\d+ KB over the build start\)\.$")
-        self.assertEqual(len(out), 7)
+        self.assertRegex(out[6], r"^Index kept: -?\d+ KB \(a second copy, built and measured after a full "
+                                 r"garbage collection\)\.$")
+        self.assertEqual(len(out), 8)
+        # The copy leaves the real index and its build stats alone.
+        self.assertTrue(a.lua.eval("rawequal")(a.ns.UsedIn.Index(), index))
+        self.assertEqual(a.ns.UsedIn.stats.frames, frames)
+
+    def test_gc_measures_the_copy(self):
+        # Addon memory grows by 1 KB per table the addon makes while the copy is built.
+        a = ready(CHARS + "; " + COLLECTS + "; _kb = 1000; UpdateAddOnMemoryUsage = function() end; "
+                  "C_AddOns = C_AddOns or {}; C_AddOns.GetAddOnMemoryUsage = function() return _kb end")
+        wrap_new_index(a, "_kb = _kb + 300")
+        out = self.debug(a, "debug gc")
+        self.assertEqual(out[6], "Index kept: 300 KB (a second copy, built and measured after a full "
+                                 "garbage collection).")
+
+    def test_setup_timed(self):
+        # Listing the recipes costs 7 ms on this clock: a frame of its own, the slowest one.
+        a = Addon(setup=CHARS + "; " + seeded() + "; _t = 0; debugprofilestop = function() return _t end")
+        a.run('fire("ADDON_LOADED", "ForeverProfessional"); fire("PLAYER_LOGIN")')
+        wrap_new_index(a, "_t = _t + 7")
+        a.run("flush()")
+        a.ns.UsedIn.Finish()
+        s = a.ns.UsedIn.stats
+        self.assertEqual(s.setupMs, 7)
+        self.assertEqual(s.slowestMs, 7)
+        self.assertEqual(s.totalMs, 7)
+        self.assertIn("Listing the recipes: 7.00 ms.", self.debug(a)[2])
 
     def test_gc_before_ready_collects_nothing(self):
         a = logged_in(CHARS + "; " + COLLECTS)

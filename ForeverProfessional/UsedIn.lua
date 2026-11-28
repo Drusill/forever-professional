@@ -16,7 +16,7 @@ local chain = 0      -- bumped by Start / Stop / Finish, so a stale timer chain 
 
 local function NewStats()
     return { frames = 0, read = 0, missing = 0, items = 0, entries = 0, totalMs = 0, slowestMs = 0,
-        slowestRecipeMs = 0, wallSeconds = 0, memBefore = 0, memAfter = 0 }
+        slowestRecipeMs = 0, setupMs = 0, wallSeconds = 0, memBefore = 0, memAfter = 0 }
 end
 UsedIn.stats = NewStats()
 
@@ -51,7 +51,7 @@ local function Begin()
     local t0 = debugprofilestop()
     builder = ns.Model.NewUsedInIndex()
     local ms = debugprofilestop() - t0
-    UsedIn.stats.frames, UsedIn.stats.totalMs, UsedIn.stats.slowestMs = 1, ms, ms
+    UsedIn.stats.frames, UsedIn.stats.totalMs, UsedIn.stats.slowestMs, UsedIn.stats.setupMs = 1, ms, ms, ms
 end
 
 -- One frame's batch: recipes one at a time, until BATCH are read or BUDGET_MS is spent, each timed so the
@@ -238,9 +238,22 @@ end
 
 local function Round(x) return math.floor(x + 0.5) end
 
--- The index's state and cost, as chat lines: build time per frame, memory and the first hover. With `gc`,
--- a full garbage collection runs first (a short hitch), so "now" is the memory the addon really keeps:
--- right after the build, the count still holds the client's schematic tables waiting to be collected.
+-- What the index itself keeps, in KB: a second copy is built (synchronously) right after a full garbage
+-- collection that measured `before`, then collected and measured again, so nothing else the addon
+-- allocated since login is counted. The copy is dropped after.
+local function MeasureIndexCopy(before)
+    local copy = ns.Model.NewUsedInIndex()
+    while not copy:Step(UsedIn.BATCH) do end
+    collectgarbage("collect")
+    local after = Memory()
+    copy = nil
+    return after - before
+end
+
+-- The index's state and cost, as chat lines: build time per frame, memory and the first hover. With `gc`
+-- (a short freeze): "now" after a full garbage collection, then the index's own size from a second copy.
+-- Right after the build, the memory count still holds the client's schematic tables waiting for the
+-- collector, and the addon's memory over the build start counts everything else it allocated since.
 function UsedIn.DebugLines(gc)
     local L, s, out = ns.L, UsedIn.stats, {}
     if not ns.Setting("tooltipUsedIn") then
@@ -257,7 +270,7 @@ function UsedIn.DebugLines(gc)
     end
     out[#out + 1] = L.DEBUG_READY
     out[#out + 1] = L.DEBUG_COST:format(s.totalMs, s.frames, s.slowestMs, s.wallSeconds)
-    out[#out + 1] = L.DEBUG_SLOWEST:format(s.slowestRecipeMs, s.slowestRecipeSpell or 0)
+    out[#out + 1] = L.DEBUG_SLOWEST:format(s.slowestRecipeMs, s.slowestRecipeSpell or 0, s.setupMs)
     out[#out + 1] = L.DEBUG_COUNTS:format(s.read, s.missing, s.items, s.entries)
     local before, after = Round(s.memBefore), Round(s.memAfter)
     local label = s.memSource == "addon" and L.DEBUG_ADDON_MEMORY or L.DEBUG_LUA_MEMORY
@@ -267,6 +280,7 @@ function UsedIn.DebugLines(gc)
     local now = Round(nowKB)
     label = source == "addon" and L.DEBUG_ADDON_MEMORY or L.DEBUG_LUA_MEMORY
     out[#out + 1] = (gc and L.DEBUG_MEMORY_GC or L.DEBUG_MEMORY_NOW):format(label, now, now - before)
+    if gc then out[#out + 1] = L.DEBUG_INDEX_KEPT:format(Round(MeasureIndexCopy(nowKB))) end
     if s.firstHoverMs then
         out[#out + 1] = L.DEBUG_HOVER:format(s.firstHoverMs, s.slowestHoverMs)
     else
