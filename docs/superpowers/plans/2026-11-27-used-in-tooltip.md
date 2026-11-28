@@ -218,3 +218,5 @@ Second check in game: 96.5 ms over 25 frames, slowest frame 10.19 ms, slowest re
 - [x] Full suite: 517 tests pass.
 
 In game (`/reload`): `/fp debug` → slowest frame ≤ 8 ms and "Listing the recipes" ms; `/fp debug gc` → "Index kept" well under 1 MB.
+
+Third check in game: 70.9 ms over 24 frames, slowest frame 4.04 ms, listing the recipes 3.47 ms, slowest recipe 0.42 ms, 1.2 s wall; index kept 581 KB; first hover 0.00 ms, slowest hover 0.01 ms. Every cost target passes. The verified client facts are in AGENTS.md.
