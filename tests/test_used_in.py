@@ -129,6 +129,26 @@ class IndexTest(unittest.TestCase):
         self.assertEqual(b["items"], 4)          # Linen, Bolt, Thread, Swiftthistle
         self.assertEqual(b.entries, 9)
 
+    def test_queue_in_learn_order(self):
+        # Recipes are read by line, then learn, then spell ID, so each item's list comes out sorted.
+        b = self.M.NewUsedInIndex()
+        lines, spells = lua_list(b.lines), lua_list(b.spells)
+        recipes = self.a.ns.Data.Recipes
+        keys = [(line, recipes[line][spell].learn or 0, spell) for line, spell in zip(lines, spells)]
+        self.assertEqual(len(keys), b.total)
+        self.assertEqual(keys, sorted(keys))
+
+    def test_lists_in_learn_order(self):
+        # Tailoring 12044 learns at 1, 2385 at 10, 3914 at 25: spell order differs from learn order.
+        a = logged_in(schematics={3914: [(BOLT, 1)], 12044: [(BOLT, 1)], 2385: [(BOLT, 1)]})
+        b = build(a)
+        self.assertEqual(self.lookup(b, BOLT), [(197, 12044), (197, 2385), (197, 3914)])
+
+    def test_uses_stored_flat(self):
+        # One flat {line, spell, line, spell...} array per item, not a table per entry.
+        b = build(self.a)
+        self.assertEqual(lua_list(b.index[LINEN]), [129, 3275, 171, 7183, 185, 2795, 197, 2963])
+
     def test_done_reads_nothing_more(self):
         b = build(self.a)
         before = self.a.mock.schematicCalls
@@ -141,9 +161,15 @@ def one_frame(a):
     a.run("local t = mock.timers; mock.timers = {}; for _, f in ipairs(t) do f() end")
 
 
+FROZEN_CLOCK = "debugprofilestop = function() return 0 end"
+# Each clock read advances 1 ms.
+TICKING_CLOCK = "_t = 0; debugprofilestop = function() _t = _t + 1; return _t end"
+
+
 class BuildTest(unittest.TestCase):
     def setUp(self):
-        self.a = logged_in()
+        # A frozen clock never reaches the frame budget, so every frame reads BATCH recipes.
+        self.a = logged_in(CHARS + "; " + FROZEN_CLOCK)
         self.U = self.a.ns.UsedIn
 
     def stats(self):
@@ -167,8 +193,29 @@ class BuildTest(unittest.TestCase):
     def test_one_batch_per_frame(self):
         read = self.stats().read
         one_frame(self.a)
-        self.assertEqual(self.stats().read, read + 40)
-        self.assertEqual(self.U.BATCH, 40)
+        self.assertEqual(self.stats().read, read + self.U.BATCH)
+        self.assertEqual(self.U.BATCH, 100)
+        self.assertEqual(self.U.BUDGET_MS, 4)
+
+    def test_frame_stops_at_the_budget(self):
+        a = logged_in(CHARS + "; " + TICKING_CLOCK)
+        U = a.ns.UsedIn
+        read = U.stats.read
+        one_frame(a)
+        # Two clock reads per recipe: the budget of 4 ms is spent after 2 recipes.
+        self.assertEqual(U.stats.read - read, 2)
+
+    def test_slowest_recipe(self):
+        # Reading 7183 costs 10 ms on this clock, every other recipe nothing.
+        a = logged_in(CHARS + "; _t = 0; debugprofilestop = function() return _t end; "
+                      "local get = C_TradeSkillUI.GetRecipeSchematic; "
+                      "C_TradeSkillUI.GetRecipeSchematic = function(id, r) "
+                      "if id == 7183 then _t = _t + 10 end return get(id, r) end")
+        U = a.ns.UsedIn
+        U.Finish()
+        self.assertEqual(U.stats.slowestRecipeSpell, 7183)
+        self.assertEqual(U.stats.slowestRecipeMs, 10)
+        self.assertEqual(U.stats.slowestMs, 10)
 
     def test_runs_to_the_end(self):
         while not self.U.Ready():
@@ -189,14 +236,14 @@ class BuildTest(unittest.TestCase):
         self.assertFalse(self.U.Building())
         self.U.Start()
         one_frame(self.a)
-        self.assertEqual(self.stats().read, read + 40)
+        self.assertEqual(self.stats().read, read + self.U.BATCH)
 
     def test_start_twice_one_chain(self):
         self.U.Start()
         self.U.Start()
         read = self.stats().read
         one_frame(self.a)
-        self.assertEqual(self.stats().read, read + 40)
+        self.assertEqual(self.stats().read, read + self.U.BATCH)
 
     def test_finish_and_stats(self):
         self.U.Finish()
@@ -207,7 +254,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(s.missing, b.total - len(SCHEMATICS))
         self.assertEqual(s["items"], 4)
         self.assertEqual(s.entries, 9)
-        self.assertGreaterEqual(s.frames, 20)
+        self.assertGreaterEqual(s.frames, b.total // self.U.BATCH)
         for key in ("totalMs", "slowestMs", "wallSeconds", "memBefore", "memAfter"):
             self.assertGreaterEqual(s[key], 0, key)
         self.assertGreaterEqual(s.totalMs, s.slowestMs)
@@ -368,10 +415,14 @@ class TooltipLinesTest(unittest.TestCase):
         self.assertIn("boom", errors[0])
 
 
+COLLECTS = ("_collects = 0; local cg = collectgarbage; collectgarbage = function(o, ...) "
+            "if o == 'collect' then _collects = _collects + 1 end return cg(o, ...) end")
+
+
 class DebugTest(unittest.TestCase):
-    def debug(self, a):
+    def debug(self, a, msg="debug"):
         before = len(a.printed())
-        a.slash("debug")
+        a.slash(msg)
         return [plain(p).removeprefix("ForeverProfessional ") for p in a.printed()[before:]]
 
     def test_off(self):
@@ -395,16 +446,35 @@ class DebugTest(unittest.TestCase):
         self.assertIn(f"Used in index: building, {read} / {total} recipes.", out[0])
 
     def test_ready(self):
-        a = ready()
+        a = ready(CHARS + "; " + COLLECTS)
         total = a.ns.UsedIn.Index().total
         out = self.debug(a)
         self.assertIn("Used in index: ready.", out[0])
         self.assertRegex(out[1], r"^Build: \d+\.\d ms over \d+ frames \(slowest frame \d+\.\d\d ms\), \d+\.\d s wall\.$")
-        self.assertEqual(out[2], f"Recipes: {total} read, {total - len(SCHEMATICS)} without reagents. "
+        self.assertRegex(out[2], r"^Slowest recipe: \d+\.\d\d ms \(spell \d+\)\.$")
+        self.assertEqual(out[3], f"Recipes: {total} read, {total - len(SCHEMATICS)} without reagents. "
                                  "Items: 4, entries: 9.")
-        self.assertRegex(out[3], r"^Lua memory \(every addon, rough\): \d+ KB before, \d+ KB after \([+-]\d+ KB\)\.$")
-        self.assertEqual(out[4], "First hover: none yet. Hover a reagent, then /fp debug again.")
-        self.assertEqual(len(out), 5)
+        self.assertRegex(out[4], r"^Lua memory \(every addon, rough\): \d+ KB before, \d+ KB right after "
+                                 r"\([+-]\d+ KB, garbage included\)\.$")
+        self.assertRegex(out[5], r"^Lua memory \(every addon, rough\) now: \d+ KB \([+-]\d+ KB over the build "
+                                 r"start\)\. /fp debug gc collects the garbage first\.$")
+        self.assertEqual(out[6], "First hover: none yet. Hover a reagent, then /fp debug again.")
+        self.assertEqual(len(out), 7)
+        self.assertEqual(a.g._collects, 0)
+
+    def test_gc(self):
+        a = ready(CHARS + "; " + COLLECTS)
+        out = self.debug(a, "debug gc")
+        self.assertEqual(a.g._collects, 1)
+        self.assertRegex(out[5], r"^Lua memory \(every addon, rough\) after a full garbage collection: \d+ KB "
+                                 r"\([+-]\d+ KB over the build start\)\.$")
+        self.assertEqual(len(out), 7)
+
+    def test_gc_before_ready_collects_nothing(self):
+        a = logged_in(CHARS + "; " + COLLECTS)
+        out = self.debug(a, "debug gc")
+        self.assertIn("Used in index: building", out[0])
+        self.assertEqual(a.g._collects, 0)
 
     def test_first_hover(self):
         a = ready()
@@ -413,7 +483,7 @@ class DebugTest(unittest.TestCase):
         a.run("GameTooltip:SetOwner(UIParent); GameTooltip:SetItemByID(2996)")
         self.assertEqual(a.ns.UsedIn.stats.firstHoverMs, first)
         self.assertGreaterEqual(a.ns.UsedIn.stats.slowestHoverMs, first)
-        self.assertRegex(self.debug(a)[4], r"^First hover: \d+\.\d\d ms\. Slowest hover: \d+\.\d\d ms\.$")
+        self.assertRegex(self.debug(a)[6], r"^First hover: \d+\.\d\d ms\. Slowest hover: \d+\.\d\d ms\.$")
 
     def test_hover_before_ready_not_timed(self):
         a = logged_in()
@@ -424,14 +494,17 @@ class DebugTest(unittest.TestCase):
         a = ready(CHARS + "; _updates = 0; UpdateAddOnMemoryUsage = function() _updates = _updates + 1 end; "
                   "C_AddOns = C_AddOns or {}; C_AddOns.GetAddOnMemoryUsage = function(name) "
                   "return name == 'ForeverProfessional' and 1234.5 or 0 end")
-        out = self.debug(a)
-        self.assertEqual(out[3], "Addon memory: 1235 KB before, 1235 KB after (+0 KB).")
         self.assertEqual(a.g._updates, 2)   # once at the start, once at the end: never per batch
+        out = self.debug(a)
+        self.assertEqual(out[4], "Addon memory: 1235 KB before, 1235 KB right after (+0 KB, garbage included).")
+        self.assertEqual(out[5], "Addon memory now: 1235 KB (+0 KB over the build start). "
+                                 "/fp debug gc collects the garbage first.")
 
     def test_help_lists_debug(self):
         a = logged_in()
         a.slash("help")
         self.assertIn("/fp debug", a.printed()[-1])
+        self.assertIn("/fp debug gc", a.printed()[-1])
 
 
 class ShiftRedrawTest(unittest.TestCase):

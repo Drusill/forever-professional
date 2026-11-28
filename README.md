@@ -39,7 +39,7 @@ Blizzard's profession window only lists the recipes you have learned. ForeverPro
 - Click **Track** on a recipe (or in the calculator, to track the quantity shown there). **Tracked** in the window header opens your tracked recipes: change quantities or untrack them under **Recipes**, and see what to buy for all of them under **Shopping**. Crafting a tracked recipe counts it down; it leaves the list when you've made them all.
 - Click **Filters** next to All / Learned / Missing to pick filters. Options in the same group (Status, Source) add up; different groups narrow each other down. **Clear filters** turns them all off. Skill-ups and Learnable now need the shown character to have the profession.
 - `/fp chars` lists the characters it remembers; `/fp forget <number or name>` removes one you no longer play.
-- The "Used in" lines appear a few seconds after login, once the addon has read every recipe's reagents. `/fp debug` shows how far it got and what it cost.
+- The "Used in" lines appear a few seconds after login, once the addon has read every recipe's reagents. `/fp debug` shows how far it got and what it cost; `/fp debug gc` collects the garbage first, to show the memory the addon keeps.
 - Drag the bottom-right corner to resize the window. Its size and position are remembered.
 
 ## About the data

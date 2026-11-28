@@ -172,7 +172,7 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
         ns.ForgetCommand(rest)
         return
     elseif cmd == "debug" then
-        for _, line in ipairs(ns.UsedIn.DebugLines()) do ns.Print(line) end
+        for _, line in ipairs(ns.UsedIn.DebugLines(rest:lower() == "gc")) do ns.Print(line) end
         return
     end
     if not ns.UI then return end

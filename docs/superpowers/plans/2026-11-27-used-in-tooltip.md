@@ -193,3 +193,17 @@ the pull request into `develop` only when the user asks, with `Closes #6`.
 - Dropped from Task 7: the enchant nil-guard test. The "Used in" path calls no `C_Item` getter.
 - Header fit at 900px (Task 10) is an estimate (8px a letter for the name, 6px for small text, "Tracked 99"): about 8px spare. In-game checklist item 7 checks it.
 - Commits: spec and plan `9eece21`, Task 1 `30deb3d`, Task 2 `55dca0c`, Task 3 `deff77d`, Task 4 `1fc943f`, Task 5 `8606f63`, Task 6 `41f0f64`, Task 7 `233656b`, Task 8 `8bc9d4a`, Task 9 `6f93dcb`, Task 10 `a52d87e`, Task 11 `0129e4c`, Task 12 (this commit).
+
+## Task 13: build cost after the first in-game check
+
+First `/fp debug` in game: 148.3 ms over 54 frames, slowest frame 43.18 ms (target ≤ 8), 2158 recipes, 0 without reagents, 527 items, 7105 entries, addon memory 5847 → 21402 KB (+15555, target well under 1 MB), first hover 0.24 ms, slowest hover 0.54 ms. Steps 9 to 11 of the checklist passed (options, `/reload`, Horde-only 23066 Red Firework).
+
+- [x] Pin first: `test_lists_in_learn_order` (spell order differs from learn order) passed before the change.
+- [x] Failing tests: queue in learn order, flat storage per item, frame budget, slowest recipe, `/fp debug` slowest-recipe and memory-now lines, `/fp debug gc`, help.
+- [x] Queue ordered by line, learn, spell ID: the end-of-build sort (the likely 43 ms frame) is gone. Listing the queue is timed as a frame.
+- [x] Each frame reads one recipe at a time until `BATCH = 100` or `BUDGET_MS = 4`.
+- [x] One flat `{line, spellID...}` array per item instead of a table per entry, and one reused scratch list instead of two tables per recipe.
+- [x] `/fp debug` shows the slowest recipe and the memory now; `/fp debug gc` collects garbage first, so the kept memory is measurable. Most of the +15.5 MB is expected to be the client's schematic tables waiting for the collector: the addon can't avoid creating them.
+- [x] Full suite: 515 tests pass.
+
+In game: full client restart is not needed (no TOC change), `/reload` is enough. Wait about 10 s, then `/fp debug`: slowest frame ≤ 8 ms, and the slowest recipe line. Then `/fp debug gc`: memory after a full garbage collection, well under 1 MB over the build start.

@@ -4,8 +4,9 @@
 local _, ns = ...
 
 local UsedIn = {
-    BATCH = 40,   -- recipes read per frame
-    DELAY = 5,    -- seconds after PLAYER_LOGIN, past the login burst and the character rescan
+    BATCH = 100,      -- most recipes read per frame
+    BUDGET_MS = 4,    -- a frame stops reading once it has spent this long
+    DELAY = 5,        -- seconds after PLAYER_LOGIN, past the login burst and the character rescan
 }
 ns.UsedIn = UsedIn
 
@@ -15,7 +16,7 @@ local chain = 0      -- bumped by Start / Stop / Finish, so a stale timer chain 
 
 local function NewStats()
     return { frames = 0, read = 0, missing = 0, items = 0, entries = 0, totalMs = 0, slowestMs = 0,
-        wallSeconds = 0, memBefore = 0, memAfter = 0 }
+        slowestRecipeMs = 0, wallSeconds = 0, memBefore = 0, memAfter = 0 }
 end
 UsedIn.stats = NewStats()
 
@@ -46,15 +47,29 @@ local function Begin()
     UsedIn.stats = NewStats()
     UsedIn.stats.memBefore, UsedIn.stats.memSource = Memory()
     UsedIn.stats.started = GetTime()
+    -- Listing and ordering the recipes is a frame of its own, counted like the batches.
+    local t0 = debugprofilestop()
     builder = ns.Model.NewUsedInIndex()
+    local ms = debugprofilestop() - t0
+    UsedIn.stats.frames, UsedIn.stats.totalMs, UsedIn.stats.slowestMs = 1, ms, ms
 end
 
--- One batch, timed. Returns true when the index is complete.
+-- One frame's batch: recipes one at a time, until BATCH are read or BUDGET_MS is spent, each timed so the
+-- slowest recipe shows in /fp debug. Returns true when the index is complete.
 local function StepOnce()
     local s = UsedIn.stats
     local t0 = debugprofilestop()
-    local done = builder:Step(UsedIn.BATCH)
-    local ms = debugprofilestop() - t0
+    local done, n, now = false, 0, t0
+    repeat
+        local r0 = debugprofilestop()
+        done = builder:Step(1)
+        now = debugprofilestop()
+        n = n + 1
+        if now - r0 > s.slowestRecipeMs then
+            s.slowestRecipeMs, s.slowestRecipeSpell = now - r0, builder.last
+        end
+    until done or n >= UsedIn.BATCH or now - t0 >= UsedIn.BUDGET_MS
+    local ms = now - t0
     s.frames = s.frames + 1
     s.totalMs = s.totalMs + ms
     if ms > s.slowestMs then s.slowestMs = ms end
@@ -223,8 +238,10 @@ end
 
 local function Round(x) return math.floor(x + 0.5) end
 
--- The index's state and cost, as chat lines: build time per frame, memory and the first hover.
-function UsedIn.DebugLines()
+-- The index's state and cost, as chat lines: build time per frame, memory and the first hover. With `gc`,
+-- a full garbage collection runs first (a short hitch), so "now" is the memory the addon really keeps:
+-- right after the build, the count still holds the client's schematic tables waiting to be collected.
+function UsedIn.DebugLines(gc)
     local L, s, out = ns.L, UsedIn.stats, {}
     if not ns.Setting("tooltipUsedIn") then
         out[1] = L.DEBUG_OFF
@@ -240,10 +257,16 @@ function UsedIn.DebugLines()
     end
     out[#out + 1] = L.DEBUG_READY
     out[#out + 1] = L.DEBUG_COST:format(s.totalMs, s.frames, s.slowestMs, s.wallSeconds)
+    out[#out + 1] = L.DEBUG_SLOWEST:format(s.slowestRecipeMs, s.slowestRecipeSpell or 0)
     out[#out + 1] = L.DEBUG_COUNTS:format(s.read, s.missing, s.items, s.entries)
     local before, after = Round(s.memBefore), Round(s.memAfter)
-    out[#out + 1] = (s.memSource == "addon" and L.DEBUG_MEMORY_ADDON or L.DEBUG_MEMORY_LUA)
-        :format(before, after, after - before)
+    local label = s.memSource == "addon" and L.DEBUG_ADDON_MEMORY or L.DEBUG_LUA_MEMORY
+    out[#out + 1] = L.DEBUG_MEMORY:format(label, before, after, after - before)
+    if gc then collectgarbage("collect") end
+    local nowKB, source = Memory()
+    local now = Round(nowKB)
+    label = source == "addon" and L.DEBUG_ADDON_MEMORY or L.DEBUG_LUA_MEMORY
+    out[#out + 1] = (gc and L.DEBUG_MEMORY_GC or L.DEBUG_MEMORY_NOW):format(label, now, now - before)
     if s.firstHoverMs then
         out[#out + 1] = L.DEBUG_HOVER:format(s.firstHoverMs, s.slowestHoverMs)
     else

@@ -85,22 +85,30 @@ tooltip lines off, which also takes the existing minimap setting.
   in slot order. It reads `M.schematics[spellID]` when cached, else calls `GetRecipeSchematic(spellID,
   false)` in `pcall` and doesn't cache the table. Returns `nil` when there's no schematic.
 - `M.NewUsedInIndex(recipes)` → a frame-free builder over `ns.Data.Recipes`. It holds a queue of
-  `{line, spellID}` and `index[itemID] = { {line, spellID}... }`, and keeps counters: `read`, `missing` (no
-  schematic), `items`, `entries`. Methods: `Step(n)` reads up to n queued recipes and returns true when it's
-  done; `Done()`; `Lookup(itemID)`. Lists are sorted by line, then `learn`, then spell ID, once at the end.
+  `{line, spellID}` ordered by line, then `learn`, then spell ID, so each item's list fills in that order
+  and is never sorted. `index[itemID]` is one flat `{line, spellID, line, spellID...}` array (a table per
+  entry cost about 1 MB). Counters: `read`, `missing` (no schematic), `items`, `entries`. Methods:
+  `Step(n)` reads up to n queued recipes and returns true when it's done; `Done()`; `Lookup(itemID)`
+  returns a new `{ {line, spellID}... }` list. Reading reuses one scratch list per build, not two tables
+  per recipe. (Revised after the first in-game check: the end-of-build sort was a 43 ms frame and the
+  memory grew by 15.5 MB.)
 - `Model.Schematic` / `Model.Reagents` are not touched.
 
 ### Background build and counting (`UsedIn.lua`, new)
 
 - 5 s after `PLAYER_LOGIN` (after the login burst and the existing 3 s character rescan), when
   `tooltipUsedIn` is on, start a
-  `C_Timer.After(0, step)` chain: each frame runs `Step(BATCH)`, with `BATCH = 40` recipes (55 frames,
-  under a second at 60 fps), tuned from the measured numbers. Turning the option on later starts the build.
-  Turning it off stops the chain at the next frame and keeps the partial index.
-- Stats for `/fp debug`: total build ms (sum of each batch's `debugprofilestop` delta), the slowest batch in
-  ms, the number of frames, wall time from start to done (`GetTime`), recipes read, missing schematics,
-  distinct items, index entries, Lua memory before and after (`collectgarbage("count")`, rough because of
-  GC), and the first hover's cost in ms after the index is ready.
+  `C_Timer.After(0, step)` chain: each frame reads recipes one at a time until `BATCH = 100` are read or
+  `BUDGET_MS = 4` is spent. Listing and ordering the queue counts as a frame of its own. Turning the
+  option on later starts the build. Turning it off stops the chain at the next frame and keeps the partial
+  index.
+- Stats for `/fp debug`: total build ms (sum of each frame's `debugprofilestop` delta), the slowest frame
+  and the slowest single recipe (with its spell ID) in ms, the number of frames, wall time from start to
+  done (`GetTime`), recipes read, missing schematics, distinct items, index entries, memory at the start
+  and the end of the build (addon memory when the client reports it, else `collectgarbage("count")`), the
+  memory now, and the first hover's cost in ms after the index is ready. The end count still holds the
+  client's schematic tables waiting for the garbage collector: `/fp debug gc` runs a full collection
+  first, so "now" is the memory the addon keeps.
 - `ns.UsedInGroups(itemID)` → `{ {line, total, known, recipes = { {spellID, known}... }}... }`, nil until
   the index is done. It covers lines held by any character (`professions` keys), with recipes filtered by
   decision 6. A line left with no countable recipe gets no group. Groups for the logged-in character's professions come first, then the rest, each by profession
@@ -168,10 +176,11 @@ No data format change. Four new top-level booleans in `ForeverProfessionalDB`, d
 
 The issue requires a measured, acceptable cost. `/fp debug` prints the numbers. Acceptance:
 
-- No batch slower than 8 ms (half a 60 fps frame), else lower `BATCH`.
+- No frame slower than 8 ms (half a 60 fps frame), else lower `BUDGET_MS`. A single recipe slower than
+  that can't be split: the slowest recipe line shows whether that's the cause.
 - The index ready within a few seconds of login.
 - The first hover after the index is done under 2 ms.
-- Index memory reported, expected well under 1 MB.
+- Memory kept, measured with `/fp debug gc`: well under 1 MB over the build start.
 
 If a batch is too slow even at small sizes, the fallback is decision 1's alternative (baking), which needs
 separate approval for `tools/`.
