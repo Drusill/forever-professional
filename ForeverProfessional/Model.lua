@@ -748,6 +748,120 @@ function M.Reagents(spellID)
     return out
 end
 
+-- The distinct item IDs a recipe uses, every reagent of every slot (alternatives too), in slot order; nil
+-- without a schematic. For the "Used in" index: it reads a schematic already in M.schematics, else asks the
+-- client without caching the table, so a full index doesn't keep every recipe's schematic in memory.
+-- Fills out[1..n] with the distinct item IDs and returns n, or nil without a schematic. `seen[id] == mark`
+-- means already listed, so the index can reuse one `out` and one `seen` for every recipe instead of making
+-- two tables per recipe.
+local function FillReagentItems(spellID, out, seen, mark)
+    local s = M.schematics[spellID]
+    if s == false then return nil end
+    if s == nil then
+        if not (C_TradeSkillUI and C_TradeSkillUI.GetRecipeSchematic) then return nil end
+        local ok, res = pcall(C_TradeSkillUI.GetRecipeSchematic, spellID, false)
+        s = ok and res or nil
+        if not s then return nil end
+    end
+    local n = 0
+    for _, slot in ipairs(s.reagentSlotSchematics or {}) do
+        for _, r in ipairs(slot.reagents or {}) do
+            local id = r.itemID
+            if id and seen[id] ~= mark then
+                seen[id] = mark
+                n = n + 1
+                out[n] = id
+            end
+        end
+    end
+    return n
+end
+
+function M.ReagentItems(spellID)
+    local out = {}
+    local n = FillReagentItems(spellID, out, {}, true)
+    return n and out or nil
+end
+
+-- Reverse reagent index: item -> the recipes that use it. Built in batches (Step(n) reads n recipes), so a
+-- caller can spread the ~2,000 client calls over frames. Frame-free: UsedIn.lua drives it.
+-- Recipes are read by line, then the skill they're learned at, then spell ID, so each item's list is in
+-- that order as it fills and never needs sorting. Each item keeps one flat { line, spellID, line,
+-- spellID... } array: a table per entry would cost about four times the memory.
+
+local UsedInIndex = {}
+UsedInIndex.__index = UsedInIndex
+
+function M.NewUsedInIndex()
+    local b = setmetatable({ lines = {}, spells = {}, pos = 1, index = {}, out = {}, seen = {},
+        read = 0, missing = 0, items = 0, entries = 0, done = false }, UsedInIndex)
+    local lines = {}
+    for line in pairs(ns.Data.Recipes or {}) do lines[#lines + 1] = line end
+    table.sort(lines)
+    -- Each recipe sorts by one number, learn * span + spellID (span is above every spell ID of the line), so
+    -- table.sort compares numbers itself instead of calling a Lua comparator ~20,000 times: that sort was the
+    -- slowest frame of the build in game (10 ms).
+    for _, line in ipairs(lines) do
+        local recipes, keys, span = ns.Data.Recipes[line], {}, 1
+        for spellID in pairs(recipes) do
+            if spellID >= span then span = spellID + 1 end
+        end
+        for spellID, rec in pairs(recipes) do keys[#keys + 1] = (rec.learn or 0) * span + spellID end
+        table.sort(keys)
+        for _, key in ipairs(keys) do
+            b.lines[#b.lines + 1], b.spells[#b.spells + 1] = line, key % span
+        end
+    end
+    b.total = #b.spells
+    return b
+end
+
+-- Read up to n more recipes. Returns true once every recipe is read. `last` is the last spell read.
+function UsedInIndex:Step(n)
+    if self.done then return true end
+    local last = math.min(self.pos + n - 1, self.total)
+    local out, seen = self.out, self.seen
+    for i = self.pos, last do
+        local line, spellID = self.lines[i], self.spells[i]
+        local count = FillReagentItems(spellID, out, seen, i)
+        self.read = self.read + 1
+        self.last = spellID
+        if not count then
+            self.missing = self.missing + 1
+        else
+            for k = 1, count do
+                local item = out[k]
+                local list = self.index[item]
+                if not list then
+                    list = {}
+                    self.index[item] = list
+                    self.items = self.items + 1
+                end
+                list[#list + 1] = line
+                list[#list + 1] = spellID
+                self.entries = self.entries + 1
+            end
+        end
+    end
+    self.pos = last + 1
+    if self.pos > self.total then
+        self.done = true
+        self.lines, self.spells, self.out, self.seen = nil, nil, nil, nil
+    end
+    return self.done
+end
+
+function UsedInIndex:Done() return self.done end
+
+-- { {line, spellID}... } (a new list each call) or nil. Complete only once Done().
+function UsedInIndex:Lookup(itemID)
+    local flat = itemID and self.index[itemID]
+    if not flat then return nil end
+    local out = {}
+    for i = 1, #flat, 2 do out[#out + 1] = { line = flat[i], spellID = flat[i + 1] } end
+    return out
+end
+
 -- Reverse index: item -> the recipes that create it, across every profession ------------------------
 
 local creating   -- [itemID] = { {line, spellID}... }, each sorted by spell ID; built on first use

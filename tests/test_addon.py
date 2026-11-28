@@ -56,6 +56,26 @@ class LoadTest(unittest.TestCase):
         self.assertEqual(a.g.ForeverProfessionalDB.filter, "missing")
         self.assertTrue(a.g.ForeverProfessionalDB.collapsed[2449])
 
+    TOOLTIP_SETTINGS = ("tooltipOwners", "tooltipTracked", "tooltipUsedIn", "tooltipUsedInNames")
+
+    def test_tooltip_settings_default_on(self):
+        a = Addon()
+        a.login()
+        for key in self.TOOLTIP_SETTINGS:
+            self.assertIs(a.g.ForeverProfessionalDB[key], True, key)
+            self.assertIs(a.ns.Setting(key), True, key)
+
+    def test_tooltip_settings_saved_false_kept(self):
+        a = Addon(setup="ForeverProfessionalDB = { tooltipUsedIn = false, tooltipOwners = false }")
+        a.login()
+        self.assertIs(a.ns.Setting("tooltipUsedIn"), False)
+        self.assertIs(a.ns.Setting("tooltipOwners"), False)
+        self.assertIs(a.ns.Setting("tooltipTracked"), True)
+
+    def test_setting_before_db(self):
+        a = Addon()
+        self.assertIs(a.ns.Setting("tooltipUsedIn"), True)
+
     def test_player_professions(self):
         a = Addon()
         profs, order = a.ns.GetPlayerProfessions()

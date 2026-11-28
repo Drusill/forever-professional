@@ -43,6 +43,7 @@ function GetRealmName() return "Realm" end
 function UnitFactionGroup() return "Horde", "Horde" end
 function UnitClass() return "Mage", "MAGE" end
 function GetTime() return os.clock() end
+function IsShiftKeyDown() return mock.shift or false end
 function geterrorhandler() return function(e) mock.errors[#mock.errors + 1] = e end end
 WOW_PROJECT_ID = 18
 RAID_CLASS_COLORS = {
@@ -186,8 +187,18 @@ function Widget:CreateFontString(name, layer, template)
     return t
 end
 function Widget:CreateMaskTexture(name) return self:CreateTexture(name) end
+-- Like the client, a button registered for some clicks ignores the others.
+function Widget:RegisterForClicks(...) self.clicks = { ... } end
 function Widget:Click(button)
-    if self.scripts.OnClick then self.scripts.OnClick(self, button or "LeftButton", false) end
+    button = button or "LeftButton"
+    if self.clicks then
+        local ok = false
+        for _, c in ipairs(self.clicks) do
+            if c == button .. "Up" or c == button .. "Down" or c == "AnyUp" or c == "AnyDown" then ok = true end
+        end
+        if not ok then return end
+    end
+    if self.scripts.OnClick then self.scripts.OnClick(self, button, false) end
 end
 function Widget:SetScrollChild(c) self.scrollChild = c; c.parent = self end
 function Widget:GetScrollChild() return self.scrollChild end
@@ -291,22 +302,36 @@ TooltipDataProcessor = {
 }
 local function newTooltip(name)
     local t = newWidget("GameTooltip", name, UIParent)
-    t.lines = {}
+    t.lines, t.colors = {}, {}
     local function clear(self)
-        self.lines = {}
+        self.lines, self.colors = {}, {}
         if self.scripts.OnTooltipCleared then self.scripts.OnTooltipCleared(self) end
     end
     function t:SetOwner(o) self.owner = o; clear(self) end
+    function t:GetOwner() return self.owner end
+    local function runItem(self)
+        for _, fn in ipairs(mock.postCalls[Enum.TooltipDataType.Item] or {}) do fn(self, { type = 0, id = self.item }) end
+    end
     function t:SetItemByID(id)
         clear(self)
         self.item = id
-        for _, fn in ipairs(mock.postCalls[Enum.TooltipDataType.Item] or {}) do fn(self, { type = 0, id = id }) end
+        runItem(self)
+    end
+    -- Like the client's: rebuild the current item tooltip, post-calls included. A test sets
+    -- `RefreshData = false` to play a client without it.
+    function t:RefreshData()
+        if not self.item then return end
+        clear(self)
+        runItem(self)
     end
     function t:GetItem() if self.item then return "Item " .. self.item, "item:" .. self.item end end
     function t:SetSpellByID(id) self.spell = id end
     function t:SetHyperlink(l) self.link = l end
-    function t:AddLine(text) self.lines[#self.lines + 1] = text end
-    function t:SetText(text) self.lines = { text } end
+    function t:AddLine(text, r, g, b)
+        self.lines[#self.lines + 1] = text
+        self.colors[#self.lines] = { r, g, b }
+    end
+    function t:SetText(text) self.lines, self.colors = { text }, { {} } end
     return t
 end
 GameTooltip = newTooltip("GameTooltip")
@@ -367,9 +392,12 @@ C_TradeSkillUI = {
         if mock.noSchematic then return nil end
         local listed = mock.schematics[id]
         if listed then
+            -- A slot is {itemID, count, alternative itemIDs...}.
             local slots = {}
             for i, r in ipairs(listed) do
-                slots[i] = { reagents = { { itemID = r[1] } }, quantityRequired = r[2] }
+                local reagents = { { itemID = r[1] } }
+                for k = 3, #r do reagents[#reagents + 1] = { itemID = r[k] } end
+                slots[i] = { reagents = reagents, quantityRequired = r[2] }
             end
             return { recipeID = id, outputItemID = mock.outputs[id], quantityMin = 1, quantityMax = 1,
                 reagentSlotSchematics = slots }

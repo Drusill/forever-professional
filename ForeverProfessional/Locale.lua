@@ -8,8 +8,10 @@ ns.L = L
 L.TITLE = "ForeverProfessional"
 L.LOADED = "loaded. Type |cffffd200/fp|r to open."
 L.HELP = "|cffffd200/fp|r toggles the window, |cffffd200/fp <profession>|r opens a profession, "
-    .. "|cffffd200/fp minimap|r shows or hides the minimap button, "
-    .. "|cffffd200/fp chars|r lists your characters, |cffffd200/fp forget <number or name>|r removes one."
+    .. "|cffffd200/fp minimap|r shows or hides the minimap button, |cffffd200/fp options|r opens the options, "
+    .. "|cffffd200/fp chars|r lists your characters, |cffffd200/fp forget <number or name>|r removes one, "
+    .. "|cffffd200/fp debug|r prints the cost of the \"Used in\" index "
+    .. "(|cffffd200/fp debug gc|r collects the garbage first)."
 L.UNKNOWN_PROFESSION = "No profession called \"%s\"."
 
 L.FILTER_ALL = "All"
@@ -88,6 +90,7 @@ L.FORGET_USAGE = "Usage: /fp forget <number or name>, with the numbers from |cff
 
 L.MINIMAP_CLICK = "Click to open or close"
 L.MINIMAP_DRAG = "Drag to move"
+L.MINIMAP_RIGHT_CLICK = "Right-click for options"
 L.MINIMAP_HIDE_HINT = "/fp minimap hides this button"
 L.MINIMAP_HIDDEN = "Minimap button hidden. Type |cffffd200/fp minimap|r to show it again."
 L.MINIMAP_SHOWN = "Minimap button shown."
@@ -156,3 +159,36 @@ L.TRACKED_EMPTY = "Nothing tracked yet. Track a recipe from its detail or the ca
 L.NEEDED_FOR = "Needed for: %s (%d)"
 L.NEEDED_MORE = "and %d more"
 L.TRACKED_TOTAL = "Tracked total: %d / %d"
+
+-- "Used in" reagent lines (UsedIn.lua)
+L.USED_IN = "Used in %d %s recipes (%d known)"
+L.USED_IN_ONE = "Used in 1 %s recipe (%d known)"
+L.USED_IN_HINT = "Hold Shift to list the recipes"
+
+-- Options window (UI/Options.lua)
+L.OPTIONS_TITLE = "ForeverProfessional options"
+L.OPTIONS_BUTTON = "Options"
+L.OPTIONS_MINIMAP = "Minimap"
+L.OPTIONS_SHOW_MINIMAP = "Show the minimap button"
+L.OPTIONS_TOOLTIPS = "Item tooltips"
+L.OPTIONS_OWNERS = "Recipe items: who knows or can learn it"
+L.OPTIONS_TRACKED = "Tracked recipes: \"Needed for\" lines"
+L.OPTIONS_USED_IN = "Reagents: \"Used in\" lines"
+L.OPTIONS_USED_IN_NAMES = "Hold Shift to list the recipes"
+
+-- /fp debug (UsedIn.lua)
+L.DEBUG_OFF = "Used in index: off (turn it on in /fp options)."
+L.DEBUG_NOT_STARTED = "Used in index: not started yet (starts %d s after login)."
+L.DEBUG_BUILDING = "Used in index: building, %d / %d recipes."
+L.DEBUG_READY = "Used in index: ready."
+L.DEBUG_COST = "Build: %.1f ms over %d frames (slowest frame %.2f ms), %.1f s wall."
+L.DEBUG_COUNTS = "Recipes: %d read, %d without reagents. Items: %d, entries: %d."
+L.DEBUG_SLOWEST = "Slowest recipe: %.2f ms (spell %d). Listing the recipes: %.2f ms."
+L.DEBUG_INDEX_KEPT = "Index kept: %d KB (a second copy, built and measured after a full garbage collection)."
+L.DEBUG_ADDON_MEMORY = "Addon memory"
+L.DEBUG_LUA_MEMORY = "Lua memory (every addon, rough)"
+L.DEBUG_MEMORY = "%s: %d KB before, %d KB right after (%+d KB, garbage included)."
+L.DEBUG_MEMORY_NOW = "%s now: %d KB (%+d KB over the build start). /fp debug gc collects the garbage first."
+L.DEBUG_MEMORY_GC = "%s after a full garbage collection: %d KB (%+d KB over the build start)."
+L.DEBUG_HOVER = "First hover: %.2f ms. Slowest hover: %.2f ms."
+L.DEBUG_NO_HOVER = "First hover: none yet. Hover a reagent, then /fp debug again."

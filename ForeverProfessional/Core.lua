@@ -50,7 +50,19 @@ local DEFAULTS = {
     tracked = {},     -- tracked recipes, in order: { {spellID, line, quantity, unit = "crafts"|"items"}... }
     minimapAngle = 225,     -- minimap button position, degrees (0 = right, 90 = top)
     minimapHidden = false,
+    -- Options window: item tooltip blocks, each on by default.
+    tooltipOwners = true,        -- recipe items: who knows or can learn the recipe
+    tooltipTracked = true,       -- "Needed for" lines of tracked recipes
+    tooltipUsedIn = true,        -- reagents: "Used in" lines (and the index behind them)
+    tooltipUsedInNames = true,   -- reagents: Shift lists the recipes
 }
+
+-- A saved setting, or its default before the saved variables load (or when the key is missing).
+function ns.Setting(key)
+    local db = ns.db
+    if db and db[key] ~= nil then return db[key] end
+    return DEFAULTS[key]
+end
 
 function ns.InitDB()
     if type(ForeverProfessionalDB) ~= "table" then ForeverProfessionalDB = {} end
@@ -147,6 +159,10 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
         if ns.MinimapButton then ns.MinimapButton.ToggleHidden() end
         return
     end
+    if msg:lower() == "options" then
+        if ns.UI and ns.UI.ToggleOptions then ns.UI.ToggleOptions() end
+        return
+    end
     local cmd, rest = msg:match("^(%S+)%s*(.-)$")
     cmd = cmd and cmd:lower()
     if cmd == "chars" then
@@ -154,6 +170,9 @@ SlashCmdList.FOREVERPROFESSIONAL = function(msg)
         return
     elseif cmd == "forget" then
         ns.ForgetCommand(rest)
+        return
+    elseif cmd == "debug" then
+        for _, line in ipairs(ns.UsedIn.DebugLines(rest:lower() == "gc")) do ns.Print(line) end
         return
     end
     if not ns.UI then return end

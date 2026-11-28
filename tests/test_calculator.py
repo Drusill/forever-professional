@@ -66,6 +66,12 @@ class ReagentsTest(unittest.TestCase):
     def test_reagents_missing(self):
         self.assertIsNone(self.M.Reagents(999999))
 
+    def test_reagents_first_of_slot(self):
+        # Pinned: a slot with alternatives gives only its first reagent (the "Used in" index reads them all).
+        self.a.run("mock.schematics[3932] = { {2589, 2, 2592} }")
+        self.M.schematics[3932] = None
+        self.assertEqual(pairs(self.M.Reagents(3932)), [(2589, 2)])
+
     def test_schematic_cached(self):
         before = self.a.mock.schematicCalls or 0
         self.M.Reagents(3926)

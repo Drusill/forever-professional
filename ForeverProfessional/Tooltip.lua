@@ -77,6 +77,16 @@ local function AddTrackedLines(tooltip, itemID)
     return true
 end
 
+-- The "Used in" block (UsedIn.lua), last: one line per profession, names under them with Shift.
+local function AddUsedInLines(tooltip, itemID)
+    local lines = ns.UsedInLines(itemID, IsShiftKeyDown and IsShiftKeyDown() or false)
+    if #lines == 0 then return false end
+    tooltip:AddLine(" ")
+    for _, l in ipairs(lines) do tooltip:AddLine(l.text, l.r, l.g, l.b) end
+    tooltip.fpUsedIn = true   -- Shift changes redraw it (below)
+    return true
+end
+
 local function ItemIDOf(tooltip, data)
     if type(data) == "table" and type(data.id) == "number" then return data.id end
     if tooltip.GetItem then
@@ -91,8 +101,11 @@ local function OnItem(tooltip, data)
     local itemID = ItemIDOf(tooltip, data)
     if not itemID or tooltip.fpItem == itemID then return end
     tooltip.fpItem = itemID   -- cleared by OnTooltipCleared, so each new tooltip gets the lines once
-    local added = ns.AddRecipeLines(tooltip, itemID)
-    if AddTrackedLines(tooltip, itemID) then added = true end
+    -- Each block can be turned off in the options window.
+    local added = false
+    if ns.Setting("tooltipOwners") and ns.AddRecipeLines(tooltip, itemID) then added = true end
+    if ns.Setting("tooltipTracked") and AddTrackedLines(tooltip, itemID) then added = true end
+    if ns.Setting("tooltipUsedIn") and AddUsedInLines(tooltip, itemID) then added = true end
     if added then tooltip:Show() end
 end
 
@@ -111,6 +124,31 @@ for _, tooltip in ipairs({ GameTooltip, ItemRefTooltip }) do
         if not viaProcessor then
             pcall(tooltip.HookScript, tooltip, "OnTooltipSetItem", function(self) Safe(self) end)
         end
-        pcall(tooltip.HookScript, tooltip, "OnTooltipCleared", function(self) self.fpItem = nil end)
+        pcall(tooltip.HookScript, tooltip, "OnTooltipCleared", function(self)
+            self.fpItem, self.fpUsedIn = nil, nil
+        end)
     end
 end
+
+-- Pressing or releasing Shift redraws a shown tooltip with "Used in" lines, so the recipe names come and
+-- go without moving the mouse. RefreshData rebuilds the tooltip (post-calls included); without it, the
+-- owner's OnEnter sets it again.
+local function Redraw(tooltip)
+    if not (tooltip and tooltip.fpUsedIn and tooltip:IsShown()) then return end
+    if tooltip.RefreshData then
+        tooltip:RefreshData()
+        return
+    end
+    local owner = tooltip.GetOwner and tooltip:GetOwner()
+    local onEnter = owner and owner.GetScript and owner:GetScript("OnEnter")
+    if onEnter then onEnter(owner) end
+end
+
+ns.On("MODIFIER_STATE_CHANGED", function(key)
+    if key ~= "LSHIFT" and key ~= "RSHIFT" then return end
+    if not (ns.Setting("tooltipUsedIn") and ns.Setting("tooltipUsedInNames")) then return end
+    for _, tooltip in ipairs({ GameTooltip, ItemRefTooltip }) do
+        local ok, err = pcall(Redraw, tooltip)
+        if not ok and geterrorhandler then geterrorhandler()(err) end
+    end
+end)
